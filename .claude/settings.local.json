@@ -1,0 +1,18 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git -C /c/Users/matix/Downloads/ProjectHra status)",
+      "Bash(git -C /c/Users/matix/Downloads/ProjectHra log --oneline)",
+      "Bash(git -C /c/Users/matix/Downloads/ProjectHra remote -v)",
+      "Bash(git -C /c/Users/matix/Downloads/ProjectHra remote set-url origin https://github.com/matixiiik/ProjektHra.git)",
+      "Bash(git -C /c/Users/matix/Downloads/ProjectHra push -u origin main)",
+      "Bash(git remote *)",
+      "Bash(git push *)",
+      "Bash(git rm *)",
+      "Bash(git add *)",
+      "Bash(git commit *)",
+      "Bash(git count-objects *)",
+      "Bash(git init *)"
+    ]
+  }
+}

@@ -1,0 +1,22 @@
+# Unity generated
+Library/
+Temp/
+Obj/
+Build/
+Builds/
+Logs/
+UserSettings/
+MemoryCaptures/
+
+# Visual Studio / Rider
+.vs/
+*.csproj
+*.sln
+*.slnx
+UpgradeLog.htm
+Assembly-CSharp*.csproj
+Assembly-CSharp-Editor*.csproj
+
+# OS
+.DS_Store
+Thumbs.db

@@ -1,26 +1,18 @@
-﻿using UnityEngine;
+using UnityEngine;
 using System.Collections.Generic;
 using System;
 
 [Serializable]
 public class GameData
 {
-    public int playerGridX = 0;
-    public int playerGridY = 0;
-    public int coins = 0;
-
-    public bool hasSpeedUpgrade = false;
-    public bool hasRodUpgrade = false;
-
-    // Změna: Nyní ukládáme TileStatus objekt
+    public int playerGridX;
+    public int playerGridY;
+    public int coins;
+    public bool hasSpeedUpgrade;
+    public bool hasRodUpgrade;
+    public int fishCount;
+    public int treasureCount;
     public SerializableDictionary<string, TileStatus> tileData = new SerializableDictionary<string, TileStatus>();
-
-    public GameData()
-    {
-        playerGridX = 0;
-        playerGridY = 0;
-        coins = 0;
-    }
 }
 
 [Serializable]
@@ -28,7 +20,7 @@ public class SerializableDictionary<K, V> : Dictionary<K, V>, ISerializationCall
 {
     [SerializeField] private List<K> keys = new List<K>();
     [SerializeField] private List<V> values = new List<V>();
-    
+
     public void OnBeforeSerialize()
     {
         keys.Clear();
@@ -39,14 +31,12 @@ public class SerializableDictionary<K, V> : Dictionary<K, V>, ISerializationCall
             values.Add(pair.Value);
         }
     }
-    
+
     public void OnAfterDeserialize()
     {
         this.Clear();
         if (keys.Count != values.Count) return;
         for (int i = 0; i < keys.Count; i++)
-        {
             this.Add(keys[i], values[i]);
-        }
     }
 }

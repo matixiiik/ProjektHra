@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 
 public enum TileType
 {
@@ -14,11 +14,11 @@ public enum TileType
 public class TileStatus
 {
     public int type;
-    public bool isExplored = false; // Nové: pro minimapu a mlhu
+    public bool isExplored;
+    public int fishRemaining;
 
     public TileStatus(int type)
     {
         this.type = type;
-        this.isExplored = false;
     }
 }

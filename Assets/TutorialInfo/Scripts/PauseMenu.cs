@@ -1,4 +1,4 @@
-﻿using UnityEngine;
+using UnityEngine;
 
 public class PauseMenu : MonoBehaviour
 {
@@ -13,9 +13,7 @@ public class PauseMenu : MonoBehaviour
     {
         grid = FindFirstObjectByType<GridManager>();
         player = FindFirstObjectByType<PlayerController>();
-
-        if (menuRoot != null)
-            menuRoot.SetActive(false);
+        if (menuRoot != null) menuRoot.SetActive(false);
     }
 
     void Update()
@@ -27,27 +25,28 @@ public class PauseMenu : MonoBehaviour
         }
     }
 
+    private void SetMenuOpen(bool open)
+    {
+        isOpen = open;
+        if (menuRoot != null) menuRoot.SetActive(open);
+    }
+
     public void OpenMenu()
     {
-        isOpen = true;
-        if (menuRoot != null) menuRoot.SetActive(true);
-        Time.timeScale = 0f; // pause
+        SetMenuOpen(true);
+        Time.timeScale = 0f;
     }
 
     public void ContinueGame()
     {
-        isOpen = false;
-        if (menuRoot != null) menuRoot.SetActive(false);
-        Time.timeScale = 1f; // resume
+        SetMenuOpen(false);
+        Time.timeScale = 1f;
     }
 
     public void NewGame()
     {
-        // resume čas, ať se věci správně inicializují
         Time.timeScale = 1f;
-        isOpen = false;
-        if (menuRoot != null) menuRoot.SetActive(false);
-
+        SetMenuOpen(false);
         if (grid != null) grid.NewGameReset();
         if (player != null) player.TeleportTo(grid.gameData.playerGridX, grid.gameData.playerGridY);
     }
@@ -55,11 +54,7 @@ public class PauseMenu : MonoBehaviour
     public void ExitGame()
     {
         Time.timeScale = 1f;
-
-        // Build
         Application.Quit();
-
-        // Editor (aby to šlo testovat v Unity)
 #if UNITY_EDITOR
         UnityEditor.EditorApplication.isPlaying = false;
 #endif

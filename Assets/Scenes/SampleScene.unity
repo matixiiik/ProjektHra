@@ -129,6 +129,7 @@ GameObject:
   m_Component:
   - component: {fileID: 103129292}
   - component: {fileID: 103129291}
+  - component: {fileID: 103129293}
   m_Layer: 3
   m_Name: Player
   m_TagString: Untagged
@@ -172,6 +173,18 @@ Transform:
   - {fileID: 1466543860}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &103129293
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 103129290}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a67558a23d9f8da4ba6b1bf8640d3646, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::WorkIndicator
 --- !u!1 &127161204
 GameObject:
   m_ObjectHideFlags: 0
@@ -533,6 +546,8 @@ GameObject:
   m_Component:
   - component: {fileID: 341549785}
   - component: {fileID: 341549784}
+  - component: {fileID: 341549787}
+  - component: {fileID: 341549786}
   m_Layer: 0
   m_Name: HarborManager
   m_TagString: Untagged
@@ -569,6 +584,35 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &341549786
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 341549783}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d32529247d823f8429ef925cefce3855, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::QuestShopManager
+  fishSellPrice: 10
+  treasureSellPrice: 30
+--- !u!114 &341549787
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 341549783}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7be313b5d37af2443a58690658d8c0d2, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::UpgradeShopManager
+  speedUpgradeCost: 150
+  rodUpgradeCost: 100
+  miningUpgradeCost: 120
 --- !u!1 &410087039
 GameObject:
   m_ObjectHideFlags: 0
@@ -595,14 +639,14 @@ Light:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 410087039}
   m_Enabled: 1
-  serializedVersion: 11
+  serializedVersion: 12
   m_Type: 1
   m_Color: {r: 1, g: 1, b: 1, a: 1}
   m_Intensity: 2
   m_Range: 10
   m_SpotAngle: 30
   m_InnerSpotAngle: 21.80208
-  m_CookieSize: 10
+  m_CookieSize2D: {x: 10, y: 10}
   m_Shadows:
     m_Type: 2
     m_Resolution: -1
@@ -908,6 +952,50 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 517989361}
   m_CullTransparentMesh: 1
+--- !u!1 &659142571
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 659142573}
+  - component: {fileID: 659142572}
+  m_Layer: 0
+  m_Name: Hud
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &659142572
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 659142571}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f4c9d7fe53823e047b10be7e95317923, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::HUDCounter
+--- !u!4 &659142573
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 659142571}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: -0.04307, y: 0.35, z: 0.59512}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &832575517
 GameObject:
   m_ObjectHideFlags: 0
@@ -1137,6 +1225,7 @@ MeshRenderer:
   m_SortingLayerID: 0
   m_SortingLayer: 0
   m_SortingOrder: 0
+  m_MaskInteraction: 0
   m_AdditionalVertexStreams: {fileID: 0}
 --- !u!33 &841115724
 MeshFilter:
@@ -1180,12 +1269,25 @@ MonoBehaviour:
   treasurePrefab: {fileID: 986302855265727183, guid: d0a721469033d2e4fa44b4fc15364922, type: 3}
   harborPrefab: {fileID: 1075094668512051077, guid: 7d3abd9f9d9412d4ab194e7d664c3ca0, type: 3}
   pierPrefab: {fileID: 6430876485790390785, guid: 830fadd091ded834abdb13b8567c285b, type: 3}
+  upgradeShopPrefab: {fileID: 6430876485790390785, guid: 70b8054b13d4d344abf0c13e70594fbd, type: 3}
+  questShopPrefab: {fileID: 6430876485790390785, guid: ebe0c438c05fd434489e7ba14298bb43, type: 3}
   gameData:
     playerGridX: 0
     playerGridY: 0
     coins: 0
     hasSpeedUpgrade: 0
     hasRodUpgrade: 0
+    hasMiningUpgrade: 0
+    fishCount: 0
+    treasureCount: 0
+    activeQuest:
+      hasQuest: 0
+      questType: 0
+      description: 
+      target: 0
+      progress: 0
+      cost: 0
+      reward: 0
     tileData:
       keys: []
       values: []
@@ -1306,6 +1408,7 @@ MeshRenderer:
   m_SortingLayerID: 0
   m_SortingLayer: 0
   m_SortingOrder: 0
+  m_MaskInteraction: 0
   m_AdditionalVertexStreams: {fileID: 0}
 --- !u!33 &1466543863
 MeshFilter:
@@ -1406,6 +1509,7 @@ MonoBehaviour:
   fishColor: {r: 0.1, g: 0.35, b: 0.85, a: 1}
   treasureColor: {r: 0.95, g: 0.65, b: 0.1, a: 1}
   harborColor: {r: 0.2, g: 0.85, b: 0.2, a: 1}
+  pierColor: {r: 0.1, g: 0.1, b: 0.1, a: 1}
   fogColor: {r: 0.4, g: 0.4, b: 0.4, a: 1}
   playerColor: {r: 1, g: 1, b: 1, a: 1}
   borderPixels: 2
@@ -2000,3 +2104,4 @@ SceneRoots:
   - {fileID: 2086028402}
   - {fileID: 2044300836}
   - {fileID: 1502176695}
+  - {fileID: 659142573}

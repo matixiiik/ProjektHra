@@ -3,6 +3,32 @@ using System.Collections.Generic;
 using System;
 
 [Serializable]
+public class ActiveQuest
+{
+    public bool hasQuest;
+    public int questType; // 0=ryby, 1=poklady
+    public string description;
+    public int target;
+    public int progress;
+    public int cost;
+    public int reward;
+    public int multiplier;
+
+    public bool IsComplete => hasQuest && progress >= target;
+
+    public void Reset()
+    {
+        hasQuest = false;
+        questType = 0;
+        description = "";
+        target = 0;
+        progress = 0;
+        cost = 0;
+        reward = 0;
+    }
+}
+
+[Serializable]
 public class GameData
 {
     public int playerGridX;
@@ -10,8 +36,10 @@ public class GameData
     public int coins;
     public bool hasSpeedUpgrade;
     public bool hasRodUpgrade;
+    public bool hasMiningUpgrade;
     public int fishCount;
     public int treasureCount;
+    public ActiveQuest activeQuest = new ActiveQuest();
     public SerializableDictionary<string, TileStatus> tileData = new SerializableDictionary<string, TileStatus>();
 }
 

@@ -7,7 +7,9 @@ public enum TileType
     Water_Fish = 2,
     Treasure = 3,
     Harbor = 4,
-    Pier = 5
+    Pier = 5,
+    UpgradeShop = 6,
+    QuestShop = 7
 }
 
 [Serializable]

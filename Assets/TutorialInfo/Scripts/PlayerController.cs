@@ -5,6 +5,8 @@ public class PlayerController : MonoBehaviour
 {
     private GridManager gridManager;
     private HarborManager harborManager;
+    private UpgradeShopManager upgradeShopManager;
+    private QuestShopManager questShopManager;
 
     public GameObject headDot;
     public Transform boatModel;
@@ -29,6 +31,8 @@ public class PlayerController : MonoBehaviour
     {
         gridManager = FindFirstObjectByType<GridManager>();
         harborManager = FindFirstObjectByType<HarborManager>();
+        upgradeShopManager = FindFirstObjectByType<UpgradeShopManager>();
+        questShopManager = FindFirstObjectByType<QuestShopManager>();
 
         transform.position = new Vector3(gridManager.gameData.playerGridX, 0.5f, gridManager.gameData.playerGridY);
         boatGridX = gridManager.gameData.playerGridX;
@@ -40,11 +44,14 @@ public class PlayerController : MonoBehaviour
 
     void Update()
     {
-        if (isMoving || isWorking) return;
+        bool shopOpen = (upgradeShopManager != null && upgradeShopManager.IsOpen)
+                     || (questShopManager != null && questShopManager.IsOpen);
+        if (isMoving || isWorking || shopOpen) return;
 
         if (Input.GetKeyDown(KeyCode.E))
         {
-            TryToggleBoatFoot();
+            if (!TryOpenAdjacentShop())
+                TryToggleBoatFoot();
             return;
         }
 
@@ -58,7 +65,7 @@ public class PlayerController : MonoBehaviour
 
         if (x != 0 || y != 0) AttemptMove(x, y);
 
-        if (!isOnFoot && Input.GetKeyDown(KeyCode.Space)) TryInteract();
+        if (Input.GetKeyDown(KeyCode.Space)) TryInteract();
     }
 
     void AttemptMove(int x, int y)
@@ -84,7 +91,7 @@ public class PlayerController : MonoBehaviour
 
     bool CanEnter(TileType t)
     {
-        if (!isOnFoot) return t != TileType.Harbor;
+        if (!isOnFoot) return t == TileType.Water || t == TileType.Water_Fish || t == TileType.Treasure || t == TileType.Pier;
         return t == TileType.Harbor || t == TileType.Pier;
     }
 
@@ -178,13 +185,27 @@ public class PlayerController : MonoBehaviour
 
     void TryInteract()
     {
+        if (isOnFoot) return;
         int cx = gridManager.gameData.playerGridX;
         int cy = gridManager.gameData.playerGridY;
         TileType type = gridManager.GetTileType(cx, cy);
-
         if (type == TileType.Water_Fish) StartCoroutine(FishingRoutine(cx, cy));
         else if (type == TileType.Treasure) StartCoroutine(MineRoutine(cx, cy));
-        else if (type == TileType.Harbor) harborManager.DisplayShopOptions();
+    }
+
+    bool TryOpenAdjacentShop()
+    {
+        if (!isOnFoot) return false;
+        int px = gridManager.gameData.playerGridX;
+        int py = gridManager.gameData.playerGridY;
+        Vector2Int[] dirs = { Vector2Int.right, Vector2Int.left, Vector2Int.up, Vector2Int.down };
+        foreach (var d in dirs)
+        {
+            TileType t = gridManager.GetTileType(px + d.x, py + d.y);
+            if (t == TileType.UpgradeShop && upgradeShopManager != null) { upgradeShopManager.Open(); return true; }
+            if (t == TileType.QuestShop && questShopManager != null) { questShopManager.Open(); return true; }
+        }
+        return false;
     }
 
     IEnumerator FishingRoutine(int cx, int cy)
@@ -211,6 +232,10 @@ public class PlayerController : MonoBehaviour
         tile.fishRemaining -= actual;
         gridManager.gameData.fishCount += actual;
 
+        ActiveQuest q = gridManager.gameData.activeQuest;
+        if (q.hasQuest && q.questType == 0)
+            q.progress = Mathf.Min(q.progress + actual, q.target);
+
         if (tile.fishRemaining <= 0)
             gridManager.SetTileType(cx, cy, TileType.Water);
 
@@ -225,15 +250,21 @@ public class PlayerController : MonoBehaviour
         isWorking = true;
         WorkProgress = 0f;
 
+        float duration = gridManager.gameData.hasMiningUpgrade ? miningDuration * 0.5f : miningDuration;
         float elapsed = 0f;
-        while (elapsed < miningDuration)
+        while (elapsed < duration)
         {
             elapsed += Time.deltaTime;
-            WorkProgress = elapsed / miningDuration;
+            WorkProgress = elapsed / duration;
             yield return null;
         }
 
         gridManager.gameData.treasureCount += 1;
+
+        ActiveQuest q = gridManager.gameData.activeQuest;
+        if (q.hasQuest && q.questType == 1)
+            q.progress = Mathf.Min(q.progress + 1, q.target);
+
         gridManager.SetTileType(x, y, TileType.Water);
 
         WorkProgress = 0f;

@@ -11,6 +11,8 @@ public class GridManager : MonoBehaviour
     public GameObject treasurePrefab;
     public GameObject harborPrefab;
     public GameObject pierPrefab;
+    public GameObject upgradeShopPrefab;
+    public GameObject questShopPrefab;
 
     [HideInInspector] public GameData gameData;
     private Dictionary<string, GameObject> activeTiles = new Dictionary<string, GameObject>();
@@ -59,7 +61,9 @@ public class GridManager : MonoBehaviour
                          || Mathf.Abs(y - gameData.playerGridY) > CLEANUP_LIMIT;
             bool isImportant = entry.Value.type == (int)TileType.Harbor
                             || entry.Value.isExplored
-                            || entry.Value.type == (int)TileType.Pier;
+                            || entry.Value.type == (int)TileType.Pier
+                            || entry.Value.type == (int)TileType.UpgradeShop
+                            || entry.Value.type == (int)TileType.QuestShop;
             if (isTooFar && !isImportant) keysToRemove.Add(entry.Key);
         }
         foreach (string key in keysToRemove) gameData.tileData.Remove(key);
@@ -149,7 +153,8 @@ public class GridManager : MonoBehaviour
                 string key = GridKey(x, y);
                 if (!gameData.tileData.ContainsKey(key)) continue;
                 int t = gameData.tileData[key].type;
-                if (t == (int)TileType.Harbor || t == (int)TileType.Pier) return false;
+                if (t == (int)TileType.Harbor || t == (int)TileType.Pier
+                    || t == (int)TileType.UpgradeShop || t == (int)TileType.QuestShop) return false;
             }
         }
         return true;
@@ -164,7 +169,8 @@ public class GridManager : MonoBehaviour
         foreach (var kv in gameData.tileData)
         {
             int t = kv.Value.type;
-            if (t != (int)TileType.Harbor && t != (int)TileType.Pier) continue;
+            if (t != (int)TileType.Harbor && t != (int)TileType.Pier
+                && t != (int)TileType.UpgradeShop && t != (int)TileType.QuestShop) continue;
 
             var (x, y) = ParseGridKey(kv.Key);
             if (Mathf.Abs(x - cx) > max || Mathf.Abs(y - cy) > max) continue;
@@ -218,6 +224,43 @@ public class GridManager : MonoBehaviour
 
         gameData.tileData[GridKey(px1, py1)] = new TileStatus((int)TileType.Pier);
         gameData.tileData[GridKey(px2, py2)] = new TileStatus((int)TileType.Pier);
+
+        PlaceShops(startX, startY, side);
+    }
+
+    private void PlaceShops(int startX, int startY, int side)
+    {
+        // Shops are 2x2, placed on the edge opposite the pier.
+        // Upgrade shop goes 2 tiles left of island center, Quest shop 2 tiles right.
+        if (side == 0) // piers at bottom (y=startY) → shops at top
+        {
+            int shopRow = startY + ISLAND_SIZE - 2;
+            PlaceShop2x2(startX + 2, shopRow, TileType.UpgradeShop);
+            PlaceShop2x2(startX + 6, shopRow, TileType.QuestShop);
+        }
+        else if (side == 1) // piers at top → shops at bottom
+        {
+            PlaceShop2x2(startX + 2, startY, TileType.UpgradeShop);
+            PlaceShop2x2(startX + 6, startY, TileType.QuestShop);
+        }
+        else if (side == 2) // piers at left → shops at right
+        {
+            int shopCol = startX + ISLAND_SIZE - 2;
+            PlaceShop2x2(shopCol, startY + 2, TileType.UpgradeShop);
+            PlaceShop2x2(shopCol, startY + 6, TileType.QuestShop);
+        }
+        else // piers at right → shops at left
+        {
+            PlaceShop2x2(startX, startY + 2, TileType.UpgradeShop);
+            PlaceShop2x2(startX, startY + 6, TileType.QuestShop);
+        }
+    }
+
+    private void PlaceShop2x2(int x, int y, TileType type)
+    {
+        for (int ix = 0; ix < 2; ix++)
+            for (int iy = 0; iy < 2; iy++)
+                gameData.tileData[GridKey(x + ix, y + iy)] = new TileStatus((int)type);
     }
 
     private TileType GenerateRandomSeaType()
@@ -293,6 +336,9 @@ public class GridManager : MonoBehaviour
         gameData.tileData[GridKey(px1, py1)] = new TileStatus((int)TileType.Pier) { isExplored = true };
         gameData.tileData[GridKey(px2, py1)] = new TileStatus((int)TileType.Pier) { isExplored = true };
 
+        // Piers are on the bottom (side=0), so shops go on the top edge
+        PlaceShops(0, 0, side: 0);
+
         gameData.playerGridX = px1;
         gameData.playerGridY = py1;
 
@@ -308,6 +354,8 @@ public class GridManager : MonoBehaviour
             case TileType.Treasure: return treasurePrefab;
             case TileType.Harbor: return harborPrefab;
             case TileType.Pier: return pierPrefab;
+            case TileType.UpgradeShop: return upgradeShopPrefab != null ? upgradeShopPrefab : harborPrefab;
+            case TileType.QuestShop: return questShopPrefab != null ? questShopPrefab : harborPrefab;
             default: return null;
         }
     }

@@ -1,5 +1,6 @@
 using UnityEngine;
 
+[DefaultExecutionOrder(-100)]
 public class PauseMenu : MonoBehaviour
 {
     [Header("UI root (Panel)")]
@@ -20,6 +21,7 @@ public class PauseMenu : MonoBehaviour
     {
         if (Input.GetKeyDown(KeyCode.Escape))
         {
+            if (UpgradeShopManager.AnyShopOpen) return;
             if (isOpen) ContinueGame();
             else OpenMenu();
         }

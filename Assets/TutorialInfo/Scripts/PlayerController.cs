@@ -34,12 +34,25 @@ public class PlayerController : MonoBehaviour
         upgradeShopManager = FindFirstObjectByType<UpgradeShopManager>();
         questShopManager = FindFirstObjectByType<QuestShopManager>();
 
+        // Obnov stav z ulozenych dat
+        isOnFoot = gridManager.gameData.isOnFoot;
+        boatGridX = gridManager.gameData.boatGridX;
+        boatGridY = gridManager.gameData.boatGridY;
+
         transform.position = new Vector3(gridManager.gameData.playerGridX, 0.5f, gridManager.gameData.playerGridY);
-        boatGridX = gridManager.gameData.playerGridX;
-        boatGridY = gridManager.gameData.playerGridY;
+
+        if (isOnFoot)
+        {
+            if (boatModel != null) boatModel.gameObject.SetActive(false);
+            if (headDot != null) headDot.SetActive(true);
+        }
+        else
+        {
+            if (boatModel != null) boatModel.gameObject.SetActive(true);
+            if (headDot != null) headDot.SetActive(false);
+        }
 
         ExploreCurrentPosition();
-        if (headDot != null) headDot.SetActive(false);
     }
 
     void Update()
@@ -73,6 +86,20 @@ public class PlayerController : MonoBehaviour
         int targetX = gridManager.gameData.playerGridX + x;
         int targetY = gridManager.gameData.playerGridY + y;
 
+        // Kdyz se pohybujeme o 2 pole, zkontroluj prostredni pole
+        // Pokud je tam ryba, poklad nebo pier, zastav se tam misto skoku pres nej
+        if (Mathf.Abs(x) == 2 || Mathf.Abs(y) == 2)
+        {
+            int midX = gridManager.gameData.playerGridX + x / 2;
+            int midY = gridManager.gameData.playerGridY + y / 2;
+            TileType midType = gridManager.GetTileType(midX, midY);
+            if (midType == TileType.Water_Fish || midType == TileType.Treasure || midType == TileType.Pier)
+            {
+                targetX = midX;
+                targetY = midY;
+            }
+        }
+
         if (!CanEnter(gridManager.GetTileType(targetX, targetY))) return;
 
         RotateBoatModel(x, y);
@@ -84,6 +111,8 @@ public class PlayerController : MonoBehaviour
         {
             boatGridX = targetX;
             boatGridY = targetY;
+            gridManager.gameData.boatGridX = boatGridX;
+            gridManager.gameData.boatGridY = boatGridY;
         }
 
         MoveToGrid(targetX, targetY);
@@ -148,6 +177,7 @@ public class PlayerController : MonoBehaviour
             if (exit == null) return;
 
             isOnFoot = true;
+            gridManager.gameData.isOnFoot = true;
             boatModel.gameObject.SetActive(false);
             if (headDot != null) headDot.SetActive(true);
 
@@ -162,6 +192,7 @@ public class PlayerController : MonoBehaviour
             if (gridManager.GetTileType(boatGridX, boatGridY) != TileType.Pier) return;
 
             isOnFoot = false;
+            gridManager.gameData.isOnFoot = false;
             boatModel.gameObject.SetActive(true);
             if (headDot != null) headDot.SetActive(false);
 

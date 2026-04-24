@@ -39,6 +39,9 @@ public class GameData
     public bool hasMiningUpgrade;
     public int fishCount;
     public int treasureCount;
+    public bool isOnFoot;
+    public int boatGridX;
+    public int boatGridY;
     public ActiveQuest activeQuest = new ActiveQuest();
     public SerializableDictionary<string, TileStatus> tileData = new SerializableDictionary<string, TileStatus>();
 }

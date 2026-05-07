@@ -6,6 +6,8 @@ public class UpgradeShopManager : MonoBehaviour
     public int speedUpgradeCost = 150;
     public int rodUpgradeCost = 100;
     public int miningUpgradeCost = 120;
+    public int shipMediumCost = 300;
+    public int shipLargeCost = 800;
 
     private GridManager gridManager;
     private bool isOpen;
@@ -113,7 +115,7 @@ public class UpgradeShopManager : MonoBehaviour
         GUI.DrawTexture(new Rect(0, 0, Screen.width, Screen.height), Texture2D.whiteTexture);
         GUI.color = Color.white;
 
-        float w = 560, h = 370;
+        float w = 560, h = 460;
         float px = (Screen.width - w) / 2f;
         float py = (Screen.height - h) / 2f;
 
@@ -139,10 +141,29 @@ public class UpgradeShopManager : MonoBehaviour
         GUILayout.Space(8);
         DrawRow("Rychlost tezby  —  tezba 2x rychleji", miningUpgradeCost, d.hasMiningUpgrade,
             () => TryBuy(ref gridManager.gameData.hasMiningUpgrade, miningUpgradeCost));
+        GUILayout.Space(8);
+        DrawShipRow("Lod stredni  —  lepsi vzhled", shipMediumCost, d.shipLevel, 1);
+        GUILayout.Space(8);
+        DrawShipRow("Lod velka  —  nejlepsi vzhled", shipLargeCost, d.shipLevel, 2);
 
         GUILayout.Space(18);
         GUILayout.Label($"Mince: {d.coins}", coinsStyle);
         GUILayout.EndArea();
+    }
+
+    private void DrawShipRow(string label, int cost, int currentLevel, int requiredLevel)
+    {
+        bool owned = currentLevel >= requiredLevel;
+        bool canBuy = currentLevel == requiredLevel - 1; // musí mít předchozí úroveň
+        DrawRow(label, cost, owned, () =>
+        {
+            if (!canBuy || gridManager.gameData.coins < cost) return;
+            gridManager.gameData.coins -= cost;
+            gridManager.gameData.shipLevel = requiredLevel;
+            gridManager.Save();
+            gridManager.NotifyWorldChanged();
+            FindFirstObjectByType<ShipModelSwitcher>()?.Apply();
+        });
     }
 
     private void DrawRow(string label, int cost, bool owned, System.Action onBuy)

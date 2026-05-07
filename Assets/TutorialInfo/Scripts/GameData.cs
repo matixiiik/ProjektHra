@@ -42,6 +42,7 @@ public class GameData
     public bool isOnFoot;
     public int boatGridX;
     public int boatGridY;
+    public int shipLevel; // 0=small, 1=medium, 2=large
     public ActiveQuest activeQuest = new ActiveQuest();
     public SerializableDictionary<string, TileStatus> tileData = new SerializableDictionary<string, TileStatus>();
 }

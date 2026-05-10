@@ -3,7 +3,8 @@ using System.Collections.Generic;
 
 public class GameConsole : MonoBehaviour
 {
-    private bool isOpen = false;
+    public static bool IsOpen { get; private set; }
+
     private string input = "";
     private List<string> log = new List<string>();
     private Vector2 scroll;
@@ -17,42 +18,49 @@ public class GameConsole : MonoBehaviour
 
     void Start()
     {
-        grid        = FindFirstObjectByType<GridManager>();
-        player      = FindFirstObjectByType<PlayerController>();
+        grid         = FindFirstObjectByType<GridManager>();
+        player       = FindFirstObjectByType<PlayerController>();
         shipSwitcher = FindFirstObjectByType<ShipModelSwitcher>();
 
         Log("<color=#44ff44>=== GAME CONSOLE ===</color>");
         Log("Napiš <color=#ffff88>help</color> pro seznam příkazů.");
     }
 
+    void Update()
+    {
+        // klavesa ` (nad Tab, vlevo od 1)
+        if (Input.GetKeyDown(KeyCode.BackQuote))
+        {
+            IsOpen = !IsOpen;
+            if (IsOpen) input = "";
+        }
+    }
+
     void OnGUI()
     {
-        // Zachyt ; zde aby se nevepsalo do inputu
-        if (Event.current.type == EventType.KeyDown && Event.current.keyCode == KeyCode.Semicolon)
-        {
-            isOpen = !isOpen;
-            if (isOpen) input = "";
-            Event.current.Use();
-            return;
-        }
-
-        if (!isOpen) return;
+        if (!IsOpen) return;
         InitStyles();
+
+        // Spoj Enter pres Event (funguje spolehliveje nez Update)
+        Event e = Event.current;
+        if (e.type == EventType.KeyDown &&
+            (e.keyCode == KeyCode.Return || e.keyCode == KeyCode.KeypadEnter) &&
+            input.Trim() != "")
+        {
+            ExecuteCommand(input.Trim());
+            input = "";
+            e.Use();
+        }
 
         float w = 460, h = 300;
         float px = 10, py = 10;
 
-        // Pozadi
         GUI.color = new Color(0f, 0f, 0f, 0.88f);
         GUI.DrawTexture(new Rect(px, py, w, h), Texture2D.whiteTexture);
-        GUI.color = new Color(0.2f, 0.9f, 0.2f);
-        GUI.DrawTexture(new Rect(px, py, w, 2), Texture2D.whiteTexture);
-        GUI.DrawTexture(new Rect(px, py + h - 2, w, 2), Texture2D.whiteTexture);
         GUI.color = Color.white;
 
         GUILayout.BeginArea(new Rect(px + 8, py + 8, w - 16, h - 16));
 
-        // Log
         scroll = GUILayout.BeginScrollView(scroll, false, false, GUIStyle.none, GUIStyle.none, GUILayout.Height(238));
         foreach (var line in log)
             GUILayout.Label(line, logStyle);
@@ -60,7 +68,6 @@ public class GameConsole : MonoBehaviour
 
         GUILayout.Space(2);
 
-        // Input radek
         GUILayout.BeginHorizontal();
         GUILayout.Label(">", promptStyle, GUILayout.Width(14));
         GUI.SetNextControlName("ConsoleInput");
@@ -69,17 +76,7 @@ public class GameConsole : MonoBehaviour
 
         GUILayout.EndArea();
 
-        // Fokus na input
-        if (Event.current.type == EventType.Repaint)
-            GUI.FocusControl("ConsoleInput");
-
-        // Enter = spust prikaz
-        if (Event.current.type == EventType.KeyDown && Event.current.keyCode == KeyCode.Return && input.Trim() != "")
-        {
-            ExecuteCommand(input.Trim());
-            input = "";
-            Event.current.Use();
-        }
+        GUI.FocusControl("ConsoleInput");
     }
 
     void Log(string msg)
@@ -98,24 +95,24 @@ public class GameConsole : MonoBehaviour
         {
             case "help":
                 Log("──────────────────────────────");
-                Log("<color=#ffff88>get money</color> <castka>          přidá mince");
-                Log("<color=#ffff88>get fish</color> <pocet>            přidá ryby");
-                Log("<color=#ffff88>get treasure</color> <pocet>        přidá poklady");
-                Log("<color=#ffff88>get boat</color> small/medium/large  změní loď");
-                Log("<color=#ffff88>upgrade</color> speed/rod/mining     odemkne upgrade");
-                Log("<color=#ffff88>tp</color> <x> <y>                  teleport");
-                Log("<color=#ffff88>explore</color> [radius]            odhalí mapu");
-                Log("<color=#ffff88>reset money</color>                  vynuluje mince");
-                Log("<color=#ffff88>clear</color>                        vymaže konzoli");
+                Log("<color=#ffff88>get money</color> <castka>           přidá mince");
+                Log("<color=#ffff88>get fish</color> <pocet>             přidá ryby");
+                Log("<color=#ffff88>get treasure</color> <pocet>         přidá poklady");
+                Log("<color=#ffff88>get boat</color> small/medium/large   změní loď");
+                Log("<color=#ffff88>upgrade</color> speed/rod/mining      odemkne upgrade");
+                Log("<color=#ffff88>tp</color> <x> <y>                   teleport");
+                Log("<color=#ffff88>explore</color> [radius]             odhalí mapu");
+                Log("<color=#ffff88>reset money</color>                   vynuluje mince");
+                Log("<color=#ffff88>clear</color>                         vymaže konzoli");
                 Log("──────────────────────────────");
                 break;
 
-            case "get":    HandleGet(p);     break;
+            case "get":     HandleGet(p);     break;
             case "upgrade": HandleUpgrade(p); break;
-            case "tp":     HandleTp(p);      break;
+            case "tp":      HandleTp(p);      break;
             case "explore": HandleExplore(p); break;
-            case "reset":  HandleReset(p);   break;
-            case "clear":  log.Clear();      break;
+            case "reset":   HandleReset(p);   break;
+            case "clear":   log.Clear();      break;
 
             default:
                 Log($"<color=#ff6666>Neznámý příkaz: {p[0]}</color>  (napiš <color=#ffff88>help</color>)");
@@ -171,9 +168,9 @@ public class GameConsole : MonoBehaviour
 
         switch (p[1])
         {
-            case "speed":   grid.gameData.hasSpeedUpgrade  = true; Log("✓ Upgrade: <color=#44ff44>rychlost lodi</color> odemčena"); break;
-            case "rod":     grid.gameData.hasRodUpgrade    = true; Log("✓ Upgrade: <color=#44ff44>lepší prut</color> odemčen");    break;
-            case "mining":  grid.gameData.hasMiningUpgrade = true; Log("✓ Upgrade: <color=#44ff44>rychlost těžby</color> odemčena"); break;
+            case "speed":  grid.gameData.hasSpeedUpgrade  = true; Log("✓ <color=#44ff44>Rychlost lodi</color> odemčena"); break;
+            case "rod":    grid.gameData.hasRodUpgrade    = true; Log("✓ <color=#44ff44>Lepší prut</color> odemčen");    break;
+            case "mining": grid.gameData.hasMiningUpgrade = true; Log("✓ <color=#44ff44>Rychlost těžby</color> odemčena"); break;
             default: Log($"Neznámý upgrade: {p[1]}  (speed / rod / mining)"); return;
         }
 
@@ -185,7 +182,6 @@ public class GameConsole : MonoBehaviour
     {
         if (p.Length < 3 || !int.TryParse(p[1], out int x) || !int.TryParse(p[2], out int y))
         { Log("Použití: tp <x> <y>"); return; }
-
         player.TeleportTo(x, y);
         Log($"Teleport → [{x}, {y}]");
     }
@@ -226,8 +222,8 @@ public class GameConsole : MonoBehaviour
         {
             fontSize = 14,
             fontStyle = FontStyle.Bold,
-            normal   = { textColor = Color.green, background = MakeTex(new Color(0.04f, 0.1f, 0.04f)) },
-            focused  = { textColor = Color.green, background = MakeTex(new Color(0.04f, 0.1f, 0.04f)) }
+            normal  = { textColor = Color.green, background = MakeTex(new Color(0.04f, 0.1f, 0.04f)) },
+            focused = { textColor = Color.green, background = MakeTex(new Color(0.04f, 0.1f, 0.04f)) }
         };
 
         stylesReady = true;

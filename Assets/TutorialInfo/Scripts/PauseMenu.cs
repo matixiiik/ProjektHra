@@ -51,6 +51,7 @@ public class PauseMenu : MonoBehaviour
         SetMenuOpen(false);
         if (grid != null) grid.NewGameReset();
         if (player != null) player.TeleportTo(grid.gameData.playerGridX, grid.gameData.playerGridY);
+        FindFirstObjectByType<ShipModelSwitcher>()?.Apply();
     }
 
     public void ExitGame()

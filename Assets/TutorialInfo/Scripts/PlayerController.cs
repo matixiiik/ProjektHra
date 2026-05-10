@@ -59,7 +59,7 @@ public class PlayerController : MonoBehaviour
     {
         bool shopOpen = (upgradeShopManager != null && upgradeShopManager.IsOpen)
                      || (questShopManager != null && questShopManager.IsOpen);
-        if (isMoving || isWorking || shopOpen) return;
+        if (isMoving || isWorking || shopOpen || GameConsole.IsOpen) return;
 
         if (Input.GetKeyDown(KeyCode.E))
         {

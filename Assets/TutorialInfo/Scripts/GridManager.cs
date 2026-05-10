@@ -381,6 +381,7 @@ public class GridManager : MonoBehaviour
     {
         SaveManager.DeleteSave();
         gameData = new GameData();
+        gameData.shipLevel = 0;
 
         foreach (var kv in activeTiles) Destroy(kv.Value);
         activeTiles.Clear();

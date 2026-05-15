@@ -20,6 +20,7 @@ public class GridManager : MonoBehaviour
     public event Action OnWorldChanged;
 
     private int fogLayer;
+    private int minimapLayer;
 
     private const int ISLAND_SIZE = 10;
     private const int ISLAND_PADDING = 1;
@@ -28,7 +29,13 @@ public class GridManager : MonoBehaviour
 
     void Awake()
     {
-        fogLayer = LayerMask.NameToLayer("Fog");
+        fogLayer      = LayerMask.NameToLayer("Fog");
+        minimapLayer  = LayerMask.NameToLayer("MinimapOnly");
+
+        // Odstraň duplicitní AudioListenery (nechá jen první)
+        var listeners = FindObjectsByType<AudioListener>(FindObjectsSortMode.None);
+        for (int i = 1; i < listeners.Length; i++) listeners[i].enabled = false;
+
         gameData = SaveManager.LoadGame();
         if (gameData.tileData.Count == 0) GenerateInitialWorld();
         GenerateWorld(gameData.playerGridX, gameData.playerGridY);
@@ -295,6 +302,10 @@ public class GridManager : MonoBehaviour
             TileType tileType = (TileType)status.type;
             if (tileType == TileType.UpgradeShop || tileType == TileType.QuestShop)
             {
+                Color iconColor = tileType == TileType.UpgradeShop
+                    ? new Color(1f, 0.8f, 0f)     // zlatá = upgrade shop
+                    : new Color(0.2f, 0.8f, 1f);  // azurová = quest shop
+
                 GameObject iconGO = GameObject.CreatePrimitive(PrimitiveType.Quad);
                 UnityEngine.Object.Destroy(iconGO.GetComponent<MeshCollider>());
                 iconGO.name = "MapIcon";
@@ -302,17 +313,32 @@ public class GridManager : MonoBehaviour
                 iconGO.transform.localPosition = new Vector3(0.5f, 2f, 0.5f);
                 iconGO.transform.localRotation = Quaternion.Euler(90f, 0f, 0f);
                 iconGO.transform.localScale = new Vector3(1.5f, 1.5f, 1f);
+
                 Renderer r = iconGO.GetComponent<Renderer>();
                 if (r != null)
-                    r.material.color = tileType == TileType.UpgradeShop
-                        ? new Color(1f, 0.8f, 0f)     // zlatá = upgrade shop
-                        : new Color(0.2f, 0.8f, 1f);  // azurová = quest shop
+                {
+                    // Vytvoř nový materiál s unlit shaderem (URP i built-in fallback)
+                    Shader sh = Shader.Find("Universal Render Pipeline/Unlit")
+                             ?? Shader.Find("Unlit/Color")
+                             ?? Shader.Find("Standard");
+                    if (sh != null)
+                    {
+                        var mat = new Material(sh);
+                        mat.color = iconColor;
+                        r.material = mat;
+                    }
+                    else
+                    {
+                        r.material.color = iconColor;
+                    }
+                }
+
                 icon = iconGO.transform;
             }
         }
 
-        if (icon != null)
-            icon.gameObject.layer = LayerMask.NameToLayer("MinimapOnly");
+        if (icon != null && minimapLayer >= 0)
+            icon.gameObject.layer = minimapLayer;
     }
 
     private void ClearOldTiles(int centerX, int centerY)

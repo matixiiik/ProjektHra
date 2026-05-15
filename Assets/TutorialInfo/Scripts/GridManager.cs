@@ -317,19 +317,21 @@ public class GridManager : MonoBehaviour
                 Renderer r = iconGO.GetComponent<Renderer>();
                 if (r != null)
                 {
-                    // Vytvoř nový materiál s unlit shaderem (URP i built-in fallback)
                     Shader sh = Shader.Find("Universal Render Pipeline/Unlit")
                              ?? Shader.Find("Unlit/Color")
                              ?? Shader.Find("Standard");
                     if (sh != null)
                     {
                         var mat = new Material(sh);
-                        mat.color = iconColor;
+                        // URP používá _BaseColor, built-in _Color
+                        mat.SetColor("_BaseColor", iconColor);
+                        mat.SetColor("_Color", iconColor);
                         r.material = mat;
                     }
                     else
                     {
-                        r.material.color = iconColor;
+                        r.material.SetColor("_BaseColor", iconColor);
+                        r.material.SetColor("_Color", iconColor);
                     }
                 }
 

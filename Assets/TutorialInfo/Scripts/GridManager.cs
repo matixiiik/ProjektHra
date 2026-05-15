@@ -296,7 +296,7 @@ public class GridManager : MonoBehaviour
             if (tileType == TileType.UpgradeShop || tileType == TileType.QuestShop)
             {
                 GameObject iconGO = GameObject.CreatePrimitive(PrimitiveType.Quad);
-                Object.Destroy(iconGO.GetComponent<MeshCollider>());
+                UnityEngine.Object.Destroy(iconGO.GetComponent<MeshCollider>());
                 iconGO.name = "MapIcon";
                 iconGO.transform.SetParent(newTile.transform);
                 iconGO.transform.localPosition = new Vector3(0.5f, 2f, 0.5f);

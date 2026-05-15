@@ -258,14 +258,15 @@ public class PlayerController : MonoBehaviour
             yield return null;
         }
 
+        // fishRemaining = počet chytnutí zbývajících (ne ryb)
+        // bez upgradu: 3 chytnutí × 1 = 3 ryby; s upgradem: 3 × 2 = 6 ryb
         int catchAmount = gridManager.gameData.hasRodUpgrade ? 2 : 1;
-        int actual = Mathf.Min(catchAmount, tile.fishRemaining);
-        tile.fishRemaining -= actual;
-        gridManager.gameData.fishCount += actual;
+        tile.fishRemaining -= 1;
+        gridManager.gameData.fishCount += catchAmount;
 
         ActiveQuest q = gridManager.gameData.activeQuest;
         if (q.hasQuest && q.questType == 0)
-            q.progress = Mathf.Min(q.progress + actual, q.target);
+            q.progress = Mathf.Min(q.progress + catchAmount, q.target);
 
         if (tile.fishRemaining <= 0)
             gridManager.SetTileType(cx, cy, TileType.Water);

@@ -288,6 +288,29 @@ public class GridManager : MonoBehaviour
         }
 
         Transform icon = newTile.transform.Find("MapIcon");
+
+        // Shopy nemají MapIcon v prefabu — vytvoř ho za běhu
+        if (icon == null)
+        {
+            TileType tileType = (TileType)status.type;
+            if (tileType == TileType.UpgradeShop || tileType == TileType.QuestShop)
+            {
+                GameObject iconGO = GameObject.CreatePrimitive(PrimitiveType.Quad);
+                Object.Destroy(iconGO.GetComponent<MeshCollider>());
+                iconGO.name = "MapIcon";
+                iconGO.transform.SetParent(newTile.transform);
+                iconGO.transform.localPosition = new Vector3(0.5f, 2f, 0.5f);
+                iconGO.transform.localRotation = Quaternion.Euler(90f, 0f, 0f);
+                iconGO.transform.localScale = new Vector3(1.5f, 1.5f, 1f);
+                Renderer r = iconGO.GetComponent<Renderer>();
+                if (r != null)
+                    r.material.color = tileType == TileType.UpgradeShop
+                        ? new Color(1f, 0.8f, 0f)     // zlatá = upgrade shop
+                        : new Color(0.2f, 0.8f, 1f);  // azurová = quest shop
+                icon = iconGO.transform;
+            }
+        }
+
         if (icon != null)
             icon.gameObject.layer = LayerMask.NameToLayer("MinimapOnly");
     }

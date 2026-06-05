@@ -113,8 +113,23 @@ public class GridManager : MonoBehaviour
 
     public void GenerateWorld(int centerX, int centerY)
     {
-        ClearOldTiles(centerX, centerY);
+        ClearOldTiles();
+        GenerateRegion(centerX, centerY);
 
+        // V multiplayeru generuj taky okolí druhého hráče
+        if (MultiplayerManager.IsMultiplayer)
+        {
+            int p1x = gameData.playerGridX,  p1y = gameData.playerGridY;
+            int p2x = gameData.player2GridX, p2y = gameData.player2GridY;
+            if (centerX != p1x || centerY != p1y) GenerateRegion(p1x, p1y);
+            if (centerX != p2x || centerY != p2y) GenerateRegion(p2x, p2y);
+        }
+
+        OnWorldChanged?.Invoke();
+    }
+
+    private void GenerateRegion(int centerX, int centerY)
+    {
         for (int x = centerX - ACTIVE_GRID_SIZE; x <= centerX + ACTIVE_GRID_SIZE; x++)
         {
             for (int y = centerY - ACTIVE_GRID_SIZE; y <= centerY + ACTIVE_GRID_SIZE; y++)
@@ -124,8 +139,6 @@ public class GridManager : MonoBehaviour
                 if (!activeTiles.ContainsKey(key)) InstantiateTile(x, y, gameData.tileData[key]);
             }
         }
-
-        OnWorldChanged?.Invoke();
     }
 
     private void CheckAndGenerateArea(int x, int y)
@@ -345,7 +358,7 @@ public class GridManager : MonoBehaviour
             icon.gameObject.layer = minimapLayer;
     }
 
-    private void ClearOldTiles(int centerX, int centerY)
+    private void ClearOldTiles()
     {
         var keysToRemove = new List<string>();
         int dist = ACTIVE_GRID_SIZE + 2;
@@ -353,7 +366,9 @@ public class GridManager : MonoBehaviour
         foreach (var tile in activeTiles)
         {
             var (x, y) = ParseGridKey(tile.Key);
-            bool nearP1 = Mathf.Abs(x - centerX) <= dist && Mathf.Abs(y - centerY) <= dist;
+            // Vždy používej aktuální pozice hráčů z gameData (ne parametr)
+            bool nearP1 = Mathf.Abs(x - gameData.playerGridX)  <= dist
+                       && Mathf.Abs(y - gameData.playerGridY)  <= dist;
             bool nearP2 = MultiplayerManager.IsMultiplayer
                        && Mathf.Abs(x - gameData.player2GridX) <= dist
                        && Mathf.Abs(y - gameData.player2GridY) <= dist;

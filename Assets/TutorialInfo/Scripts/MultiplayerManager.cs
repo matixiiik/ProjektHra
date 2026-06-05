@@ -49,6 +49,8 @@ public class MultiplayerManager : MonoBehaviour
 
         // Odstraň komponenty které mají být jen jednou v scéně
         // ShipModelSwitcher PONECHAT — řídí P2 loď samostatně
+        foreach (var c in p2Go.GetComponentsInChildren<Camera>())            Destroy(c);  // P2 nesmí mít vlastní kameru
+        foreach (var c in p2Go.GetComponentsInChildren<CameraFollow>())      Destroy(c);  // ani CameraFollow
         foreach (var c in p2Go.GetComponentsInChildren<HUDCounter>())        Destroy(c);
         foreach (var c in p2Go.GetComponentsInChildren<MinimapUIRenderer>()) Destroy(c);
         foreach (var c in p2Go.GetComponentsInChildren<GameConsole>())        Destroy(c);

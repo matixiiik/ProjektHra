@@ -44,6 +44,10 @@ public class GameData
     public int boatGridY;
     public int shipLevel; // 0=small, 1=medium, 2=large
     public ActiveQuest activeQuest = new ActiveQuest();
+
+    // Pozice hráče 2 (multiplayer, ukládá se jen v paměti)
+    public int player2GridX;
+    public int player2GridY;
     public SerializableDictionary<string, TileStatus> tileData = new SerializableDictionary<string, TileStatus>();
 }
 

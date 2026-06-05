@@ -7,14 +7,14 @@ public class MainMenuManager : MonoBehaviour
 
     private static MainMenuManager instance;
 
-    private enum MenuPage { Main, NewGame, Continue }
+    private enum MenuPage { Main, NewGame, Continue, Multiplayer }
     private MenuPage currentPage = MenuPage.Main;
 
-    private GridManager    grid;
+    private GridManager      grid;
     private PlayerController player;
     private ShipModelSwitcher shipSwitcher;
 
-    private GUIStyle titleStyle, buttonStyle, slotStyle, slotEmptyStyle, backStyle;
+    private GUIStyle titleStyle, buttonStyle, multiStyle, slotStyle, slotEmptyStyle, backStyle;
     private bool stylesReady;
 
     void Awake()
@@ -26,8 +26,8 @@ public class MainMenuManager : MonoBehaviour
 
     void Start()
     {
-        grid        = FindFirstObjectByType<GridManager>();
-        player      = FindFirstObjectByType<PlayerController>();
+        grid         = FindFirstObjectByType<GridManager>();
+        player       = FindFirstObjectByType<PlayerController>();
         shipSwitcher = FindFirstObjectByType<ShipModelSwitcher>();
     }
 
@@ -44,29 +44,29 @@ public class MainMenuManager : MonoBehaviour
         if (!IsVisible) return;
         InitStyles();
 
-        // Tmavý overlay přes celou obrazovku
         GUI.color = new Color(0f, 0.04f, 0.1f, 0.94f);
         GUI.DrawTexture(new Rect(0, 0, Screen.width, Screen.height), Texture2D.whiteTexture);
         GUI.color = Color.white;
 
         switch (currentPage)
         {
-            case MenuPage.Main:     DrawMain();                    break;
-            case MenuPage.NewGame:  DrawSlots(isNewGame: true);    break;
-            case MenuPage.Continue: DrawSlots(isNewGame: false);   break;
+            case MenuPage.Main:        DrawMain();                              break;
+            case MenuPage.NewGame:     DrawSlots("NOVÁ HRA — VYBER SLOT",     SlotMode.NewGame);     break;
+            case MenuPage.Continue:    DrawSlots("POKRAČOVAT — VYBER SLOT",   SlotMode.Continue);    break;
+            case MenuPage.Multiplayer: DrawSlots("MULTIPLAYER — VYBER SLOT",  SlotMode.Multiplayer); break;
         }
     }
 
-    // ── Hlavní stránka ───────────────────────────────────────────────────────
+    // ── Hlavní stránka ────────────────────────────────────────────────────────
     void DrawMain()
     {
-        float w = 380, h = 300;
+        float w = 380, h = 370;
         float px = (Screen.width  - w) / 2f;
         float py = (Screen.height - h) / 2f;
 
         GUILayout.BeginArea(new Rect(px, py, w, h));
         GUILayout.Label("LODNÍ DOBRODRUŽSTVÍ", titleStyle);
-        GUILayout.Space(28);
+        GUILayout.Space(20);
 
         if (GUILayout.Button("Nová hra", buttonStyle, GUILayout.Height(50)))
             currentPage = MenuPage.NewGame;
@@ -81,6 +81,11 @@ public class MainMenuManager : MonoBehaviour
 
         GUILayout.Space(10);
 
+        if (GUILayout.Button("🎮  Multiplayer (split screen)", multiStyle, GUILayout.Height(50)))
+            currentPage = MenuPage.Multiplayer;
+
+        GUILayout.Space(10);
+
         if (GUILayout.Button("Konec", buttonStyle, GUILayout.Height(50)))
         {
             Application.Quit();
@@ -92,15 +97,17 @@ public class MainMenuManager : MonoBehaviour
         GUILayout.EndArea();
     }
 
-    // ── Výběr slotu ──────────────────────────────────────────────────────────
-    void DrawSlots(bool isNewGame)
+    // ── Výběr slotu ───────────────────────────────────────────────────────────
+    enum SlotMode { NewGame, Continue, Multiplayer }
+
+    void DrawSlots(string title, SlotMode mode)
     {
-        float w = 560, h = 340;
+        float w = 580, h = 360;
         float px = (Screen.width  - w) / 2f;
         float py = (Screen.height - h) / 2f;
 
         GUILayout.BeginArea(new Rect(px, py, w, h));
-        GUILayout.Label(isNewGame ? "NOVÁ HRA — VYBER SLOT" : "POKRAČOVAT — VYBER SLOT", titleStyle);
+        GUILayout.Label(title, titleStyle);
         GUILayout.Space(18);
 
         for (int i = 0; i < 3; i++)
@@ -108,25 +115,25 @@ public class MainMenuManager : MonoBehaviour
             GameData preview = SaveManager.PeekSlot(i);
             bool exists = preview != null;
 
-            if (!isNewGame && !exists)
-            {
-                GUI.enabled = false;
-                GUILayout.Button($"  Slot {i + 1}  —  prázdný", slotEmptyStyle, GUILayout.Height(58));
-                GUI.enabled = true;
-            }
-            else
-            {
-                string label = exists
-                    ? $"  Slot {i + 1}  |  🪙 {preview.coins}  🐟 {preview.fishCount}  💎 {preview.treasureCount}"
-                    : $"  Slot {i + 1}  —  prázdný";
+            // Continue: prázdné sloty zakáž
+            bool canClick = mode != SlotMode.Continue || exists;
 
-                GUIStyle style = exists ? slotStyle : slotEmptyStyle;
-                if (GUILayout.Button(label, style, GUILayout.Height(58)))
+            string label = exists
+                ? $"  Slot {i + 1}  |  🪙 {preview.coins}  🐟 {preview.fishCount}  💎 {preview.treasureCount}"
+                : $"  Slot {i + 1}  —  prázdný";
+
+            GUI.enabled = canClick;
+            GUIStyle st = (exists || mode == SlotMode.Multiplayer) ? slotStyle : slotEmptyStyle;
+            if (GUILayout.Button(label, st, GUILayout.Height(58)))
+            {
+                switch (mode)
                 {
-                    if (isNewGame) StartNewGame(i);
-                    else           LoadGame(i);
+                    case SlotMode.NewGame:     StartNewGame(i);          break;
+                    case SlotMode.Continue:    LoadGame(i);              break;
+                    case SlotMode.Multiplayer: StartMultiplayer(i, exists); break;
                 }
             }
+            GUI.enabled = true;
             GUILayout.Space(6);
         }
 
@@ -137,7 +144,7 @@ public class MainMenuManager : MonoBehaviour
         GUILayout.EndArea();
     }
 
-    // ── Akce ─────────────────────────────────────────────────────────────────
+    // ── Akce ──────────────────────────────────────────────────────────────────
     void StartNewGame(int slot)
     {
         grid.NewGameSlot(slot);
@@ -154,13 +161,24 @@ public class MainMenuManager : MonoBehaviour
         HideMenu();
     }
 
+    void StartMultiplayer(int slot, bool exists)
+    {
+        if (exists) grid.LoadSlot(slot);
+        else        grid.NewGameSlot(slot);
+
+        player.ReloadFromData();
+        shipSwitcher?.Apply();
+        MultiplayerManager.StartMultiplayer();
+        HideMenu();
+    }
+
     void HideMenu()
     {
         IsVisible = false;
         Time.timeScale = 1f;
     }
 
-    // ── Styly ────────────────────────────────────────────────────────────────
+    // ── Styly ─────────────────────────────────────────────────────────────────
     void InitStyles()
     {
         if (stylesReady) return;
@@ -177,11 +195,16 @@ public class MainMenuManager : MonoBehaviour
             normal    = { textColor = Color.white, background = MakeTex(new Color(0.15f, 0.35f, 0.6f)) },
             hover     = { textColor = Color.white, background = MakeTex(new Color(0.2f,  0.45f, 0.75f)) }
         };
+        multiStyle = new GUIStyle(buttonStyle)
+        {
+            normal = { textColor = Color.white, background = MakeTex(new Color(0.45f, 0.2f, 0.55f)) },
+            hover  = { textColor = Color.white, background = MakeTex(new Color(0.55f, 0.28f, 0.68f)) }
+        };
         slotStyle = new GUIStyle(GUI.skin.button)
         {
             fontSize  = 15, alignment = TextAnchor.MiddleLeft,
-            normal    = { textColor = Color.white,                background = MakeTex(new Color(0.1f, 0.25f, 0.45f)) },
-            hover     = { textColor = Color.white,                background = MakeTex(new Color(0.15f, 0.35f, 0.6f)) }
+            normal    = { textColor = Color.white,                 background = MakeTex(new Color(0.1f, 0.25f, 0.45f)) },
+            hover     = { textColor = Color.white,                 background = MakeTex(new Color(0.15f, 0.35f, 0.6f)) }
         };
         slotEmptyStyle = new GUIStyle(slotStyle)
         {

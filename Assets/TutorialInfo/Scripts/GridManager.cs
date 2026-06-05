@@ -353,8 +353,11 @@ public class GridManager : MonoBehaviour
         foreach (var tile in activeTiles)
         {
             var (x, y) = ParseGridKey(tile.Key);
-            if (Mathf.Abs(x - centerX) > dist || Mathf.Abs(y - centerY) > dist)
-                keysToRemove.Add(tile.Key);
+            bool nearP1 = Mathf.Abs(x - centerX) <= dist && Mathf.Abs(y - centerY) <= dist;
+            bool nearP2 = MultiplayerManager.IsMultiplayer
+                       && Mathf.Abs(x - gameData.player2GridX) <= dist
+                       && Mathf.Abs(y - gameData.player2GridY) <= dist;
+            if (!nearP1 && !nearP2) keysToRemove.Add(tile.Key);
         }
 
         foreach (string k in keysToRemove)

@@ -23,7 +23,10 @@ public class PauseMenu : MonoBehaviour
     void Update()
     {
         if (MainMenuManager.IsVisible) return;
-        if (Input.GetKeyDown(KeyCode.Escape))
+
+        bool pausePressed = Input.GetKeyDown(KeyCode.Escape)
+                         || (MultiplayerManager.IsMultiplayer && Input.GetKeyDown(KeyCode.KeypadEnter));
+        if (pausePressed)
         {
             if (UpgradeShopManager.AnyShopOpen) return;
             if (isOpen) ContinueGame();
@@ -83,6 +86,7 @@ public class PauseMenu : MonoBehaviour
     public void GoToMainMenu()
     {
         SetMenuOpen(false);
+        if (MultiplayerManager.IsMultiplayer) MultiplayerManager.Stop();
         MainMenuManager.Show();
     }
 

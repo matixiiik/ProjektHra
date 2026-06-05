@@ -3,6 +3,8 @@ using System.Collections;
 
 public class PlayerController : MonoBehaviour
 {
+    [HideInInspector] public int playerIndex = 0; // 0 = P1 (WASD), 1 = P2 (numpad)
+
     private GridManager gridManager;
     private HarborManager harborManager;
     private UpgradeShopManager upgradeShopManager;
@@ -27,29 +29,59 @@ public class PlayerController : MonoBehaviour
     private int boatGridX;
     private int boatGridY;
 
+    // ── Pozice routuje do správného pole podle playerIndex ────────────────────
+    int GridX
+    {
+        get => playerIndex == 0 ? gridManager.gameData.playerGridX  : gridManager.gameData.player2GridX;
+        set { if (playerIndex == 0) gridManager.gameData.playerGridX  = value; else gridManager.gameData.player2GridX = value; }
+    }
+    int GridY
+    {
+        get => playerIndex == 0 ? gridManager.gameData.playerGridY  : gridManager.gameData.player2GridY;
+        set { if (playerIndex == 0) gridManager.gameData.playerGridY  = value; else gridManager.gameData.player2GridY = value; }
+    }
+
+    // ── Input helpery ─────────────────────────────────────────────────────────
+    bool P1 => playerIndex == 0;
+    bool Key    (KeyCode k1, KeyCode k2) => P1 ? Input.GetKey(k1)     : Input.GetKey(k2);
+    bool KeyDown(KeyCode k1, KeyCode k2) => P1 ? Input.GetKeyDown(k1) : Input.GetKeyDown(k2);
+
+    // ─────────────────────────────────────────────────────────────────────────
+
     void Start()
     {
-        gridManager = FindFirstObjectByType<GridManager>();
-        harborManager = FindFirstObjectByType<HarborManager>();
+        gridManager        = FindFirstObjectByType<GridManager>();
+        harborManager      = FindFirstObjectByType<HarborManager>();
         upgradeShopManager = FindFirstObjectByType<UpgradeShopManager>();
-        questShopManager = FindFirstObjectByType<QuestShopManager>();
+        questShopManager   = FindFirstObjectByType<QuestShopManager>();
 
-        // Obnov stav z ulozenych dat
-        isOnFoot = gridManager.gameData.isOnFoot;
-        boatGridX = gridManager.gameData.boatGridX;
-        boatGridY = gridManager.gameData.boatGridY;
-
-        transform.position = new Vector3(gridManager.gameData.playerGridX, 0.5f, gridManager.gameData.playerGridY);
+        if (playerIndex == 0)
+        {
+            isOnFoot  = gridManager.gameData.isOnFoot;
+            boatGridX = gridManager.gameData.boatGridX;
+            boatGridY = gridManager.gameData.boatGridY;
+            transform.position = new Vector3(gridManager.gameData.playerGridX, 0.5f, gridManager.gameData.playerGridY);
+        }
+        else
+        {
+            // P2 začíná na pozici P1, vždy v lodi
+            isOnFoot  = false;
+            boatGridX = gridManager.gameData.playerGridX;
+            boatGridY = gridManager.gameData.playerGridY;
+            gridManager.gameData.player2GridX = gridManager.gameData.playerGridX;
+            gridManager.gameData.player2GridY = gridManager.gameData.playerGridY;
+            transform.position = new Vector3(gridManager.gameData.playerGridX, 0.5f, gridManager.gameData.playerGridY);
+        }
 
         if (isOnFoot)
         {
             if (boatModel != null) boatModel.gameObject.SetActive(false);
-            if (headDot != null) headDot.SetActive(true);
+            if (headDot   != null) headDot.SetActive(true);
         }
         else
         {
             if (boatModel != null) boatModel.gameObject.SetActive(true);
-            if (headDot != null) headDot.SetActive(false);
+            if (headDot   != null) headDot.SetActive(false);
         }
 
         ExploreCurrentPosition();
@@ -58,40 +90,39 @@ public class PlayerController : MonoBehaviour
     void Update()
     {
         bool shopOpen = (upgradeShopManager != null && upgradeShopManager.IsOpen)
-                     || (questShopManager != null && questShopManager.IsOpen);
+                     || (questShopManager   != null && questShopManager.IsOpen);
         if (isMoving || isWorking || shopOpen || GameConsole.IsOpen || MainMenuManager.IsVisible) return;
 
-        if (Input.GetKeyDown(KeyCode.E))
+        // E / Numpad1 → nastoupit/vystoupit nebo otevřít obchod
+        if (KeyDown(KeyCode.E, KeyCode.Keypad1))
         {
-            if (!TryOpenAdjacentShop())
-                TryToggleBoatFoot();
+            if (!TryOpenAdjacentShop()) TryToggleBoatFoot();
             return;
         }
 
         int x = 0, y = 0;
         int step = (!isOnFoot && gridManager.gameData.hasSpeedUpgrade) ? 2 : 1;
 
-        if (Input.GetKey(KeyCode.W)) y = step;
-        else if (Input.GetKey(KeyCode.S)) y = -step;
-        else if (Input.GetKey(KeyCode.A)) x = -step;
-        else if (Input.GetKey(KeyCode.D)) x = step;
+        if      (Key(KeyCode.W, KeyCode.Keypad8)) y =  step;
+        else if (Key(KeyCode.S, KeyCode.Keypad2)) y = -step;
+        else if (Key(KeyCode.A, KeyCode.Keypad4)) x = -step;
+        else if (Key(KeyCode.D, KeyCode.Keypad6)) x =  step;
 
         if (x != 0 || y != 0) AttemptMove(x, y);
 
-        if (Input.GetKeyDown(KeyCode.Space)) TryInteract();
+        // Space / Numpad0 → interakce (rybaření / těžba)
+        if (KeyDown(KeyCode.Space, KeyCode.Keypad0)) TryInteract();
     }
 
     void AttemptMove(int x, int y)
     {
-        int targetX = gridManager.gameData.playerGridX + x;
-        int targetY = gridManager.gameData.playerGridY + y;
+        int targetX = GridX + x;
+        int targetY = GridY + y;
 
-        // Kdyz se pohybujeme o 2 pole, zkontroluj prostredni pole
-        // Pokud je tam ryba, poklad nebo pier, zastav se tam misto skoku pres nej
         if (Mathf.Abs(x) == 2 || Mathf.Abs(y) == 2)
         {
-            int midX = gridManager.gameData.playerGridX + x / 2;
-            int midY = gridManager.gameData.playerGridY + y / 2;
+            int midX = GridX + x / 2;
+            int midY = GridY + y / 2;
             TileType midType = gridManager.GetTileType(midX, midY);
             if (midType == TileType.Water_Fish || midType == TileType.Treasure || midType == TileType.Pier)
             {
@@ -103,16 +134,18 @@ public class PlayerController : MonoBehaviour
         if (!CanEnter(gridManager.GetTileType(targetX, targetY))) return;
 
         RotateBoatModel(x, y);
-
-        gridManager.gameData.playerGridX = targetX;
-        gridManager.gameData.playerGridY = targetY;
+        GridX = targetX;
+        GridY = targetY;
 
         if (!isOnFoot)
         {
             boatGridX = targetX;
             boatGridY = targetY;
-            gridManager.gameData.boatGridX = boatGridX;
-            gridManager.gameData.boatGridY = boatGridY;
+            if (playerIndex == 0)
+            {
+                gridManager.gameData.boatGridX = boatGridX;
+                gridManager.gameData.boatGridY = boatGridY;
+            }
         }
 
         MoveToGrid(targetX, targetY);
@@ -150,9 +183,7 @@ public class PlayerController : MonoBehaviour
     {
         int cx = Mathf.RoundToInt(transform.position.x);
         int cy = Mathf.RoundToInt(transform.position.z);
-
         if (cx == lastExploredX && cy == lastExploredY) return;
-
         gridManager.MarkAreaExplored(cx, cy, 2);
         lastExploredX = cx;
         lastExploredY = cy;
@@ -167,8 +198,8 @@ public class PlayerController : MonoBehaviour
 
     void TryToggleBoatFoot()
     {
-        int px = gridManager.gameData.playerGridX;
-        int py = gridManager.gameData.playerGridY;
+        int px = GridX;
+        int py = GridY;
 
         if (!isOnFoot)
         {
@@ -177,12 +208,12 @@ public class PlayerController : MonoBehaviour
             if (exit == null) return;
 
             isOnFoot = true;
-            gridManager.gameData.isOnFoot = true;
-            boatModel.gameObject.SetActive(false);
-            if (headDot != null) headDot.SetActive(true);
+            if (playerIndex == 0) gridManager.gameData.isOnFoot = true;
+            if (boatModel != null) boatModel.gameObject.SetActive(false);
+            if (headDot   != null) headDot.SetActive(true);
 
-            gridManager.gameData.playerGridX = exit.Value.x;
-            gridManager.gameData.playerGridY = exit.Value.y;
+            GridX = exit.Value.x;
+            GridY = exit.Value.y;
             MoveToGrid(exit.Value.x, exit.Value.y);
         }
         else
@@ -192,12 +223,12 @@ public class PlayerController : MonoBehaviour
             if (gridManager.GetTileType(boatGridX, boatGridY) != TileType.Pier) return;
 
             isOnFoot = false;
-            gridManager.gameData.isOnFoot = false;
-            boatModel.gameObject.SetActive(true);
-            if (headDot != null) headDot.SetActive(false);
+            if (playerIndex == 0) gridManager.gameData.isOnFoot = false;
+            if (boatModel != null) boatModel.gameObject.SetActive(true);
+            if (headDot   != null) headDot.SetActive(false);
 
-            gridManager.gameData.playerGridX = boatGridX;
-            gridManager.gameData.playerGridY = boatGridY;
+            GridX = boatGridX;
+            GridY = boatGridY;
             MoveToGrid(boatGridX, boatGridY);
         }
     }
@@ -217,8 +248,7 @@ public class PlayerController : MonoBehaviour
     void TryInteract()
     {
         if (isOnFoot) return;
-        int cx = gridManager.gameData.playerGridX;
-        int cy = gridManager.gameData.playerGridY;
+        int cx = GridX, cy = GridY;
         TileType type = gridManager.GetTileType(cx, cy);
         if (type == TileType.Water_Fish) StartCoroutine(FishingRoutine(cx, cy));
         else if (type == TileType.Treasure) StartCoroutine(MineRoutine(cx, cy));
@@ -227,14 +257,13 @@ public class PlayerController : MonoBehaviour
     bool TryOpenAdjacentShop()
     {
         if (!isOnFoot) return false;
-        int px = gridManager.gameData.playerGridX;
-        int py = gridManager.gameData.playerGridY;
+        int px = GridX, py = GridY;
         Vector2Int[] dirs = { Vector2Int.right, Vector2Int.left, Vector2Int.up, Vector2Int.down };
         foreach (var d in dirs)
         {
             TileType t = gridManager.GetTileType(px + d.x, py + d.y);
             if (t == TileType.UpgradeShop && upgradeShopManager != null) { upgradeShopManager.Open(); return true; }
-            if (t == TileType.QuestShop && questShopManager != null) { questShopManager.Open(); return true; }
+            if (t == TileType.QuestShop   && questShopManager   != null) { questShopManager.Open();   return true; }
         }
         return false;
     }
@@ -243,8 +272,6 @@ public class PlayerController : MonoBehaviour
     {
         TileStatus tile = gridManager.GetTileStatus(cx, cy);
         if (tile == null) yield break;
-
-        // handle tiles created before fishRemaining was introduced
         if (tile.fishRemaining <= 0) tile.fishRemaining = 3;
 
         isWorking = true;
@@ -258,8 +285,6 @@ public class PlayerController : MonoBehaviour
             yield return null;
         }
 
-        // fishRemaining = počet chytnutí zbývajících (ne ryb)
-        // bez upgradu: 3 chytnutí × 1 = 3 ryby; s upgradem: 3 × 2 = 6 ryb
         int catchAmount = gridManager.gameData.hasRodUpgrade ? 2 : 1;
         tile.fishRemaining -= 1;
         gridManager.gameData.fishCount += catchAmount;
@@ -272,7 +297,6 @@ public class PlayerController : MonoBehaviour
             gridManager.SetTileType(cx, cy, TileType.Water);
 
         gridManager.NotifyWorldChanged();
-
         WorkProgress = 0f;
         isWorking = false;
     }
@@ -298,40 +322,37 @@ public class PlayerController : MonoBehaviour
             q.progress = Mathf.Min(q.progress + 1, q.target);
 
         gridManager.SetTileType(x, y, TileType.Water);
-
         WorkProgress = 0f;
         isWorking = false;
     }
 
     public void TeleportTo(int x, int y)
     {
-        gridManager.gameData.playerGridX = x;
-        gridManager.gameData.playerGridY = y;
+        GridX = x;
+        GridY = y;
         gridManager.GenerateWorld(x, y);
         transform.position = new Vector3(x, 0.5f, y);
     }
 
-    // Synchronizuje lokální stav s gameData po přepnutí slotu
     public void ReloadFromData()
     {
-        isOnFoot   = gridManager.gameData.isOnFoot;
-        boatGridX  = gridManager.gameData.boatGridX;
-        boatGridY  = gridManager.gameData.boatGridY;
-        isMoving   = false;
-        isWorking  = false;
-        WorkProgress = 0f;
-
-        if (isOnFoot)
+        if (playerIndex == 0)
         {
-            if (boatModel != null) boatModel.gameObject.SetActive(false);
-            if (headDot != null) headDot.SetActive(true);
+            isOnFoot  = gridManager.gameData.isOnFoot;
+            boatGridX = gridManager.gameData.boatGridX;
+            boatGridY = gridManager.gameData.boatGridY;
         }
         else
         {
-            if (boatModel != null) boatModel.gameObject.SetActive(true);
-            if (headDot != null) headDot.SetActive(false);
+            isOnFoot  = false;
+            boatGridX = gridManager.gameData.playerGridX;
+            boatGridY = gridManager.gameData.playerGridY;
         }
+        isMoving = false; isWorking = false; WorkProgress = 0f;
 
-        TeleportTo(gridManager.gameData.playerGridX, gridManager.gameData.playerGridY);
+        if (isOnFoot) { if (boatModel) boatModel.gameObject.SetActive(false); if (headDot) headDot.SetActive(true); }
+        else          { if (boatModel) boatModel.gameObject.SetActive(true);  if (headDot) headDot.SetActive(false); }
+
+        TeleportTo(GridX, GridY);
     }
 }

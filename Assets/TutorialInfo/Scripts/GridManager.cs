@@ -36,6 +36,8 @@ public class GridManager : MonoBehaviour
         var listeners = FindObjectsByType<AudioListener>(FindObjectsSortMode.None);
         for (int i = 1; i < listeners.Length; i++) listeners[i].enabled = false;
 
+        // Načti naposledy použitý slot
+        SaveManager.CurrentSlot = PlayerPrefs.GetInt("LastSlot", 0);
         gameData = SaveManager.LoadGame();
         if (gameData.tileData.Count == 0) GenerateInitialWorld();
         GenerateWorld(gameData.playerGridX, gameData.playerGridY);
@@ -437,6 +439,40 @@ public class GridManager : MonoBehaviour
         foreach (var kv in activeTiles) Destroy(kv.Value);
         activeTiles.Clear();
 
+        GenerateInitialWorld();
+        GenerateWorld(0, 0);
+        Save();
+        OnWorldChanged?.Invoke();
+    }
+
+    // Načte existující save v daném slotu (volá se z hlavního menu)
+    public void LoadSlot(int slot)
+    {
+        SaveManager.CurrentSlot = slot;
+        PlayerPrefs.SetInt("LastSlot", slot);
+
+        foreach (var kv in activeTiles) Destroy(kv.Value);
+        activeTiles.Clear();
+
+        gameData = SaveManager.LoadGame();
+        if (gameData.tileData.Count == 0) GenerateInitialWorld();
+        GenerateWorld(gameData.playerGridX, gameData.playerGridY);
+        Save();
+        OnWorldChanged?.Invoke();
+    }
+
+    // Spustí novou hru v daném slotu (volá se z hlavního menu)
+    public void NewGameSlot(int slot)
+    {
+        SaveManager.CurrentSlot = slot;
+        PlayerPrefs.SetInt("LastSlot", slot);
+        SaveManager.DeleteSave();
+
+        foreach (var kv in activeTiles) Destroy(kv.Value);
+        activeTiles.Clear();
+
+        gameData = new GameData();
+        gameData.shipLevel = 0;
         GenerateInitialWorld();
         GenerateWorld(0, 0);
         Save();

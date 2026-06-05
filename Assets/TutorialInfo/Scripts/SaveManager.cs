@@ -3,43 +3,43 @@ using System.IO;
 
 public static class SaveManager
 {
-    private static string savePath = Path.Combine(Application.persistentDataPath, "gamedata.json");
+    public static int CurrentSlot { get; set; } = 0;
+
+    private static string GetPath(int slot) =>
+        Path.Combine(Application.persistentDataPath, $"save_{slot}.json");
 
     public static void SaveGame(GameData data)
     {
-        string json = JsonUtility.ToJson(data, true);
-        try
-        {
-            File.WriteAllText(savePath, json);
-        }
-        catch (System.Exception e)
-        {
-            Debug.LogError($"Chyba při ukládání hry: {e.Message}");
-        }
+        try { File.WriteAllText(GetPath(CurrentSlot), JsonUtility.ToJson(data, true)); }
+        catch (System.Exception e) { Debug.LogError($"Save error: {e.Message}"); }
     }
 
     public static GameData LoadGame()
     {
         try
         {
-            string json = File.ReadAllText(savePath);
-            return JsonUtility.FromJson<GameData>(json);
+            string json = File.ReadAllText(GetPath(CurrentSlot));
+            return JsonUtility.FromJson<GameData>(json) ?? new GameData();
         }
-        catch
-        {
-            return new GameData();
-        }
+        catch { return new GameData(); }
     }
 
     public static void DeleteSave()
     {
+        try { File.Delete(GetPath(CurrentSlot)); }
+        catch (System.Exception e) { Debug.LogError($"Delete error: {e.Message}"); }
+    }
+
+    public static bool SlotExists(int slot) => File.Exists(GetPath(slot));
+
+    // Načte data slotu bez změny CurrentSlot (pro náhled v menu)
+    public static GameData PeekSlot(int slot)
+    {
         try
         {
-            File.Delete(savePath);
+            string json = File.ReadAllText(GetPath(slot));
+            return JsonUtility.FromJson<GameData>(json);
         }
-        catch (System.Exception e)
-        {
-            Debug.LogError($"Chyba při mazání save: {e.Message}");
-        }
+        catch { return null; }
     }
 }

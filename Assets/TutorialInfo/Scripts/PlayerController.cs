@@ -59,7 +59,7 @@ public class PlayerController : MonoBehaviour
     {
         bool shopOpen = (upgradeShopManager != null && upgradeShopManager.IsOpen)
                      || (questShopManager != null && questShopManager.IsOpen);
-        if (isMoving || isWorking || shopOpen || GameConsole.IsOpen) return;
+        if (isMoving || isWorking || shopOpen || GameConsole.IsOpen || MainMenuManager.IsVisible) return;
 
         if (Input.GetKeyDown(KeyCode.E))
         {
@@ -309,5 +309,29 @@ public class PlayerController : MonoBehaviour
         gridManager.gameData.playerGridY = y;
         gridManager.GenerateWorld(x, y);
         transform.position = new Vector3(x, 0.5f, y);
+    }
+
+    // Synchronizuje lokální stav s gameData po přepnutí slotu
+    public void ReloadFromData()
+    {
+        isOnFoot   = gridManager.gameData.isOnFoot;
+        boatGridX  = gridManager.gameData.boatGridX;
+        boatGridY  = gridManager.gameData.boatGridY;
+        isMoving   = false;
+        isWorking  = false;
+        WorkProgress = 0f;
+
+        if (isOnFoot)
+        {
+            if (boatModel != null) boatModel.gameObject.SetActive(false);
+            if (headDot != null) headDot.SetActive(true);
+        }
+        else
+        {
+            if (boatModel != null) boatModel.gameObject.SetActive(true);
+            if (headDot != null) headDot.SetActive(false);
+        }
+
+        TeleportTo(gridManager.gameData.playerGridX, gridManager.gameData.playerGridY);
     }
 }

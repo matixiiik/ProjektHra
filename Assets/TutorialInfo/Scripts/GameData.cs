@@ -45,9 +45,17 @@ public class GameData
     public int shipLevel; // 0=small, 1=medium, 2=large
     public ActiveQuest activeQuest = new ActiveQuest();
 
-    // Pozice hráče 2 (multiplayer, ukládá se jen v paměti)
+    // ── Hráč 2 — oddělená ekonomika (multiplayer) ──────────────────────────────
     public int player2GridX;
     public int player2GridY;
+    public int player2Coins;
+    public int player2FishCount;
+    public int player2TreasureCount;
+    public bool player2HasSpeedUpgrade;
+    public bool player2HasRodUpgrade;
+    public bool player2HasMiningUpgrade;
+    public int  player2ShipLevel;
+    public ActiveQuest player2ActiveQuest = new ActiveQuest();
     public SerializableDictionary<string, TileStatus> tileData = new SerializableDictionary<string, TileStatus>();
 }
 

@@ -29,6 +29,8 @@ public class PlayerController : MonoBehaviour
     private int boatGridX;
     private int boatGridY;
 
+    public bool IsOnFoot => isOnFoot;
+
     // ── Pozice routuje do správného pole podle playerIndex ────────────────────
     int GridX
     {
@@ -40,6 +42,27 @@ public class PlayerController : MonoBehaviour
         get => playerIndex == 0 ? gridManager.gameData.playerGridY  : gridManager.gameData.player2GridY;
         set { if (playerIndex == 0) gridManager.gameData.playerGridY  = value; else gridManager.gameData.player2GridY = value; }
     }
+
+    // ── Ekonomika a upgrady (route per player) ────────────────────────────────
+    int PCoins
+    {
+        get => playerIndex == 0 ? gridManager.gameData.coins         : gridManager.gameData.player2Coins;
+        set { if (playerIndex == 0) gridManager.gameData.coins = value; else gridManager.gameData.player2Coins = value; }
+    }
+    int PFishCount
+    {
+        get => playerIndex == 0 ? gridManager.gameData.fishCount        : gridManager.gameData.player2FishCount;
+        set { if (playerIndex == 0) gridManager.gameData.fishCount = value; else gridManager.gameData.player2FishCount = value; }
+    }
+    int PTreasureCount
+    {
+        get => playerIndex == 0 ? gridManager.gameData.treasureCount        : gridManager.gameData.player2TreasureCount;
+        set { if (playerIndex == 0) gridManager.gameData.treasureCount = value; else gridManager.gameData.player2TreasureCount = value; }
+    }
+    bool PHasRodUpgrade    => playerIndex == 0 ? gridManager.gameData.hasRodUpgrade    : gridManager.gameData.player2HasRodUpgrade;
+    bool PHasMiningUpgrade => playerIndex == 0 ? gridManager.gameData.hasMiningUpgrade : gridManager.gameData.player2HasMiningUpgrade;
+    bool PHasSpeedUpgrade  => playerIndex == 0 ? gridManager.gameData.hasSpeedUpgrade  : gridManager.gameData.player2HasSpeedUpgrade;
+    ActiveQuest PQuest     => playerIndex == 0 ? gridManager.gameData.activeQuest      : gridManager.gameData.player2ActiveQuest;
 
     // ── Input helpery ─────────────────────────────────────────────────────────
     bool P1 => playerIndex == 0;
@@ -101,7 +124,7 @@ public class PlayerController : MonoBehaviour
         }
 
         int x = 0, y = 0;
-        int step = (!isOnFoot && gridManager.gameData.hasSpeedUpgrade) ? 2 : 1;
+        int step = (!isOnFoot && PHasSpeedUpgrade) ? 2 : 1;
 
         if      (Key(KeyCode.W, KeyCode.UpArrow))    y =  step;
         else if (Key(KeyCode.S, KeyCode.DownArrow))  y = -step;
@@ -262,8 +285,8 @@ public class PlayerController : MonoBehaviour
         foreach (var d in dirs)
         {
             TileType t = gridManager.GetTileType(px + d.x, py + d.y);
-            if (t == TileType.UpgradeShop && upgradeShopManager != null) { upgradeShopManager.Open(); return true; }
-            if (t == TileType.QuestShop   && questShopManager   != null) { questShopManager.Open();   return true; }
+            if (t == TileType.UpgradeShop && upgradeShopManager != null) { upgradeShopManager.Open(playerIndex); return true; }
+            if (t == TileType.QuestShop   && questShopManager   != null) { questShopManager.Open(playerIndex);   return true; }
         }
         return false;
     }
@@ -285,11 +308,11 @@ public class PlayerController : MonoBehaviour
             yield return null;
         }
 
-        int catchAmount = gridManager.gameData.hasRodUpgrade ? 2 : 1;
+        int catchAmount = PHasRodUpgrade ? 2 : 1;
         tile.fishRemaining -= 1;
-        gridManager.gameData.fishCount += catchAmount;
+        PFishCount += catchAmount;
 
-        ActiveQuest q = gridManager.gameData.activeQuest;
+        ActiveQuest q = PQuest;
         if (q.hasQuest && q.questType == 0)
             q.progress = Mathf.Min(q.progress + catchAmount, q.target);
 
@@ -306,7 +329,7 @@ public class PlayerController : MonoBehaviour
         isWorking = true;
         WorkProgress = 0f;
 
-        float duration = gridManager.gameData.hasMiningUpgrade ? miningDuration * 0.5f : miningDuration;
+        float duration = PHasMiningUpgrade ? miningDuration * 0.5f : miningDuration;
         float elapsed = 0f;
         while (elapsed < duration)
         {
@@ -315,9 +338,9 @@ public class PlayerController : MonoBehaviour
             yield return null;
         }
 
-        gridManager.gameData.treasureCount += 1;
+        PTreasureCount += 1;
 
-        ActiveQuest q = gridManager.gameData.activeQuest;
+        ActiveQuest q = PQuest;
         if (q.hasQuest && q.questType == 1)
             q.progress = Mathf.Min(q.progress + 1, q.target);
 

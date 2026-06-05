@@ -1,14 +1,20 @@
 using UnityEngine;
 using UnityEngine.UI;
+using System.Collections.Generic;
 
 public class HUDCounter : MonoBehaviour
 {
+    [HideInInspector] public int playerIndex = 0;
+
     private GridManager grid;
     private Text fishText;
     private Text treasureText;
     private Text coinsText;
     private GameObject questPanel;
     private Text questLine;
+
+    private List<RectTransform> rowRTs      = new List<RectTransform>();
+    private RectTransform       questPanelRT;
 
     void Start()
     {
@@ -26,12 +32,12 @@ public class HUDCounter : MonoBehaviour
     void BuildHUD()
     {
         var canvasGO = new GameObject("HUDCanvas");
-        var canvas = canvasGO.AddComponent<Canvas>();
-        canvas.renderMode = RenderMode.ScreenSpaceOverlay;
+        var canvas   = canvasGO.AddComponent<Canvas>();
+        canvas.renderMode   = RenderMode.ScreenSpaceOverlay;
         canvas.sortingOrder = 10;
 
         var scaler = canvasGO.AddComponent<CanvasScaler>();
-        scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
+        scaler.uiScaleMode        = CanvasScaler.ScaleMode.ScaleWithScreenSize;
         scaler.referenceResolution = new Vector2(1920, 1080);
 
         canvasGO.AddComponent<GraphicRaycaster>();
@@ -48,12 +54,13 @@ public class HUDCounter : MonoBehaviour
     {
         questPanel = new GameObject("QuestPanel");
         questPanel.transform.SetParent(parent, false);
-        var rt = questPanel.AddComponent<RectTransform>();
-        rt.anchorMin = new Vector2(0.5f, 1f);
-        rt.anchorMax = new Vector2(0.5f, 1f);
-        rt.pivot     = new Vector2(0.5f, 1f);
-        rt.anchoredPosition = new Vector2(0, -16f);
-        rt.sizeDelta = new Vector2(280f, 38f);
+
+        questPanelRT            = questPanel.AddComponent<RectTransform>();
+        questPanelRT.anchorMin  = new Vector2(0.5f, 1f);
+        questPanelRT.anchorMax  = new Vector2(0.5f, 1f);
+        questPanelRT.pivot      = new Vector2(0.5f, 1f);
+        questPanelRT.anchoredPosition = new Vector2(0, -16f);
+        questPanelRT.sizeDelta  = new Vector2(280f, 38f);
 
         var bg = new GameObject("BG");
         bg.transform.SetParent(questPanel.transform, false);
@@ -66,7 +73,7 @@ public class HUDCounter : MonoBehaviour
         accent.transform.SetParent(questPanel.transform, false);
         var acRt = accent.AddComponent<RectTransform>();
         acRt.anchorMin = new Vector2(0, 1); acRt.anchorMax = new Vector2(1, 1);
-        acRt.pivot = new Vector2(0.5f, 1f);
+        acRt.pivot     = new Vector2(0.5f, 1f);
         acRt.sizeDelta = new Vector2(0, 3);
         accent.AddComponent<Image>().color = new Color(1f, 0.6f, 0.1f);
 
@@ -86,13 +93,13 @@ public class HUDCounter : MonoBehaviour
         rt.anchorMin = anchorMin; rt.anchorMax = anchorMax;
         rt.offsetMin = offsetMin; rt.offsetMax = offsetMax;
         var t = go.AddComponent<Text>();
-        t.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-        t.fontSize = (int)fontSize;
+        t.font      = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+        t.fontSize  = (int)fontSize;
         t.fontStyle = style;
-        t.color = color;
+        t.color     = color;
         t.alignment = align;
         var shadow = go.AddComponent<Shadow>();
-        shadow.effectColor = new Color(0, 0, 0, 0.9f);
+        shadow.effectColor    = new Color(0, 0, 0, 0.9f);
         shadow.effectDistance = new Vector2(1, -1);
         return t;
     }
@@ -104,9 +111,10 @@ public class HUDCounter : MonoBehaviour
 
         var rt = go.AddComponent<RectTransform>();
         rt.anchorMin = rt.anchorMax = Vector2.one;
-        rt.pivot = Vector2.one;
+        rt.pivot     = Vector2.one;
         rt.anchoredPosition = new Vector2(-20f, -20f - index * 40f);
         rt.sizeDelta = new Vector2(240f, 34f);
+        rowRTs.Add(rt);
 
         var bg = new GameObject("BG");
         bg.transform.SetParent(go.transform, false);
@@ -114,8 +122,7 @@ public class HUDCounter : MonoBehaviour
         bgRt.anchorMin = Vector2.zero;
         bgRt.anchorMax = Vector2.one;
         bgRt.offsetMin = bgRt.offsetMax = Vector2.zero;
-        var img = bg.AddComponent<Image>();
-        img.color = new Color(0, 0, 0, 0.45f);
+        bg.AddComponent<Image>().color = new Color(0, 0, 0, 0.45f);
 
         var textGO = new GameObject("Label");
         textGO.transform.SetParent(go.transform, false);
@@ -126,31 +133,65 @@ public class HUDCounter : MonoBehaviour
         trt.offsetMax = new Vector2(-8, -2);
 
         var text = textGO.AddComponent<Text>();
-        text.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-        text.fontSize = 22;
+        text.font      = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+        text.fontSize  = 22;
         text.fontStyle = FontStyle.Bold;
-        text.color = color;
+        text.color     = color;
         text.alignment = TextAnchor.MiddleRight;
 
         var shadow = textGO.AddComponent<Shadow>();
-        shadow.effectColor = new Color(0, 0, 0, 0.9f);
+        shadow.effectColor    = new Color(0, 0, 0, 0.9f);
         shadow.effectDistance = new Vector2(1, -1);
 
         return text;
     }
 
+    // ── Layout pro split screen ───────────────────────────────────────────────
+    public void UpdateLayout(bool isSplit)
+    {
+        // P1 v split: kotva na (0.5,1) = pravý kraj levé poloviny
+        // P2 vždy: (1,1) = pravý край pravé části / plné obrazovky
+        float rowAnchorX = (playerIndex == 0 && isSplit) ? 0.5f : 1f;
+
+        // Quest panel: P1 split → 25%, P2 → 75%, single → 50%
+        float questAnchorX = (playerIndex == 0 && isSplit) ? 0.25f
+                           : (playerIndex == 1)            ? 0.75f
+                           : 0.5f;
+
+        for (int i = 0; i < rowRTs.Count; i++)
+        {
+            rowRTs[i].anchorMin = rowRTs[i].anchorMax = new Vector2(rowAnchorX, 1f);
+            rowRTs[i].pivot     = Vector2.one;
+            rowRTs[i].anchoredPosition = new Vector2(-20f, -20f - i * 40f);
+        }
+
+        if (questPanelRT != null)
+        {
+            questPanelRT.anchorMin = questPanelRT.anchorMax = new Vector2(questAnchorX, 1f);
+            questPanelRT.pivot     = new Vector2(0.5f, 1f);
+            questPanelRT.anchoredPosition = new Vector2(0, -16f);
+        }
+    }
+
+    // ── Data refresh ─────────────────────────────────────────────────────────
     void Refresh()
     {
         if (grid == null) return;
-        fishText.text     = $"Ryby: {grid.gameData.fishCount}";
-        treasureText.text = $"Poklady: {grid.gameData.treasureCount}";
-        coinsText.text    = $"Mince: {grid.gameData.coins}";
-        RefreshQuest();
+        GameData d = grid.gameData;
+
+        int fish     = playerIndex == 0 ? d.fishCount     : d.player2FishCount;
+        int treasure = playerIndex == 0 ? d.treasureCount : d.player2TreasureCount;
+        int coins    = playerIndex == 0 ? d.coins         : d.player2Coins;
+        ActiveQuest q = playerIndex == 0 ? d.activeQuest  : d.player2ActiveQuest;
+
+        fishText.text     = $"Ryby: {fish}";
+        treasureText.text = $"Poklady: {treasure}";
+        coinsText.text    = $"Mince: {coins}";
+        RefreshQuest(q);
     }
 
-    void RefreshQuest()
+    void RefreshQuest(ActiveQuest q)
     {
-        ActiveQuest q = grid.gameData.activeQuest;
         questPanel.SetActive(q.hasQuest);
         if (!q.hasQuest) return;
 

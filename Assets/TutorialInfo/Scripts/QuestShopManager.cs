@@ -3,21 +3,19 @@ using UnityEngine;
 [DefaultExecutionOrder(100)]
 public class QuestShopManager : MonoBehaviour
 {
-    public int fishSellPrice = 10;
+    public int fishSellPrice     = 10;
     public int treasureSellPrice = 30;
 
     private GridManager gridManager;
     private bool isOpen;
+    private int  buyerIndex;
 
     public bool IsOpen => isOpen;
 
     void Update()
     {
         if (isOpen && (Input.GetKeyDown(KeyCode.Escape) || Input.GetKeyDown(KeyCode.KeypadEnter)))
-        {
-            isOpen = false;
-            UpgradeShopManager.AnyShopOpen = false;
-        }
+        { isOpen = false; UpgradeShopManager.AnyShopOpen = false; }
     }
 
     private OfferedQuest[] offeredQuests;
@@ -30,9 +28,7 @@ public class QuestShopManager : MonoBehaviour
     {
         public int type;
         public string desc;
-        public int target;
-        public int cost;
-        public int multiplier;
+        public int target, cost, multiplier;
     }
 
     private static readonly (int type, int tMin, int tMax, int cMin, int cMax, int mult)[] Templates =
@@ -45,35 +41,40 @@ public class QuestShopManager : MonoBehaviour
         (1, 18, 25, 120, 180, 8),
     };
 
-    void Start()
-    {
-        gridManager = FindFirstObjectByType<GridManager>();
-    }
+    void Start() { gridManager = FindFirstObjectByType<GridManager>(); }
 
-    public void Open()
+    public void Open(int playerIndex = 0)
     {
-        isOpen = true;
+        buyerIndex  = playerIndex;
+        isOpen      = true;
         UpgradeShopManager.AnyShopOpen = true;
-        if (!gridManager.gameData.activeQuest.hasQuest)
-            GenerateOffers();
+        if (!GetQuest().hasQuest) GenerateOffers();
     }
 
+    // ── Per-buyer helpers ─────────────────────────────────────────────────────
+    int         GetCoins()        => buyerIndex == 0 ? gridManager.gameData.coins            : gridManager.gameData.player2Coins;
+    void        SetCoins(int v)   { if (buyerIndex==0) gridManager.gameData.coins = v;         else gridManager.gameData.player2Coins = v; }
+    int         GetFish()         => buyerIndex == 0 ? gridManager.gameData.fishCount           : gridManager.gameData.player2FishCount;
+    void        SetFish(int v)    { if (buyerIndex==0) gridManager.gameData.fishCount = v;       else gridManager.gameData.player2FishCount = v; }
+    int         GetTreasure()     => buyerIndex == 0 ? gridManager.gameData.treasureCount        : gridManager.gameData.player2TreasureCount;
+    void        SetTreasure(int v){ if (buyerIndex==0) gridManager.gameData.treasureCount = v;   else gridManager.gameData.player2TreasureCount = v; }
+    ActiveQuest GetQuest()        => buyerIndex == 0 ? gridManager.gameData.activeQuest          : gridManager.gameData.player2ActiveQuest;
+
+    // ── Quest generování ──────────────────────────────────────────────────────
     private void GenerateOffers()
     {
         offeredQuests = new OfferedQuest[3];
         int[] picks = PickDistinct(3, Templates.Length);
         for (int i = 0; i < 3; i++)
         {
-            var t = Templates[picks[i]];
+            var t      = Templates[picks[i]];
             int target = Random.Range(t.tMin, t.tMax + 1);
-            int cost = Random.Range(t.cMin, t.cMax + 1);
+            int cost   = Random.Range(t.cMin, t.cMax + 1);
             offeredQuests[i] = new OfferedQuest
             {
                 type = t.type,
                 desc = t.type == 0 ? $"Ulov {target} ryb" : $"Vytez {target} pokladu",
-                target = target,
-                cost = cost,
-                multiplier = t.mult
+                target = target, cost = cost, multiplier = t.mult
             };
         }
     }
@@ -86,7 +87,8 @@ public class QuestShopManager : MonoBehaviour
             int pick; bool unique;
             do
             {
-                pick = Random.Range(0, max); unique = true;
+                pick   = Random.Range(0, max);
+                unique = true;
                 for (int j = 0; j < i; j++) if (result[j] == pick) { unique = false; break; }
             } while (!unique);
             result[i] = pick;
@@ -96,113 +98,43 @@ public class QuestShopManager : MonoBehaviour
 
     private void BuyQuest(OfferedQuest q)
     {
-        GameData d = gridManager.gameData;
-        if (d.coins < q.cost) return;
-        d.coins -= q.cost;
-        d.activeQuest.hasQuest = true;
-        d.activeQuest.questType = q.type;
-        d.activeQuest.description = q.desc;
-        d.activeQuest.target = q.target;
-        d.activeQuest.progress = 0;
-        d.activeQuest.cost = q.cost;
-        d.activeQuest.reward = q.cost * q.multiplier;
-        d.activeQuest.multiplier = q.multiplier;
-        gridManager.Save();
-        gridManager.NotifyWorldChanged();
+        if (GetCoins() < q.cost) return;
+        SetCoins(GetCoins() - q.cost);
+        ActiveQuest aq = GetQuest();
+        aq.hasQuest    = true;
+        aq.questType   = q.type;
+        aq.description = q.desc;
+        aq.target      = q.target;
+        aq.progress    = 0;
+        aq.cost        = q.cost;
+        aq.reward      = q.cost * q.multiplier;
+        aq.multiplier  = q.multiplier;
+        Save();
     }
 
     public void ClaimQuest()
     {
-        GameData d = gridManager.gameData;
-        if (!d.activeQuest.hasQuest || !d.activeQuest.IsComplete) return;
-        d.coins += d.activeQuest.reward;
-        d.activeQuest.Reset();
-        gridManager.Save();
-        gridManager.NotifyWorldChanged();
+        ActiveQuest aq = GetQuest();
+        if (!aq.hasQuest || !aq.IsComplete) return;
+        SetCoins(GetCoins() + aq.reward);
+        aq.Reset();
+        Save();
     }
 
-    private void InitStyles()
-    {
-        if (stylesReady) return;
-
-        titleStyle = new GUIStyle(GUI.skin.label)
-        {
-            fontSize = 22, fontStyle = FontStyle.Bold,
-            alignment = TextAnchor.MiddleCenter,
-            normal = { textColor = Color.white }
-        };
-        sectionStyle = new GUIStyle(GUI.skin.label)
-        {
-            fontSize = 15, fontStyle = FontStyle.Bold,
-            normal = { textColor = new Color(0.6f, 0.85f, 1f) }
-        };
-        rowStyle = new GUIStyle(GUI.skin.label)
-        {
-            fontSize = 15, alignment = TextAnchor.MiddleLeft,
-            normal = { textColor = new Color(0.9f, 0.9f, 0.9f) }
-        };
-        ownedStyle = new GUIStyle(GUI.skin.label)
-        {
-            fontSize = 14, fontStyle = FontStyle.Bold,
-            alignment = TextAnchor.MiddleCenter,
-            normal = { textColor = new Color(0.4f, 1f, 0.4f) }
-        };
-        progressStyle = new GUIStyle(GUI.skin.label)
-        {
-            fontSize = 15,
-            normal = { textColor = new Color(1f, 0.85f, 0.4f) }
-        };
-        buyStyle = new GUIStyle(GUI.skin.button)
-        {
-            fontSize = 14, fontStyle = FontStyle.Bold,
-            normal = { textColor = Color.white, background = MakeTex(new Color(0.2f, 0.45f, 0.2f)) },
-            hover = { textColor = Color.white, background = MakeTex(new Color(0.3f, 0.6f, 0.3f)) }
-        };
-        claimStyle = new GUIStyle(GUI.skin.button)
-        {
-            fontSize = 16, fontStyle = FontStyle.Bold,
-            normal = { textColor = Color.white, background = MakeTex(new Color(0.7f, 0.5f, 0.05f)) },
-            hover = { textColor = Color.white, background = MakeTex(new Color(0.9f, 0.65f, 0.1f)) }
-        };
-        closeStyle = new GUIStyle(GUI.skin.button)
-        {
-            fontSize = 15,
-            normal = { textColor = Color.white, background = MakeTex(new Color(0.5f, 0.1f, 0.1f)) },
-            hover = { textColor = Color.white, background = MakeTex(new Color(0.7f, 0.15f, 0.15f)) }
-        };
-        coinsStyle = new GUIStyle(GUI.skin.label)
-        {
-            fontSize = 17, fontStyle = FontStyle.Bold,
-            alignment = TextAnchor.MiddleCenter,
-            normal = { textColor = new Color(1f, 0.85f, 0.2f) }
-        };
-
-        stylesReady = true;
-    }
-
-    private Texture2D MakeTex(Color c)
-    {
-        var t = new Texture2D(1, 1);
-        t.SetPixel(0, 0, c);
-        t.Apply();
-        return t;
-    }
-
+    // ── GUI ───────────────────────────────────────────────────────────────────
     void OnGUI()
     {
         if (!isOpen) return;
         InitStyles();
 
-        // Fullscreen dark overlay
         GUI.color = new Color(0, 0, 0, 0.75f);
         GUI.DrawTexture(new Rect(0, 0, Screen.width, Screen.height), Texture2D.whiteTexture);
         GUI.color = Color.white;
 
         float w = 580, h = 520;
-        float px = (Screen.width - w) / 2f;
+        float px = (Screen.width  - w) / 2f;
         float py = (Screen.height - h) / 2f;
 
-        // Panel background
         GUI.color = new Color(0.12f, 0.14f, 0.18f, 1f);
         GUI.DrawTexture(new Rect(px, py, w, h), Texture2D.whiteTexture);
         GUI.color = new Color(1f, 0.6f, 0.1f, 1f);
@@ -211,33 +143,41 @@ public class QuestShopManager : MonoBehaviour
 
         GUILayout.BeginArea(new Rect(px + 25, py + 20, w - 50, h - 40));
 
-        GUILayout.Label("OBCHOD S QUESTY", titleStyle);
+        string playerLabel = MultiplayerManager.IsMultiplayer
+            ? (buyerIndex == 0 ? "  —  HRÁČ 1" : "  —  HRÁČ 2")
+            : "";
+        GUILayout.Label($"OBCHOD S QUESTY{playerLabel}", titleStyle);
         GUILayout.Space(12);
-
-        GameData d = gridManager.gameData;
 
         // --- PRODEJ ---
         GUILayout.Label("PRODEJ", sectionStyle);
-        DrawSell($"Ryby  x{d.fishCount}  ( {fishSellPrice} minci / kus )", d.fishCount * fishSellPrice, d.fishCount > 0,
-            () => { d.coins += d.fishCount * fishSellPrice; d.fishCount = 0; Save(); });
+
+        int fish     = GetFish();
+        int treasure = GetTreasure();
+
+        DrawSell($"Ryby  x{fish}  ( {fishSellPrice} minci / kus )",
+            fish * fishSellPrice, fish > 0,
+            () => { SetCoins(GetCoins() + fish * fishSellPrice); SetFish(0); Save(); });
         GUILayout.Space(4);
-        DrawSell($"Poklady  x{d.treasureCount}  ( {treasureSellPrice} minci / kus )", d.treasureCount * treasureSellPrice, d.treasureCount > 0,
-            () => { d.coins += d.treasureCount * treasureSellPrice; d.treasureCount = 0; Save(); });
+        DrawSell($"Poklady  x{treasure}  ( {treasureSellPrice} minci / kus )",
+            treasure * treasureSellPrice, treasure > 0,
+            () => { SetCoins(GetCoins() + treasure * treasureSellPrice); SetTreasure(0); Save(); });
 
         GUILayout.Space(14);
 
         // --- QUESTY ---
         GUILayout.Label("QUESTY", sectionStyle);
+        ActiveQuest aq = GetQuest();
 
-        if (d.activeQuest.hasQuest)
+        if (aq.hasQuest)
         {
-            GUILayout.Label($"Aktivni:  {d.activeQuest.description}", rowStyle);
-            GUILayout.Label($"Postup:   {d.activeQuest.progress} / {d.activeQuest.target}", progressStyle);
-            GUILayout.Label($"Odmena:   {d.activeQuest.reward} minci  ( {d.activeQuest.multiplier}x )", rowStyle);
+            GUILayout.Label($"Aktivni:  {aq.description}", rowStyle);
+            GUILayout.Label($"Postup:   {aq.progress} / {aq.target}", progressStyle);
+            GUILayout.Label($"Odmena:   {aq.reward} minci  ( {aq.multiplier}x )", rowStyle);
             GUILayout.Space(6);
-            if (d.activeQuest.IsComplete)
+            if (aq.IsComplete)
             {
-                if (GUILayout.Button($"  VYPLATIT  {d.activeQuest.reward} minci  !", claimStyle, GUILayout.Height(38)))
+                if (GUILayout.Button($"  VYPLATIT  {aq.reward} minci  !", claimStyle, GUILayout.Height(38)))
                     ClaimQuest();
             }
             else
@@ -259,12 +199,9 @@ public class QuestShopManager : MonoBehaviour
                     GUILayout.BeginHorizontal();
                     GUILayout.Label($"{q.desc}    odmena: {q.cost * q.multiplier} minci  ( {q.multiplier}x )", rowStyle, GUILayout.ExpandWidth(true));
                     GUILayout.Label($"{q.cost} minci", rowStyle, GUILayout.Width(90));
-                    GUI.enabled = d.coins >= q.cost;
+                    GUI.enabled = GetCoins() >= q.cost;
                     if (GUILayout.Button("Koupit", buyStyle, GUILayout.Width(80), GUILayout.Height(26)))
-                    {
-                        BuyQuest(q);
-                        break;
-                    }
+                    { BuyQuest(q); break; }
                     GUI.enabled = true;
                     GUILayout.EndHorizontal();
                     GUILayout.Space(3);
@@ -273,7 +210,7 @@ public class QuestShopManager : MonoBehaviour
         }
 
         GUILayout.Space(12);
-        GUILayout.Label($"Mince: {d.coins}", coinsStyle);
+        GUILayout.Label($"Mince: {GetCoins()}", coinsStyle);
         GUILayout.EndArea();
     }
 
@@ -289,9 +226,22 @@ public class QuestShopManager : MonoBehaviour
         GUILayout.EndHorizontal();
     }
 
-    private void Save()
+    private void Save() { gridManager.Save(); gridManager.NotifyWorldChanged(); }
+
+    private void InitStyles()
     {
-        gridManager.Save();
-        gridManager.NotifyWorldChanged();
+        if (stylesReady) return;
+        titleStyle    = new GUIStyle(GUI.skin.label) { fontSize = 22, fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleCenter, normal = { textColor = Color.white } };
+        sectionStyle  = new GUIStyle(GUI.skin.label) { fontSize = 15, fontStyle = FontStyle.Bold, normal = { textColor = new Color(0.6f, 0.85f, 1f) } };
+        rowStyle      = new GUIStyle(GUI.skin.label) { fontSize = 15, alignment = TextAnchor.MiddleLeft, normal = { textColor = new Color(0.9f, 0.9f, 0.9f) } };
+        ownedStyle    = new GUIStyle(GUI.skin.label) { fontSize = 14, fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleCenter, normal = { textColor = new Color(0.4f, 1f, 0.4f) } };
+        progressStyle = new GUIStyle(GUI.skin.label) { fontSize = 15, normal = { textColor = new Color(1f, 0.85f, 0.4f) } };
+        buyStyle      = new GUIStyle(GUI.skin.button) { fontSize = 14, fontStyle = FontStyle.Bold, normal = { textColor = Color.white, background = MakeTex(new Color(0.2f, 0.45f, 0.2f)) }, hover = { textColor = Color.white, background = MakeTex(new Color(0.3f, 0.6f, 0.3f)) } };
+        claimStyle    = new GUIStyle(GUI.skin.button) { fontSize = 16, fontStyle = FontStyle.Bold, normal = { textColor = Color.white, background = MakeTex(new Color(0.7f, 0.5f, 0.05f)) }, hover = { textColor = Color.white, background = MakeTex(new Color(0.9f, 0.65f, 0.1f)) } };
+        closeStyle    = new GUIStyle(GUI.skin.button) { fontSize = 15, normal = { textColor = Color.white, background = MakeTex(new Color(0.5f, 0.1f, 0.1f)) }, hover = { textColor = Color.white, background = MakeTex(new Color(0.7f, 0.15f, 0.15f)) } };
+        coinsStyle    = new GUIStyle(GUI.skin.label) { fontSize = 17, fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleCenter, normal = { textColor = new Color(1f, 0.85f, 0.2f) } };
+        stylesReady   = true;
     }
+
+    private Texture2D MakeTex(Color c) { var t = new Texture2D(1, 1); t.SetPixel(0, 0, c); t.Apply(); return t; }
 }

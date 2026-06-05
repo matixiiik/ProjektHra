@@ -56,8 +56,10 @@ public class HUDCounter : MonoBehaviour
         questPanel.transform.SetParent(parent, false);
 
         questPanelRT            = questPanel.AddComponent<RectTransform>();
-        questPanelRT.anchorMin  = new Vector2(0.5f, 1f);
-        questPanelRT.anchorMax  = new Vector2(0.5f, 1f);
+        // P2 je vždy v pravé polovině → anchor 0.75; P1 single → 0.5 (UpdateLayout to přesune při splitu)
+        float qax = playerIndex == 1 ? 0.75f : 0.5f;
+        questPanelRT.anchorMin  = new Vector2(qax, 1f);
+        questPanelRT.anchorMax  = new Vector2(qax, 1f);
         questPanelRT.pivot      = new Vector2(0.5f, 1f);
         questPanelRT.anchoredPosition = new Vector2(0, -16f);
         questPanelRT.sizeDelta  = new Vector2(280f, 38f);

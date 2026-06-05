@@ -103,10 +103,10 @@ public class PlayerController : MonoBehaviour
         int x = 0, y = 0;
         int step = (!isOnFoot && gridManager.gameData.hasSpeedUpgrade) ? 2 : 1;
 
-        if      (Key(KeyCode.W, KeyCode.Keypad8)) y =  step;
-        else if (Key(KeyCode.S, KeyCode.Keypad2)) y = -step;
-        else if (Key(KeyCode.A, KeyCode.Keypad4)) x = -step;
-        else if (Key(KeyCode.D, KeyCode.Keypad6)) x =  step;
+        if      (Key(KeyCode.W, KeyCode.UpArrow))    y =  step;
+        else if (Key(KeyCode.S, KeyCode.DownArrow))  y = -step;
+        else if (Key(KeyCode.A, KeyCode.LeftArrow))  x = -step;
+        else if (Key(KeyCode.D, KeyCode.RightArrow)) x =  step;
 
         if (x != 0 || y != 0) AttemptMove(x, y);
 

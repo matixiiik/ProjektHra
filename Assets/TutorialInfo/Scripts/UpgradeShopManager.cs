@@ -32,7 +32,7 @@ public class UpgradeShopManager : MonoBehaviour
 
     void Update()
     {
-        if (isOpen && Input.GetKeyDown(KeyCode.Escape))
+        if (isOpen && (Input.GetKeyDown(KeyCode.Escape) || Input.GetKeyDown(KeyCode.KeypadEnter)))
         {
             isOpen = false;
             AnyShopOpen = false;

@@ -73,15 +73,19 @@ public class MultiplayerManager : MonoBehaviour
         p2Player = null;
     }
 
-    // ── P2 kamera sleduje P2 se stejným offsetem jako P1 sleduje P1 ──────────
+    // ── Každá kamera sleduje svého hráče se stejným offsetem ─────────────────
 
     void LateUpdate()
     {
         if (!IsMultiplayer) return;
         if (p1Camera == null || p1Player == null || p2Camera == null || p2Player == null) return;
 
-        Vector3 offset = p1Camera.transform.position - p1Player.transform.position;
-        p2Camera.transform.position = p2Player.transform.position + offset;
+        // Spočítej offset kamery vůči hráči (výška + úhel kamery)
+        Vector3 camOffset = p1Camera.transform.position - p1Player.transform.position;
+
+        // P1 kamera zůstává tam kde je (sleduje ji jiný systém / je child hráče)
+        // P2 kamera aplikuje stejný offset na P2 hráče → každý je ve středu své strany
+        p2Camera.transform.position = p2Player.transform.position + camOffset;
         p2Camera.transform.rotation = p1Camera.transform.rotation;
     }
 }

@@ -29,6 +29,7 @@ public class MinimapUIRenderer : MonoBehaviour
     public Color treasureColor    = new Color(0.95f, 0.65f, 0.1f,  1f);
     public Color harborColor      = new Color(0.2f,  0.85f, 0.2f,  1f);
     public Color pierColor        = new Color(0.1f,  0.1f,  0.1f,  1f);
+    public Color lighthouseColor  = new Color(1f,    0.25f, 0.2f,  1f); // maják (červená)
     public Color fogColor         = new Color(0.35f, 0.35f, 0.35f, 1f); // neprozkoumáno
     public Color playerColor      = Color.white;                        // bod vlastního hráče
     public Color otherPlayerColor = new Color(1f, 0.5f, 0f, 1f);        // bod druhého hráče (oranžová)
@@ -183,7 +184,8 @@ public class MinimapUIRenderer : MonoBehaviour
             case TileType.Treasure:   return treasureColor;
             case TileType.Harbor:     return harborColor;
             case TileType.Pier:       return pierColor;
-            default:                  return waterColor; // shopy apod. bereme jako vodu
+            case TileType.Lighthouse: return lighthouseColor;
+            default:                  return waterColor; // staré shopy apod. bereme jako vodu
         }
     }
 }

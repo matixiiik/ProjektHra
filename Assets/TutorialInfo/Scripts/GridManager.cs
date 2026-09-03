@@ -27,8 +27,9 @@ public class GridManager : MonoBehaviour
     public GameObject treasurePrefab;
     public GameObject harborPrefab;
     public GameObject pierPrefab;
-    public GameObject upgradeShopPrefab;
-    public GameObject questShopPrefab;
+    public GameObject upgradeShopPrefab;  // starý obchod — drží se kvůli starým savům
+    public GameObject questShopPrefab;    // dtto
+    public GameObject lighthousePrefab;   // maják (vejde se do něj – viz LighthouseManager)
 
     [HideInInspector] public GameData gameData; // veškerý stav hry
 
@@ -100,11 +101,7 @@ public class GridManager : MonoBehaviour
             bool isTooFar = Mathf.Abs(x - gameData.playerGridX) > CLEANUP_LIMIT
                          || Mathf.Abs(y - gameData.playerGridY) > CLEANUP_LIMIT;
 
-            bool isImportant = entry.Value.isExplored
-                            || entry.Value.type == (int)TileType.Harbor
-                            || entry.Value.type == (int)TileType.Pier
-                            || entry.Value.type == (int)TileType.UpgradeShop
-                            || entry.Value.type == (int)TileType.QuestShop;
+            bool isImportant = entry.Value.isExplored || IsIslandTile(entry.Value.type);
 
             if (isTooFar && !isImportant) keysToRemove.Add(entry.Key);
         }
@@ -252,10 +249,11 @@ public class GridManager : MonoBehaviour
         return false;
     }
 
-    // Patří tento typ políčka k ostrovu (pevnina / molo / obchod)?
+    // Patří tento typ políčka k ostrovu (pevnina / molo / obchod / maják)?
     private static bool IsIslandTile(int type)
         => type == (int)TileType.Harbor || type == (int)TileType.Pier
-        || type == (int)TileType.UpgradeShop || type == (int)TileType.QuestShop;
+        || type == (int)TileType.UpgradeShop || type == (int)TileType.QuestShop
+        || type == (int)TileType.Lighthouse;
 
     // Vyplní čtverec 10×10 pevninou (Harbor). Zachová u políček dřívější "prozkoumáno".
     private void StampHarborBlock(int startX, int startY, bool explored = false)
@@ -304,42 +302,22 @@ public class GridManager : MonoBehaviour
         gameData.tileData[GridKey(px1, py1)] = new TileStatus((int)TileType.Pier);
         gameData.tileData[GridKey(px2, py2)] = new TileStatus((int)TileType.Pier);
 
-        PlaceShops(startX, startY, side);
+        PlaceLighthouse(startX, startY, side);
     }
 
-    // Umístí oba obchody (2×2) na hranu ostrova naproti molu.
-    private void PlaceShops(int startX, int startY, int side)
+    // Umístí jedno políčko majáku na hranu ostrova naproti molu, zhruba doprostřed.
+    // Na maják se nechodí — hráč u něj stojí pěšky na sousední pevnině a dá `E`.
+    private void PlaceLighthouse(int startX, int startY, int side)
     {
-        if (side == 0) // molo dole → obchody nahoře
-        {
-            int shopRow = startY + ISLAND_SIZE - 2;
-            PlaceShop2x2(startX + 2, shopRow, TileType.UpgradeShop);
-            PlaceShop2x2(startX + 6, shopRow, TileType.QuestShop);
-        }
-        else if (side == 1) // molo nahoře → obchody dole
-        {
-            PlaceShop2x2(startX + 2, startY, TileType.UpgradeShop);
-            PlaceShop2x2(startX + 6, startY, TileType.QuestShop);
-        }
-        else if (side == 2) // molo vlevo → obchody vpravo
-        {
-            int shopCol = startX + ISLAND_SIZE - 2;
-            PlaceShop2x2(shopCol, startY + 2, TileType.UpgradeShop);
-            PlaceShop2x2(shopCol, startY + 6, TileType.QuestShop);
-        }
-        else // molo vpravo → obchody vlevo
-        {
-            PlaceShop2x2(startX, startY + 2, TileType.UpgradeShop);
-            PlaceShop2x2(startX, startY + 6, TileType.QuestShop);
-        }
-    }
+        int mid = ISLAND_SIZE / 2;
+        int lx, ly;
 
-    // Přepíše čtverec 2×2 na daný typ obchodu.
-    private void PlaceShop2x2(int x, int y, TileType type)
-    {
-        for (int ix = 0; ix < 2; ix++)
-            for (int iy = 0; iy < 2; iy++)
-                gameData.tileData[GridKey(x + ix, y + iy)] = new TileStatus((int)type);
+        if      (side == 0) { lx = startX + mid; ly = startY + ISLAND_SIZE - 2; } // molo dole → maják nahoře
+        else if (side == 1) { lx = startX + mid; ly = startY + 1;              } // molo nahoře → maják dole
+        else if (side == 2) { lx = startX + ISLAND_SIZE - 2; ly = startY + mid; } // molo vlevo → maják vpravo
+        else                { lx = startX + 1;              ly = startY + mid; } // molo vpravo → maják vlevo
+
+        gameData.tileData[GridKey(lx, ly)] = new TileStatus((int)TileType.Lighthouse);
     }
 
     // Náhodný typ mořského políčka: 0,5 % poklad, 0,5 % ryby, zbytek voda.
@@ -380,14 +358,15 @@ public class GridManager : MonoBehaviour
             icon.gameObject.layer = minimapLayer;
     }
 
-    // Vytvoří barevnou ikonku obchodu (čtvereček nad budovou) jen pro minimapu.
+    // Vytvoří barevnou ikonku budovy (čtvereček nad ní) jen pro minimapu.
     private Transform CreateShopMapIcon(GameObject tile, TileType type)
     {
-        if (type != TileType.UpgradeShop && type != TileType.QuestShop) return null;
+        if (type != TileType.UpgradeShop && type != TileType.QuestShop && type != TileType.Lighthouse)
+            return null;
 
-        Color iconColor = type == TileType.UpgradeShop
-            ? new Color(1f, 0.8f, 0f)    // zlatá  = upgrade shop
-            : new Color(0.2f, 0.8f, 1f); // azurová = quest shop
+        Color iconColor = type == TileType.UpgradeShop ? new Color(1f, 0.8f, 0f)     // zlatá   = upgrade shop
+                        : type == TileType.QuestShop   ? new Color(0.2f, 0.8f, 1f)   // azurová = quest shop
+                        :                                new Color(1f, 0.25f, 0.2f); // červená = maják
 
         GameObject iconGO = GameObject.CreatePrimitive(PrimitiveType.Quad);
         Destroy(iconGO.GetComponent<MeshCollider>()); // kolizi nechceme
@@ -479,8 +458,8 @@ public class GridManager : MonoBehaviour
         gameData.tileData[GridKey(px1, py1)] = new TileStatus((int)TileType.Pier) { isExplored = true };
         gameData.tileData[GridKey(px2, py1)] = new TileStatus((int)TileType.Pier) { isExplored = true };
 
-        // Molo je dole (side = 0) → obchody na horní hraně.
-        PlaceShops(0, 0, side: 0);
+        // Molo je dole (side = 0) → maják na horní hraně.
+        PlaceLighthouse(0, 0, side: 0);
 
         gameData.playerGridX = px1;
         gameData.playerGridY = py1;
@@ -500,6 +479,7 @@ public class GridManager : MonoBehaviour
             case TileType.Pier:        return pierPrefab;
             case TileType.UpgradeShop: return upgradeShopPrefab != null ? upgradeShopPrefab : harborPrefab;
             case TileType.QuestShop:   return questShopPrefab   != null ? questShopPrefab   : harborPrefab;
+            case TileType.Lighthouse:  return lighthousePrefab  != null ? lighthousePrefab  : harborPrefab;
             default:                   return null;
         }
     }

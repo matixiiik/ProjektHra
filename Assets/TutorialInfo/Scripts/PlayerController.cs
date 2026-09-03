@@ -121,10 +121,10 @@ public class PlayerController : MonoBehaviour
                      || (questShopManager   != null && questShopManager.IsOpen);
         if (isMoving || isWorking || shopOpen || GameConsole.IsOpen || MainMenuManager.IsVisible) return;
 
-        // E / Numpad1 → nastup/vystup z lodě, nebo otevři sousední obchod.
+        // E / Numpad1 → nastup/vystup z lodě, nebo vejdi do sousední budovy (maják).
         if (KeyDown(KeyCode.E, KeyCode.Keypad1))
         {
-            if (!TryOpenAdjacentShop()) TryToggleBoatFoot();
+            if (!TryInteractAdjacentBuilding()) TryToggleBoatFoot();
             return;
         }
 
@@ -307,8 +307,10 @@ public class PlayerController : MonoBehaviour
         else if (type == TileType.Treasure)   StartCoroutine(MineRoutine(cx, cy));
     }
 
-    // Otevře obchod, u kterého hráč (pěšky) stojí. Vrací true, když se povedlo.
-    bool TryOpenAdjacentShop()
+    // Interakce s budovou, u které hráč (pěšky) stojí. Vrací true, když se povedlo.
+    //  • maják  → vejít dovnitř (LighthouseManager – uvnitř jsou oba obchody)
+    //  • staré UpgradeShop / QuestShop dlaždice (jen ve starých savech) → původní IMGUI okno
+    bool TryInteractAdjacentBuilding()
     {
         if (!isOnFoot) return false;
         int px = GridX, py = GridY;
@@ -316,6 +318,12 @@ public class PlayerController : MonoBehaviour
         foreach (var d in dirs)
         {
             TileType t = gridManager.GetTileType(px + d.x, py + d.y);
+
+            if (t == TileType.Lighthouse && LighthouseManager.Instance != null)
+            {
+                LighthouseManager.Instance.Enter(playerIndex);
+                return true;
+            }
             if (t == TileType.UpgradeShop && upgradeShopManager != null) { upgradeShopManager.Open(playerIndex); return true; }
             if (t == TileType.QuestShop   && questShopManager   != null) { questShopManager.Open(playerIndex);   return true; }
         }

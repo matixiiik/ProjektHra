@@ -1,18 +1,46 @@
 {
   "permissions": {
     "allow": [
-      "Bash(git -C /c/Users/matix/Downloads/ProjectHra status)",
-      "Bash(git -C /c/Users/matix/Downloads/ProjectHra log --oneline)",
-      "Bash(git -C /c/Users/matix/Downloads/ProjectHra remote -v)",
-      "Bash(git -C /c/Users/matix/Downloads/ProjectHra remote set-url origin https://github.com/matixiiik/ProjektHra.git)",
-      "Bash(git -C /c/Users/matix/Downloads/ProjectHra push -u origin main)",
-      "Bash(git remote *)",
-      "Bash(git push *)",
-      "Bash(git rm *)",
-      "Bash(git add *)",
-      "Bash(git commit *)",
-      "Bash(git count-objects *)",
-      "Bash(git init *)"
+      "Bash(git status:*)",
+      "Bash(git log:*)",
+      "Bash(git diff:*)",
+      "Bash(git show:*)",
+      "Bash(git branch:*)",
+      "Bash(git fetch:*)",
+      "Bash(git remote:*)",
+      "Bash(git stash list:*)",
+      "Bash(git stash show:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git checkout:*)",
+      "Bash(git switch:*)",
+      "Bash(git restore:*)",
+      "Bash(git pull:*)",
+      "Bash(git push:*)",
+      "Bash(git merge:*)",
+      "Bash(git mv:*)",
+      "Bash(git config --get:*)",
+      "Bash(git config --local --get:*)",
+      "Bash(git ls-files:*)",
+      "Bash(git rev-parse:*)",
+      "Bash(gh repo view:*)",
+      "Bash(gh pr view:*)",
+      "Bash(gh pr list:*)",
+      "Bash(gh pr diff:*)",
+      "Bash(gh pr checks:*)",
+      "Bash(gh pr create:*)",
+      "Bash(gh run list:*)",
+      "Bash(gh run view:*)",
+      "Bash(gh run watch:*)",
+      "Bash(gh issue list:*)",
+      "Bash(gh issue view:*)",
+      "Bash(gh api:*)"
+    ],
+    "deny": [
+      "Bash(git push --force:*)",
+      "Bash(git push -f:*)",
+      "Bash(git reset --hard:*)",
+      "Bash(git clean -fdx:*)"
     ]
   }
 }

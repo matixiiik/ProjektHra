@@ -1,0 +1,66 @@
+# ─────────────────────────────────────────────────────────────────────────────
+#  .gitattributes — jak Git zachází se soubory tohoto Unity projektu
+# ─────────────────────────────────────────────────────────────────────────────
+
+# Výchozí: Git sám pozná text vs. binárku, konce řádků normalizuje na LF v repu.
+* text=auto
+
+# ── Zdrojové soubory ─────────────────────────────────────────────────────────
+*.cs        text diff=csharp eol=lf
+*.shader    text eol=lf
+*.cginc     text eol=lf
+*.hlsl      text eol=lf
+*.json      text eol=lf
+*.md        text eol=lf
+*.txt       text eol=lf
+*.xml       text eol=lf
+*.yml       text eol=lf
+*.uxml      text eol=lf
+*.uss       text eol=lf
+
+# ── Unity YAML soubory (scény, prefaby, assety) ──────────────────────────────
+# merge=unityyamlmerge → používá Unity nástroj na chytré slučování scén/prefabů.
+# Musí být jednou nastavený v git configu (viz CLAUDE.md, sekce Git). Bez
+# nastavení Git jen spadne zpět na běžný merge, nic se nerozbije.
+*.unity        merge=unityyamlmerge eol=lf
+*.prefab       merge=unityyamlmerge eol=lf
+*.asset        merge=unityyamlmerge eol=lf
+*.meta         merge=unityyamlmerge eol=lf
+*.controller   merge=unityyamlmerge eol=lf
+*.anim         merge=unityyamlmerge eol=lf
+*.mat          merge=unityyamlmerge eol=lf
+*.physicsMaterial  merge=unityyamlmerge eol=lf
+*.mask         merge=unityyamlmerge eol=lf
+*.renderTexture    merge=unityyamlmerge eol=lf
+
+# ── Binární assety ───────────────────────────────────────────────────────────
+# -text = nikdy neřeš konce řádků; Git s nimi zachází jako s binárkou.
+*.png   binary
+*.jpg   binary
+*.jpeg  binary
+*.gif   binary
+*.psd   binary
+*.tif   binary
+*.tga   binary
+*.exr   binary
+*.hdr   binary
+*.fbx   binary
+*.blend binary
+*.obj   binary
+*.dae   binary
+*.3ds   binary
+*.wav   binary
+*.mp3   binary
+*.ogg   binary
+*.aif   binary
+*.ttf   binary
+*.otf   binary
+*.dll   binary
+*.so    binary
+*.a     binary
+*.pdf   binary
+*.unitypackage binary
+
+# ── Poznámka ke Git LFS (zatím NEzapnuto) ────────────────────────────────────
+# Až projekt poroste (velké textury, FBX, zvuky), zvaž Git LFS. Vyžaduje
+# `git lfs migrate` na už commitnuté soubory — návod je v CLAUDE.md.

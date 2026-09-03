@@ -1,21 +1,49 @@
-# Unity generated
-Library/
-Temp/
-Obj/
-Build/
-Builds/
-Logs/
-UserSettings/
-MemoryCaptures/
+# ─────────────────────────────────────────────────────────────────────────────
+#  .gitignore — Unity projekt Game1
+#  Vychází z oficiálního github/gitignore/Unity.gitignore, zjednodušené.
+# ─────────────────────────────────────────────────────────────────────────────
 
-# Visual Studio / Rider
+# Unity generované složky (regenerují se při otevření projektu)
+/[Ll]ibrary/
+/[Tt]emp/
+/[Oo]bj/
+/[Bb]uild/
+/[Bb]uilds/
+/[Ll]ogs/
+/[Uu]ser[Ss]ettings/
+/[Mm]emoryCaptures/
+
+# Automaticky generované / dočasné věci uvnitř Assets (NEpatří do gitu)
+/[Aa]ssets/Unity.VisualScripting.Generated/
+/[Aa]ssets/Unity.VisualScripting.Generated.meta
+/[Aa]ssets/_Recovery/
+/[Aa]ssets/_Recovery.meta
+/[Aa]ssets/Screenshots/
+/[Aa]ssets/Screenshots.meta
+
+# Visual Studio / Rider / VS Code — projektové soubory (Unity je generuje)
 .vs/
+.vscode/
+.idea/
 *.csproj
 *.sln
 *.slnx
+*.suo
+*.user
+*.userprefs
+*.pidb
+*.booproj
+*.svd
+*.opendb
+*.VC.db
 UpgradeLog.htm
-Assembly-CSharp*.csproj
-Assembly-CSharp-Editor*.csproj
+sysinfo.txt
+
+# Buildy
+*.apk
+*.aab
+*.app
+*.unitypackage
 
 # OS
 .DS_Store

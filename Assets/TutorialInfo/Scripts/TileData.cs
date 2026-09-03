@@ -1,23 +1,37 @@
 using System;
 
+// ─────────────────────────────────────────────────────────────────────────────
+//  TileData.cs
+//  Základní datové typy pro jedno políčko herní mřížky (mapy).
+//  Nejsou to komponenty (MonoBehaviour) — jen "hloupá" data, která se ukládají
+//  do save souboru přes GameData.
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// <summary>
+/// Druh políčka. Číslo (int) se ukládá do save, proto se hodnoty nesmí měnit
+/// (jinak by se staré savy načetly špatně).
+/// </summary>
 public enum TileType
 {
-    Empty = 0,
-    Water = 1,
-    Water_Fish = 2,
-    Treasure = 3,
-    Harbor = 4,
-    Pier = 5,
-    UpgradeShop = 6,
-    QuestShop = 7
+    Empty       = 0, // nepoužívá se, jen výchozí hodnota
+    Water       = 1, // obyčejná voda — dá se přes ni plout
+    Water_Fish  = 2, // voda s rybami — dá se tu rybařit
+    Treasure    = 3, // políčko s pokladem — dá se tu těžit
+    Harbor      = 4, // pevnina ostrova — chodí se po ní pěšky
+    Pier        = 5, // molo — přechod mezi lodí a pevninou
+    UpgradeShop = 6, // budova obchodu s vylepšeními (2x2 políčka)
+    QuestShop   = 7  // budova obchodu s questy / výkupem (2x2 políčka)
 }
 
+/// <summary>
+/// Stav jednoho konkrétního políčka. Ukládá se do save souboru.
+/// </summary>
 [Serializable]
 public class TileStatus
 {
-    public int type;
-    public bool isExplored;
-    public int fishRemaining;
+    public int  type;          // druh políčka (přetypováno z TileType)
+    public bool isExplored;    // true = hráč sem už doplul a odkryl mlhu
+    public int  fishRemaining; // kolik ryb na políčku ještě zbývá (jen u Water_Fish)
 
     public TileStatus(int type)
     {

@@ -1,32 +1,45 @@
 using UnityEngine;
 using UnityEngine.UI;
 
+// ─────────────────────────────────────────────────────────────────────────────
+//  MinimapUIRenderer.cs
+//  Kreslí minimapu jako malou texturu (čtvereček pixelů), kde 1 pixel = 1 políčko
+//  mapy. Střed textury je hráč, okolo se vykreslují políčka podle jejich typu
+//  a podle toho, jestli je hráč už prozkoumal (jinak jsou "v mlze").
+//
+//  Překresluje se při každé změně světa (grid.OnWorldChanged), tj. při pohybu,
+//  rybaření, nákupu atd.
+//
+//  V multiplayeru má P2 vlastní kopii tohoto skriptu — když nemá přiřazený
+//  minimapImage, vytvoří si vlastní canvas v rohu obrazovky.
+// ─────────────────────────────────────────────────────────────────────────────
+
 public class MinimapUIRenderer : MonoBehaviour
 {
-    public RawImage minimapImage;
+    public RawImage minimapImage; // UI prvek, do kterého se kreslí (nastaví se v editoru pro P1)
 
-    [HideInInspector] public int playerIndex = 0;
+    [HideInInspector] public int playerIndex = 0; // 0 = P1, 1 = P2
 
     [Header("Kolik políček kolem hráče ukázat")]
-    public int viewRadius = 25;
+    public int viewRadius = 25; // výsledná mapa má rozměr (2*viewRadius + 1)
 
     [Header("Barvy")]
-    public Color waterColor      = new Color(0.15f, 0.75f, 0.85f, 1f);
-    public Color fishColor       = new Color(0.1f,  0.35f, 0.85f, 1f);
-    public Color treasureColor   = new Color(0.95f, 0.65f, 0.1f,  1f);
-    public Color harborColor     = new Color(0.2f,  0.85f, 0.2f,  1f);
-    public Color pierColor       = new Color(0.1f,  0.1f,  0.1f,  1f);
-    public Color fogColor        = new Color(0.35f, 0.35f, 0.35f, 1f);
-    public Color playerColor     = Color.white;
-    public Color otherPlayerColor = new Color(1f, 0.5f, 0f, 1f); // oranžová = druhý hráč
+    public Color waterColor       = new Color(0.15f, 0.75f, 0.85f, 1f);
+    public Color fishColor        = new Color(0.1f,  0.35f, 0.85f, 1f);
+    public Color treasureColor    = new Color(0.95f, 0.65f, 0.1f,  1f);
+    public Color harborColor      = new Color(0.2f,  0.85f, 0.2f,  1f);
+    public Color pierColor        = new Color(0.1f,  0.1f,  0.1f,  1f);
+    public Color fogColor         = new Color(0.35f, 0.35f, 0.35f, 1f); // neprozkoumáno
+    public Color playerColor      = Color.white;                        // bod vlastního hráče
+    public Color otherPlayerColor = new Color(1f, 0.5f, 0f, 1f);        // bod druhého hráče (oranžová)
 
     [Header("Okraj minimapy")]
     public int   borderPixels = 2;
     public Color borderColor  = new Color(0.2f, 0.2f, 0.2f, 1f);
 
     private GridManager grid;
-    private Texture2D   tex;
-    private int         size;
+    private Texture2D   tex;  // samotná textura minimapy
+    private int         size; // šířka i výška textury v pixelech
 
     void Start()
     {
@@ -38,12 +51,13 @@ public class MinimapUIRenderer : MonoBehaviour
             return;
         }
 
-        // Pokud není minimapImage přiřazen v editoru, vytvoř canvas automaticky
+        // P2 nemá minimapImage přiřazený v editoru → vytvoř si vlastní canvas.
         if (minimapImage == null)
             minimapImage = CreateMinimapCanvas();
 
         if (minimapImage == null) { enabled = false; return; }
 
+        // Připrav texturu. Point filtr = ostré pixely (bez rozmazání).
         size = viewRadius * 2 + 1;
         tex  = new Texture2D(size, size, TextureFormat.RGBA32, false);
         tex.filterMode = FilterMode.Point;
@@ -52,16 +66,18 @@ public class MinimapUIRenderer : MonoBehaviour
         minimapImage.texture = tex;
         minimapImage.uvRect  = new Rect(0, 0, 1, 1);
 
+        // Překresli minimapu při každé změně světa.
         grid.OnWorldChanged += Refresh;
         Refresh();
     }
 
     void OnDestroy()
     {
+        // Odhlaš se z události, jinak by se volala i po zničení objektu.
         if (grid != null) grid.OnWorldChanged -= Refresh;
     }
 
-    // ── Automatické vytvoření canvasu pro P2 ─────────────────────────────────
+    // ── Automatické vytvoření canvasu (pro P2 / když není přiřazen) ───────────
     RawImage CreateMinimapCanvas()
     {
         var canvasGO = new GameObject($"MinimapCanvas_P{playerIndex + 1}");
@@ -77,7 +93,7 @@ public class MinimapUIRenderer : MonoBehaviour
         var rt = imgGO.AddComponent<RectTransform>();
         rt.sizeDelta = new Vector2(170f, 170f);
 
-        // P1 → levý dolní roh,  P2 → pravý dolní roh
+        // P1 → levý dolní roh, P2 → pravý dolní roh.
         if (playerIndex == 0)
         {
             rt.anchorMin = rt.anchorMax = Vector2.zero;
@@ -94,40 +110,45 @@ public class MinimapUIRenderer : MonoBehaviour
         return imgGO.AddComponent<RawImage>();
     }
 
-    // ── Překreslení textury ───────────────────────────────────────────────────
+    // ── Překreslení textury ─────────────────────────────────────────────────
     void Refresh()
     {
         GameData d = grid.gameData;
-        int cx = playerIndex == 0 ? d.playerGridX  : d.player2GridX;
-        int cy = playerIndex == 0 ? d.playerGridY  : d.player2GridY;
 
+        // Střed minimapy = pozice tohoto hráče.
+        int cx = playerIndex == 0 ? d.playerGridX : d.player2GridX;
+        int cy = playerIndex == 0 ? d.playerGridY : d.player2GridY;
+
+        // Projdi všechny pixely a obarvi je podle políčka, které leží pod nimi.
         for (int px = 0; px < size; px++)
             for (int py = 0; py < size; py++)
                 tex.SetPixel(px, py, GetTileColor(cx + (px - viewRadius), cy + (py - viewRadius)));
 
-        // Vlastní hráč — bílý bod uprostřed
+        // Vlastní hráč — bílý bod přesně uprostřed.
         tex.SetPixel(viewRadius, viewRadius, playerColor);
 
-        // Druhý hráč — oranžový bod (jen v multiplayeru)
+        // Druhý hráč — oranžový bod (jen v multiplayeru a jen když je na mapě vidět).
         if (MultiplayerManager.IsMultiplayer)
         {
             int ox = playerIndex == 0 ? d.player2GridX : d.playerGridX;
             int oy = playerIndex == 0 ? d.player2GridY : d.playerGridY;
-            int rx = ox - cx + viewRadius;
+            int rx = ox - cx + viewRadius; // přepočet na pixel minimapy
             int ry = oy - cy + viewRadius;
             if (rx >= 0 && rx < size && ry >= 0 && ry < size)
                 tex.SetPixel(rx, ry, otherPlayerColor);
         }
 
         DrawBorder();
-        tex.Apply(false);
+        tex.Apply(false); // promítni změny do textury
     }
 
+    // Nakreslí rámeček po obvodu minimapy.
     void DrawBorder()
     {
         int b = Mathf.Clamp(borderPixels, 0, 10);
         if (b <= 0) return;
 
+        // Horní a dolní okraj.
         for (int x = 0; x < size; x++)
             for (int y = 0; y < b; y++)
             {
@@ -135,6 +156,7 @@ public class MinimapUIRenderer : MonoBehaviour
                 tex.SetPixel(x, size - 1 - y, borderColor);
             }
 
+        // Levý a pravý okraj.
         for (int y = b; y < size - b; y++)
             for (int x = 0; x < b; x++)
             {
@@ -143,13 +165,16 @@ public class MinimapUIRenderer : MonoBehaviour
             }
     }
 
+    // Vrátí barvu pro políčko na souřadnicích [x, y].
     Color GetTileColor(int x, int y)
     {
         string key = $"{x},{y}";
+
+        // Políčko ještě neexistuje (nevygenerované) → mlha.
         if (!grid.gameData.tileData.ContainsKey(key)) return fogColor;
 
         var st = grid.gameData.tileData[key];
-        if (!st.isExplored) return fogColor;
+        if (!st.isExplored) return fogColor; // existuje, ale hráč tam nebyl
 
         switch ((TileType)st.type)
         {
@@ -158,7 +183,7 @@ public class MinimapUIRenderer : MonoBehaviour
             case TileType.Treasure:   return treasureColor;
             case TileType.Harbor:     return harborColor;
             case TileType.Pier:       return pierColor;
-            default:                  return waterColor;
+            default:                  return waterColor; // shopy apod. bereme jako vodu
         }
     }
 }

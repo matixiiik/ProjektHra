@@ -1,9 +1,24 @@
 using UnityEngine;
 
+// ─────────────────────────────────────────────────────────────────────────────
+//  MultiplayerManager.cs
+//  Zapíná / vypíná split-screen multiplayer pro dva hráče na jedné klávesnici
+//  (P1 = WASD, P2 = šipky/numpad).
+//
+//  Princip: ve scéně je normálně jen hráč 1. Při startu multiplayeru se
+//  hráč 1 naklonuje (Instantiate), z kopie se smažou věci, které mají být
+//  ve scéně jen jednou (kamera, HUD, menu...), a doplní se druhá kamera + HUD
+//  + minimapa pro P2. Obrazovka se rozdělí na dvě poloviny přes Camera.rect.
+//
+//  Statické metody StartMultiplayer() / Stop() volá menu a pauza.
+// ─────────────────────────────────────────────────────────────────────────────
+
 public class MultiplayerManager : MonoBehaviour
 {
+    /// <summary>Běží teď hra v režimu dvou hráčů? Čtou to skoro všechny ostatní skripty.</summary>
     public static bool IsMultiplayer { get; private set; }
 
+    // Odkaz na jedinou instanci ve scéně (aby statické metody měly na co volat).
     private static MultiplayerManager instance;
 
     private Camera            p1Camera;
@@ -16,11 +31,11 @@ public class MultiplayerManager : MonoBehaviour
 
     void Awake() { instance = this; }
 
-    // ── Veřejné API ───────────────────────────────────────────────────────────
+    // ── Veřejné API (volá se odjinud) ─────────────────────────────────────────
     public static void StartMultiplayer() { instance?.Setup(); }
     public static void Stop()             { instance?.Teardown(); }
 
-    // ── Nastavení split screenu ───────────────────────────────────────────────
+    // ── Zapnutí split screenu ─────────────────────────────────────────────────
     void Setup()
     {
         p1Camera = Camera.main;
@@ -35,65 +50,65 @@ public class MultiplayerManager : MonoBehaviour
 
         IsMultiplayer = true;
 
-        // P1 kamera → levá polovina
+        // P1 kamera → levá polovina obrazovky (x=0, šířka=0.5).
         p1Camera.rect = new Rect(0f, 0f, 0.5f, 1f);
 
-        // P1 HUD → přesunout do levé poloviny
+        // P1 HUD → přesunout ke středu (na kraj levé poloviny).
         if (p1HUD != null) p1HUD.UpdateLayout(true);
 
-        // Vytvoř P2 hráče (kopie P1)
+        // Vytvoř hráče 2 jako kopii hráče 1.
         GameObject p2Go = Instantiate(p1Player.gameObject);
-        p2Go.name    = "Player2";
-        p2Player     = p2Go.GetComponent<PlayerController>();
-        p2Player.playerIndex = 1;
+        p2Go.name            = "Player2";
+        p2Player             = p2Go.GetComponent<PlayerController>();
+        p2Player.playerIndex = 1; // od teď se chová jako P2 (jiné klávesy, jiná ekonomika)
 
-        // Odstraň komponenty které mají být jen jednou v scéně
-        // ShipModelSwitcher PONECHAT — řídí P2 loď samostatně
-        foreach (var c in p2Go.GetComponentsInChildren<Camera>())            Destroy(c);  // P2 nesmí mít vlastní kameru
-        foreach (var c in p2Go.GetComponentsInChildren<CameraFollow>())      Destroy(c);  // ani CameraFollow
+        // Z kopie smaž komponenty, které mají být ve scéně jen jednou.
+        // (ShipModelSwitcher se NECHÁVÁ — řídí model lodě P2.)
+        foreach (var c in p2Go.GetComponentsInChildren<Camera>())            Destroy(c);
+        foreach (var c in p2Go.GetComponentsInChildren<CameraFollow>())      Destroy(c);
         foreach (var c in p2Go.GetComponentsInChildren<HUDCounter>())        Destroy(c);
         foreach (var c in p2Go.GetComponentsInChildren<MinimapUIRenderer>()) Destroy(c);
-        foreach (var c in p2Go.GetComponentsInChildren<GameConsole>())        Destroy(c);
-        foreach (var c in p2Go.GetComponentsInChildren<PauseMenu>())          Destroy(c);
-        foreach (var c in p2Go.GetComponentsInChildren<MainMenuManager>())    Destroy(c);
-        foreach (var c in p2Go.GetComponentsInChildren<AudioListener>())      Destroy(c);
+        foreach (var c in p2Go.GetComponentsInChildren<GameConsole>())       Destroy(c);
+        foreach (var c in p2Go.GetComponentsInChildren<PauseMenu>())         Destroy(c);
+        foreach (var c in p2Go.GetComponentsInChildren<MainMenuManager>())   Destroy(c);
+        foreach (var c in p2Go.GetComponentsInChildren<AudioListener>())     Destroy(c);
 
-        // Vytvoř P2 HUD
+        // Vlastní HUD pro P2 (sám si při Start() postaví canvas).
         GameObject p2HudGo = new GameObject("P2HUD");
         p2HUD = p2HudGo.AddComponent<HUDCounter>();
         p2HUD.playerIndex = 1;
-        // Start() se zavolá příští snímek → HUDCounter si sám postaví canvas
 
-        // Vytvoř P2 minimapu (auto-canvas v bottom-right)
+        // Vlastní minimapa pro P2 (minimapImage == null → sama si vytvoří canvas vpravo dole).
         GameObject p2MapGo = new GameObject("P2Minimap");
         p2Minimap = p2MapGo.AddComponent<MinimapUIRenderer>();
         p2Minimap.playerIndex = 1;
-        // minimapImage == null → MinimapUIRenderer.Start() vytvoří canvas automaticky
 
-        // Vytvoř P2 kameru → pravá polovina, stejné parametry jako P1
+        // Vlastní kamera pro P2 → pravá polovina obrazovky, jinak stejná jako P1.
         GameObject p2CamGo = new GameObject("P2Camera");
         p2Camera = p2CamGo.AddComponent<Camera>();
         p2Camera.CopyFrom(p1Camera);
         p2Camera.rect  = new Rect(0.5f, 0f, 0.5f, 1f);
-        p2Camera.tag   = "Untagged";
+        p2Camera.tag   = "Untagged";           // "MainCamera" smí být jen P1
         p2Camera.depth = p1Camera.depth + 1;
 
-        // Nastav počáteční pozici P2 kamery (stejný offset jako P1 kamera od P1 hráče)
+        // Postav P2 kameru na stejný odstup od P2 hráče, jaký má P1 kamera od P1 hráče.
         Vector3 camOffset = p1Camera.transform.position - p1Player.transform.position;
         p2CamGo.transform.position = p2Player.transform.position + camOffset;
         p2CamGo.transform.rotation = p1Camera.transform.rotation;
     }
 
+    // ── Vypnutí split screenu (návrat do hlavního menu) ───────────────────────
     void Teardown()
     {
         IsMultiplayer = false;
 
-        // P1 kamera zpět na celou obrazovku
+        // P1 kamera zpět na celou obrazovku.
         if (p1Camera != null) p1Camera.rect = new Rect(0f, 0f, 1f, 1f);
 
-        // P1 HUD zpět na pravý kraj
+        // P1 HUD zpět do pravého horního rohu.
         if (p1HUD != null) p1HUD.UpdateLayout(false);
 
+        // Smaž všechno, co patřilo P2.
         if (p2Player  != null) Destroy(p2Player.gameObject);
         if (p2Camera  != null) Destroy(p2Camera.gameObject);
         if (p2HUD     != null) Destroy(p2HUD.gameObject);
@@ -105,7 +120,7 @@ public class MultiplayerManager : MonoBehaviour
         p2Minimap = null;
     }
 
-    // ── P2 kamera sleduje P2 hráče se stejným offsetem jako P1 kamera P1 hráče
+    // ── Každý snímek: drž P2 kameru za P2 hráčem se stejným odstupem jako P1 ───
     void LateUpdate()
     {
         if (!IsMultiplayer) return;

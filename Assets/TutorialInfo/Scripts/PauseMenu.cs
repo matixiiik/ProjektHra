@@ -1,19 +1,31 @@
 using UnityEngine;
 
+// ─────────────────────────────────────────────────────────────────────────────
+//  PauseMenu.cs
+//  Pauza (klávesa Esc, v multiplayeru i Enter na numpadu).
+//  Zastaví hru (Time.timeScale = 0) a ukáže okno: Pokračovat / Nová hra /
+//  Hlavní menu. V multiplayeru navíc přidá sekci pro převod mincí mezi hráči.
+//
+//  [DefaultExecutionOrder(-100)] → Update() běží dřív než ostatní skripty,
+//  aby se stihlo odchytit Esc před nimi.
+//
+//  Kreslí se přes IMGUI (OnGUI). Staré UI přes Canvas (menuRoot) se jen skryje.
+// ─────────────────────────────────────────────────────────────────────────────
+
 [DefaultExecutionOrder(-100)]
 public class PauseMenu : MonoBehaviour
 {
     [Header("Legacy UI root (bude skryt, nemusíš mazat)")]
-    public GameObject menuRoot;
+    public GameObject menuRoot; // staré Canvas menu — už se nepoužívá, jen se vypne
 
-    private bool   isOpen  = false;
-    private string transferAmount = "100";
+    private bool   isOpen         = false;
+    private string transferAmount = "100"; // text v políčku pro převod peněz
 
     private GridManager      grid;
     private PlayerController player;
 
     private GUIStyle titleStyle, buttonStyle, transferTitleStyle, transferBtnStyle, coinInfoStyle, inputStyle;
-    private bool stylesReady;
+    private bool     stylesReady;
 
     void Start()
     {
@@ -24,13 +36,18 @@ public class PauseMenu : MonoBehaviour
 
     void Update()
     {
+        // Když je vidět hlavní menu, pauza se neřeší.
         if (MainMenuManager.IsVisible) return;
 
+        // Esc vždy; Enter na numpadu jen v multiplayeru (P2 nemá Esc po ruce).
         bool pausePressed = Input.GetKeyDown(KeyCode.Escape)
                          || (MultiplayerManager.IsMultiplayer && Input.GetKeyDown(KeyCode.KeypadEnter));
+
         if (pausePressed)
         {
+            // Když je otevřený obchod, klávesa patří jemu (zavírá obchod), ne pauze.
             if (UpgradeShopManager.AnyShopOpen) return;
+
             if (isOpen) ContinueGame();
             else        OpenMenu();
         }
@@ -41,11 +58,11 @@ public class PauseMenu : MonoBehaviour
         if (!isOpen) return;
         InitStyles();
 
-        bool mp  = MultiplayerManager.IsMultiplayer;
+        bool  mp = MultiplayerManager.IsMultiplayer;
         float w  = 360;
-        float h  = mp ? 420 : 260;
+        float h  = mp ? 420 : 260; // v multiplayeru je okno vyšší kvůli převodu peněz
 
-        // Tmavý overlay
+        // Tmavý overlay přes celou obrazovku.
         GUI.color = new Color(0f, 0f, 0f, 0.75f);
         GUI.DrawTexture(new Rect(0, 0, Screen.width, Screen.height), Texture2D.whiteTexture);
         GUI.color = Color.white;
@@ -53,7 +70,7 @@ public class PauseMenu : MonoBehaviour
         float px = (Screen.width  - w) / 2f;
         float py = (Screen.height - h) / 2f;
 
-        // Panel
+        // Panel + modrý proužek nahoře.
         GUI.color = new Color(0.1f, 0.12f, 0.16f, 1f);
         GUI.DrawTexture(new Rect(px, py, w, h), Texture2D.whiteTexture);
         GUI.color = new Color(0.4f, 0.6f, 1f, 1f);
@@ -74,13 +91,12 @@ public class PauseMenu : MonoBehaviour
         if (GUILayout.Button("Hlavní menu", buttonStyle, GUILayout.Height(44)))
             GoToMainMenu();
 
-        // ── Sekce převodu peněz (jen v multiplayeru) ─────────────────────────
+        // ── Převod peněz mezi hráči (jen v multiplayeru) ─────────────────────
         if (mp && grid != null)
         {
             GUILayout.Space(14);
-            // Oddělovač
             GUI.color = new Color(1f, 0.85f, 0.2f, 0.5f);
-            GUILayout.Box("", GUILayout.ExpandWidth(true), GUILayout.Height(1));
+            GUILayout.Box("", GUILayout.ExpandWidth(true), GUILayout.Height(1)); // oddělovací čára
             GUI.color = Color.white;
 
             GUILayout.Space(6);
@@ -88,8 +104,8 @@ public class PauseMenu : MonoBehaviour
             GUILayout.Space(4);
 
             GUILayout.BeginHorizontal();
-            GUILayout.Label($"P1: {grid.gameData.coins} mincí", coinInfoStyle, GUILayout.ExpandWidth(true));
-            GUILayout.Label($"P2: {grid.gameData.player2Coins} mincí", coinInfoStyle, GUILayout.ExpandWidth(true));
+            GUILayout.Label($"P1: {grid.gameData.coins} mincí",        coinInfoStyle, GUILayout.ExpandWidth(true));
+            GUILayout.Label($"P2: {grid.gameData.player2Coins} mincí",  coinInfoStyle, GUILayout.ExpandWidth(true));
             GUILayout.EndHorizontal();
 
             GUILayout.Space(4);
@@ -107,10 +123,10 @@ public class PauseMenu : MonoBehaviour
         GUILayout.EndArea();
     }
 
-    // ── Akce ─────────────────────────────────────────────────────────────────
+    // ── Akce tlačítek ────────────────────────────────────────────────────────
 
-    public void OpenMenu()    { isOpen = true;  Time.timeScale = 0f; }
-    public void ContinueGame(){ isOpen = false; Time.timeScale = 1f; }
+    public void OpenMenu()     { isOpen = true;  Time.timeScale = 0f; } // 0 = hra stojí
+    public void ContinueGame() { isOpen = false; Time.timeScale = 1f; }
 
     public void NewGame()
     {
@@ -124,29 +140,30 @@ public class PauseMenu : MonoBehaviour
     public void GoToMainMenu()
     {
         isOpen = false;
-        if (MultiplayerManager.IsMultiplayer) MultiplayerManager.Stop();
+        if (MultiplayerManager.IsMultiplayer) MultiplayerManager.Stop(); // ukonči split screen
         MainMenuManager.Show();
     }
 
-    // Ponecháno pro zpětnou kompatibilitu s Canvas tlačítky v editoru
+    // Ponecháno kvůli starým Canvas tlačítkům ve scéně, která volají "ExitGame".
     public void ExitGame() => GoToMainMenu();
 
     // ── Převod peněz ─────────────────────────────────────────────────────────
     private void TryTransfer(int from, int to)
     {
+        // Neplatná / nulová částka → nic nedělej.
         if (!int.TryParse(transferAmount, out int amount) || amount <= 0) return;
 
         int fromCoins = from == 0 ? grid.gameData.coins : grid.gameData.player2Coins;
-        if (fromCoins < amount) return;
+        if (fromCoins < amount) return; // odesílatel nemá dost
 
-        if (from == 0) { grid.gameData.coins -= amount;         grid.gameData.player2Coins += amount; }
-        else           { grid.gameData.player2Coins -= amount;  grid.gameData.coins += amount; }
+        if (from == 0) { grid.gameData.coins        -= amount; grid.gameData.player2Coins += amount; }
+        else           { grid.gameData.player2Coins -= amount; grid.gameData.coins        += amount; }
 
         grid.Save();
         grid.NotifyWorldChanged();
     }
 
-    // ── Styly ────────────────────────────────────────────────────────────────
+    // ── Styly (jen jednou) ───────────────────────────────────────────────────
     private void InitStyles()
     {
         if (stylesReady) return;

@@ -1,62 +1,74 @@
 using UnityEngine;
 using System.Collections;
 
+// ─────────────────────────────────────────────────────────────────────────────
+//  PlayerController.cs
+//  Ovládání hráče: pohyb po mřížce (políčko po políčku), přesedání loď ↔ pěšky,
+//  rybaření, těžba pokladů a otevírání obchodů.
+//
+//  Jeden a ten samý skript ovládá oba hráče. Rozlišuje je playerIndex:
+//     0 = Hráč 1 (WASD, Space, E)
+//     1 = Hráč 2 (šipky, Numpad0, Numpad1)
+//  Podle playerIndex se čte a zapisuje buď do polí P1, nebo P2 v GameData —
+//  o to se starají "routovací" property (GridX, PCoins, PQuest, ...).
+// ─────────────────────────────────────────────────────────────────────────────
+
 public class PlayerController : MonoBehaviour
 {
-    [HideInInspector] public int playerIndex = 0; // 0 = P1 (WASD), 1 = P2 (numpad)
+    [HideInInspector] public int playerIndex = 0; // 0 = P1, 1 = P2 (nastavuje MultiplayerManager)
 
-    private GridManager gridManager;
-    private HarborManager harborManager;
+    private GridManager        gridManager;
     private UpgradeShopManager upgradeShopManager;
-    private QuestShopManager questShopManager;
+    private QuestShopManager   questShopManager;
 
-    public GameObject headDot;
-    public Transform boatModel;
-    public float moveSpeed = 5f;
-    public float fishingDuration = 1.5f;
-    public float miningDuration = 3.0f;
+    public GameObject headDot;          // tečka nad hlavou, když je hráč pěšky
+    public Transform  boatModel;        // 3D model lodě (přepíná ShipModelSwitcher)
+    public float moveSpeed       = 5f;  // rychlost plynulého posunu mezi políčky
+    public float fishingDuration = 1.5f;// jak dlouho trvá jeden zátah
+    public float miningDuration  = 3.0f;// jak dlouho trvá vytěžit poklad
 
-    private bool isMoving = false;
-    private bool isWorking = false;
+    private bool isMoving = false;  // právě se přesouvá mezi políčky
+    private bool isWorking = false; // právě rybaří / těží
 
-    public bool IsWorking => isWorking;
-    public float WorkProgress { get; private set; }
+    public bool  IsWorking    => isWorking;
+    public float WorkProgress { get; private set; } // 0..1, pro kroužek WorkIndicator
 
+    // Poslední políčko, kde se odkrývala mlha (aby se to nedělalo pořád dokola).
     private int lastExploredX = -999;
     private int lastExploredY = -999;
 
-    private bool isOnFoot = false;
-    private int boatGridX;
-    private int boatGridY;
+    private bool isOnFoot = false; // true = hráč vystoupil a chodí po ostrově
+    private int  boatGridX;        // kde má zaparkovanou loď
+    private int  boatGridY;
 
     public bool IsOnFoot => isOnFoot;
 
-    // ── Pozice routuje do správného pole podle playerIndex ────────────────────
+    // ── Routování pozice do správných polí GameData (P1 vs P2) ───────────────
     int GridX
     {
-        get => playerIndex == 0 ? gridManager.gameData.playerGridX  : gridManager.gameData.player2GridX;
-        set { if (playerIndex == 0) gridManager.gameData.playerGridX  = value; else gridManager.gameData.player2GridX = value; }
+        get => playerIndex == 0 ? gridManager.gameData.playerGridX : gridManager.gameData.player2GridX;
+        set { if (playerIndex == 0) gridManager.gameData.playerGridX = value; else gridManager.gameData.player2GridX = value; }
     }
     int GridY
     {
-        get => playerIndex == 0 ? gridManager.gameData.playerGridY  : gridManager.gameData.player2GridY;
-        set { if (playerIndex == 0) gridManager.gameData.playerGridY  = value; else gridManager.gameData.player2GridY = value; }
+        get => playerIndex == 0 ? gridManager.gameData.playerGridY : gridManager.gameData.player2GridY;
+        set { if (playerIndex == 0) gridManager.gameData.playerGridY = value; else gridManager.gameData.player2GridY = value; }
     }
 
-    // ── Ekonomika a upgrady (route per player) ────────────────────────────────
+    // ── Routování ekonomiky a upgradů (P1 vs P2) ────────────────────────────
     int PCoins
     {
-        get => playerIndex == 0 ? gridManager.gameData.coins         : gridManager.gameData.player2Coins;
+        get => playerIndex == 0 ? gridManager.gameData.coins : gridManager.gameData.player2Coins;
         set { if (playerIndex == 0) gridManager.gameData.coins = value; else gridManager.gameData.player2Coins = value; }
     }
     int PFishCount
     {
-        get => playerIndex == 0 ? gridManager.gameData.fishCount        : gridManager.gameData.player2FishCount;
+        get => playerIndex == 0 ? gridManager.gameData.fishCount : gridManager.gameData.player2FishCount;
         set { if (playerIndex == 0) gridManager.gameData.fishCount = value; else gridManager.gameData.player2FishCount = value; }
     }
     int PTreasureCount
     {
-        get => playerIndex == 0 ? gridManager.gameData.treasureCount        : gridManager.gameData.player2TreasureCount;
+        get => playerIndex == 0 ? gridManager.gameData.treasureCount : gridManager.gameData.player2TreasureCount;
         set { if (playerIndex == 0) gridManager.gameData.treasureCount = value; else gridManager.gameData.player2TreasureCount = value; }
     }
     bool PHasRodUpgrade    => playerIndex == 0 ? gridManager.gameData.hasRodUpgrade    : gridManager.gameData.player2HasRodUpgrade;
@@ -64,22 +76,22 @@ public class PlayerController : MonoBehaviour
     bool PHasSpeedUpgrade  => playerIndex == 0 ? gridManager.gameData.hasSpeedUpgrade  : gridManager.gameData.player2HasSpeedUpgrade;
     ActiveQuest PQuest     => playerIndex == 0 ? gridManager.gameData.activeQuest      : gridManager.gameData.player2ActiveQuest;
 
-    // ── Input helpery ─────────────────────────────────────────────────────────
+    // ── Pomocníci na klávesy (P1 dostane k1, P2 dostane k2) ─────────────────
     bool P1 => playerIndex == 0;
     bool Key    (KeyCode k1, KeyCode k2) => P1 ? Input.GetKey(k1)     : Input.GetKey(k2);
     bool KeyDown(KeyCode k1, KeyCode k2) => P1 ? Input.GetKeyDown(k1) : Input.GetKeyDown(k2);
 
-    // ─────────────────────────────────────────────────────────────────────────
+    // ───────────────────────────────────────────────────────────────────────
 
     void Start()
     {
         gridManager        = FindFirstObjectByType<GridManager>();
-        harborManager      = FindFirstObjectByType<HarborManager>();
         upgradeShopManager = FindFirstObjectByType<UpgradeShopManager>();
         questShopManager   = FindFirstObjectByType<QuestShopManager>();
 
         if (playerIndex == 0)
         {
+            // P1 obnoví svůj stav z uložených dat.
             isOnFoot  = gridManager.gameData.isOnFoot;
             boatGridX = gridManager.gameData.boatGridX;
             boatGridY = gridManager.gameData.boatGridY;
@@ -87,7 +99,7 @@ public class PlayerController : MonoBehaviour
         }
         else
         {
-            // P2 začíná na pozici P1, vždy v lodi
+            // P2 startuje na pozici P1, vždy v lodi.
             isOnFoot  = false;
             boatGridX = gridManager.gameData.playerGridX;
             boatGridY = gridManager.gameData.playerGridY;
@@ -96,33 +108,27 @@ public class PlayerController : MonoBehaviour
             transform.position = new Vector3(gridManager.gameData.playerGridX, 0.5f, gridManager.gameData.playerGridY);
         }
 
-        if (isOnFoot)
-        {
-            if (boatModel != null) boatModel.gameObject.SetActive(false);
-            if (headDot   != null) headDot.SetActive(true);
-        }
-        else
-        {
-            if (boatModel != null) boatModel.gameObject.SetActive(true);
-            if (headDot   != null) headDot.SetActive(false);
-        }
+        // Zobraz správně loď / panáčka.
+        ShowBoatOrFoot();
 
         ExploreCurrentPosition();
     }
 
     void Update()
     {
+        // Když je otevřený obchod / konzole / menu, hráč se neovládá.
         bool shopOpen = (upgradeShopManager != null && upgradeShopManager.IsOpen)
                      || (questShopManager   != null && questShopManager.IsOpen);
         if (isMoving || isWorking || shopOpen || GameConsole.IsOpen || MainMenuManager.IsVisible) return;
 
-        // E / Numpad1 → nastoupit/vystoupit nebo otevřít obchod
+        // E / Numpad1 → nastup/vystup z lodě, nebo otevři sousední obchod.
         if (KeyDown(KeyCode.E, KeyCode.Keypad1))
         {
             if (!TryOpenAdjacentShop()) TryToggleBoatFoot();
             return;
         }
 
+        // Směr pohybu. S rychlostním upgradem (a jen na lodi) se jde o 2 pole.
         int x = 0, y = 0;
         int step = (!isOnFoot && PHasSpeedUpgrade) ? 2 : 1;
 
@@ -133,15 +139,18 @@ public class PlayerController : MonoBehaviour
 
         if (x != 0 || y != 0) AttemptMove(x, y);
 
-        // Space / Numpad0 → interakce (rybaření / těžba)
+        // Space / Numpad0 → rybaření / těžba na aktuálním políčku.
         if (KeyDown(KeyCode.Space, KeyCode.Keypad0)) TryInteract();
     }
 
+    // ── Pohyb ──────────────────────────────────────────────────────────────
     void AttemptMove(int x, int y)
     {
         int targetX = GridX + x;
         int targetY = GridY + y;
 
+        // Krok o 2 pole: když je prostřední pole "zajímavé" (ryby / poklad / molo),
+        // zastav se na něm místo přeskočení.
         if (Mathf.Abs(x) == 2 || Mathf.Abs(y) == 2)
         {
             int midX = GridX + x / 2;
@@ -154,12 +163,15 @@ public class PlayerController : MonoBehaviour
             }
         }
 
+        // Nemůžu vplout/vejít → nedělej nic.
         if (!CanEnter(gridManager.GetTileType(targetX, targetY))) return;
 
         RotateBoatModel(x, y);
+
         GridX = targetX;
         GridY = targetY;
 
+        // Na lodi si pamatuj i pozici lodě (kde kotví).
         if (!isOnFoot)
         {
             boatGridX = targetX;
@@ -174,18 +186,22 @@ public class PlayerController : MonoBehaviour
         MoveToGrid(targetX, targetY);
     }
 
+    // Na co smí hráč vstoupit? V lodi = voda a molo, pěšky = pevnina a molo.
     bool CanEnter(TileType t)
     {
-        if (!isOnFoot) return t == TileType.Water || t == TileType.Water_Fish || t == TileType.Treasure || t == TileType.Pier;
+        if (!isOnFoot)
+            return t == TileType.Water || t == TileType.Water_Fish || t == TileType.Treasure || t == TileType.Pier;
         return t == TileType.Harbor || t == TileType.Pier;
     }
 
+    // Řekne světu, kde teď hráč je, a spustí plynulý přesun.
     void MoveToGrid(int x, int y)
     {
         gridManager.GenerateWorld(x, y);
         StartCoroutine(SmoothMovement(x, y));
     }
 
+    // Plynule posune objekt hráče na cílové políčko.
     IEnumerator SmoothMovement(int tx, int ty)
     {
         isMoving = true;
@@ -194,7 +210,7 @@ public class PlayerController : MonoBehaviour
         while (Vector3.Distance(transform.position, target) > 0.01f)
         {
             transform.position = Vector3.MoveTowards(transform.position, target, moveSpeed * Time.deltaTime);
-            yield return null;
+            yield return null; // počkej na další snímek
         }
 
         transform.position = target;
@@ -202,16 +218,19 @@ public class PlayerController : MonoBehaviour
         isMoving = false;
     }
 
+    // Odkryje mlhu kolem aktuální pozice (poloměr 2 políčka).
     void ExploreCurrentPosition()
     {
         int cx = Mathf.RoundToInt(transform.position.x);
         int cy = Mathf.RoundToInt(transform.position.z);
-        if (cx == lastExploredX && cy == lastExploredY) return;
+        if (cx == lastExploredX && cy == lastExploredY) return; // beze změny
+
         gridManager.MarkAreaExplored(cx, cy, 2);
         lastExploredX = cx;
         lastExploredY = cy;
     }
 
+    // Otočí model lodě po směru pohybu.
     void RotateBoatModel(int x, int y)
     {
         if (boatModel == null || isOnFoot) return;
@@ -219,6 +238,7 @@ public class PlayerController : MonoBehaviour
         if (dir != Vector3.zero) boatModel.rotation = Quaternion.LookRotation(dir);
     }
 
+    // ── Přesedání loď ↔ pěšky ──────────────────────────────────────────────
     void TryToggleBoatFoot()
     {
         int px = GridX;
@@ -226,14 +246,14 @@ public class PlayerController : MonoBehaviour
 
         if (!isOnFoot)
         {
+            // Vystoupit z lodě jde jen z mola vedle pevniny.
             if (gridManager.GetTileType(px, py) != TileType.Pier) return;
             Vector2Int? exit = FindAdjacentHarbor(px, py);
             if (exit == null) return;
 
             isOnFoot = true;
             if (playerIndex == 0) gridManager.gameData.isOnFoot = true;
-            if (boatModel != null) boatModel.gameObject.SetActive(false);
-            if (headDot   != null) headDot.SetActive(true);
+            ShowBoatOrFoot();
 
             GridX = exit.Value.x;
             GridY = exit.Value.y;
@@ -241,14 +261,15 @@ public class PlayerController : MonoBehaviour
         }
         else
         {
+            // Nastoupit zpět jde jen když hráč stojí přesně vedle své lodě
+            // a loď je na molu.
             int dist = Mathf.Abs(px - boatGridX) + Mathf.Abs(py - boatGridY);
             if (dist != 1) return;
             if (gridManager.GetTileType(boatGridX, boatGridY) != TileType.Pier) return;
 
             isOnFoot = false;
             if (playerIndex == 0) gridManager.gameData.isOnFoot = false;
-            if (boatModel != null) boatModel.gameObject.SetActive(true);
-            if (headDot   != null) headDot.SetActive(false);
+            ShowBoatOrFoot();
 
             GridX = boatGridX;
             GridY = boatGridY;
@@ -256,6 +277,14 @@ public class PlayerController : MonoBehaviour
         }
     }
 
+    // Zapne loď nebo tečku nad hlavou podle toho, jestli je hráč pěšky.
+    void ShowBoatOrFoot()
+    {
+        if (boatModel != null) boatModel.gameObject.SetActive(!isOnFoot);
+        if (headDot   != null) headDot.SetActive(isOnFoot);
+    }
+
+    // Najde políčko pevniny (Harbor) sousedící s [x,y]. Vrací null, když žádné není.
     Vector2Int? FindAdjacentHarbor(int x, int y)
     {
         Vector2Int[] dirs = { Vector2Int.right, Vector2Int.left, Vector2Int.up, Vector2Int.down };
@@ -268,15 +297,17 @@ public class PlayerController : MonoBehaviour
         return null;
     }
 
+    // ── Rybaření / těžba ───────────────────────────────────────────────────
     void TryInteract()
     {
-        if (isOnFoot) return;
+        if (isOnFoot) return; // pěšky se nepracuje
         int cx = GridX, cy = GridY;
         TileType type = gridManager.GetTileType(cx, cy);
-        if (type == TileType.Water_Fish) StartCoroutine(FishingRoutine(cx, cy));
-        else if (type == TileType.Treasure) StartCoroutine(MineRoutine(cx, cy));
+        if      (type == TileType.Water_Fish) StartCoroutine(FishingRoutine(cx, cy));
+        else if (type == TileType.Treasure)   StartCoroutine(MineRoutine(cx, cy));
     }
 
+    // Otevře obchod, u kterého hráč (pěšky) stojí. Vrací true, když se povedlo.
     bool TryOpenAdjacentShop()
     {
         if (!isOnFoot) return false;
@@ -291,11 +322,12 @@ public class PlayerController : MonoBehaviour
         return false;
     }
 
+    // Zátah: po uplynutí času přičte ryby, posune quest a případně políčko vyčerpá.
     IEnumerator FishingRoutine(int cx, int cy)
     {
         TileStatus tile = gridManager.GetTileStatus(cx, cy);
         if (tile == null) yield break;
-        if (tile.fishRemaining <= 0) tile.fishRemaining = 3;
+        if (tile.fishRemaining <= 0) tile.fishRemaining = 3; // pojistka pro staré savy
 
         isWorking = true;
         WorkProgress = 0f;
@@ -308,6 +340,7 @@ public class PlayerController : MonoBehaviour
             yield return null;
         }
 
+        // S lepším prutem hráč dostane 2 ryby, jinak 1. Z políčka ubyde 1 "hejno".
         int catchAmount = PHasRodUpgrade ? 2 : 1;
         tile.fishRemaining -= 1;
         PFishCount += catchAmount;
@@ -316,6 +349,7 @@ public class PlayerController : MonoBehaviour
         if (q.hasQuest && q.questType == 0)
             q.progress = Mathf.Min(q.progress + catchAmount, q.target);
 
+        // Vyčerpané políčko se změní na obyčejnou vodu.
         if (tile.fishRemaining <= 0)
             gridManager.SetTileType(cx, cy, TileType.Water);
 
@@ -324,11 +358,13 @@ public class PlayerController : MonoBehaviour
         isWorking = false;
     }
 
+    // Těžba: po uplynutí času přičte poklad, posune quest a políčko změní na vodu.
     IEnumerator MineRoutine(int x, int y)
     {
         isWorking = true;
         WorkProgress = 0f;
 
+        // S upgradem těžby je práce 2× rychlejší.
         float duration = PHasMiningUpgrade ? miningDuration * 0.5f : miningDuration;
         float elapsed = 0f;
         while (elapsed < duration)
@@ -349,6 +385,9 @@ public class PlayerController : MonoBehaviour
         isWorking = false;
     }
 
+    // ── Používá konzole a načítání hry ─────────────────────────────────────
+
+    /// <summary>Přesune hráče na dané políčko a přegeneruje kolem něj svět.</summary>
     public void TeleportTo(int x, int y)
     {
         GridX = x;
@@ -357,6 +396,7 @@ public class PlayerController : MonoBehaviour
         transform.position = new Vector3(x, 0.5f, y);
     }
 
+    /// <summary>Znovu načte stav hráče z GameData (po načtení slotu / nové hře).</summary>
     public void ReloadFromData()
     {
         if (playerIndex == 0)
@@ -371,11 +411,12 @@ public class PlayerController : MonoBehaviour
             boatGridX = gridManager.gameData.playerGridX;
             boatGridY = gridManager.gameData.playerGridY;
         }
-        isMoving = false; isWorking = false; WorkProgress = 0f;
 
-        if (isOnFoot) { if (boatModel) boatModel.gameObject.SetActive(false); if (headDot) headDot.SetActive(true); }
-        else          { if (boatModel) boatModel.gameObject.SetActive(true);  if (headDot) headDot.SetActive(false); }
+        isMoving = false;
+        isWorking = false;
+        WorkProgress = 0f;
 
+        ShowBoatOrFoot();
         TeleportTo(GridX, GridY);
     }
 }

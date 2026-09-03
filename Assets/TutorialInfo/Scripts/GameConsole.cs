@@ -1,20 +1,31 @@
 using UnityEngine;
 using System.Collections.Generic;
 
+// ─────────────────────────────────────────────────────────────────────────────
+//  GameConsole.cs
+//  Vývojářská / testovací konzole. Otevírá se klávesou ` (nad Tabem).
+//  Umožňuje si přidat mince, ryby, poklady, odemknout upgrady, teleportovat se
+//  a odkrýt mapu — aby se hra nemusela hrát celá znovu při testování.
+//
+//  Kreslí se přes Unity IMGUI (OnGUI). PlayerController se dívá na IsOpen a
+//  když je konzole otevřená, zablokuje ovládání hráče.
+// ─────────────────────────────────────────────────────────────────────────────
+
 public class GameConsole : MonoBehaviour
 {
+    /// <summary>Je konzole zrovna otevřená? (blokuje pohyb hráče)</summary>
     public static bool IsOpen { get; private set; }
 
-    private string input = "";
-    private List<string> log = new List<string>();
-    private Vector2 scroll;
+    private string        input = "";               // co hráč právě píše
+    private List<string>  log   = new List<string>(); // vypsané řádky
+    private Vector2       scroll;                    // pozice posuvníku ve výpisu
 
-    private GridManager grid;
-    private PlayerController player;
+    private GridManager       grid;
+    private PlayerController  player;
     private ShipModelSwitcher shipSwitcher;
 
     private GUIStyle logStyle, inputStyle, promptStyle;
-    private bool stylesReady;
+    private bool     stylesReady;
 
     void Start()
     {
@@ -28,7 +39,7 @@ public class GameConsole : MonoBehaviour
 
     void Update()
     {
-        // klavesa ` (nad Tab, vlevo od 1)
+        // Klávesa ` (BackQuote) — otevři/zavři konzoli.
         if (Input.GetKeyDown(KeyCode.BackQuote))
         {
             IsOpen = !IsOpen;
@@ -41,7 +52,7 @@ public class GameConsole : MonoBehaviour
         if (!IsOpen) return;
         InitStyles();
 
-        // Spoj Enter pres Event (funguje spolehliveje nez Update)
+        // Odchycení Enteru přes Event (v OnGUI spolehlivější než Input v Update).
         Event e = Event.current;
         if (e.type == EventType.KeyDown &&
             (e.keyCode == KeyCode.Return || e.keyCode == KeyCode.KeypadEnter) &&
@@ -49,18 +60,20 @@ public class GameConsole : MonoBehaviour
         {
             ExecuteCommand(input.Trim());
             input = "";
-            e.Use();
+            e.Use(); // "spotřebuj" událost, ať Enter nedělá nic dalšího
         }
 
         float w = 460, h = 300;
         float px = 10, py = 10;
 
+        // Tmavé pozadí konzole.
         GUI.color = new Color(0f, 0f, 0f, 0.88f);
         GUI.DrawTexture(new Rect(px, py, w, h), Texture2D.whiteTexture);
         GUI.color = Color.white;
 
         GUILayout.BeginArea(new Rect(px + 8, py + 8, w - 16, h - 16));
 
+        // Výpis řádků (posuvatelný).
         scroll = GUILayout.BeginScrollView(scroll, false, false, GUIStyle.none, GUIStyle.none, GUILayout.Height(238));
         foreach (var line in log)
             GUILayout.Label(line, logStyle);
@@ -68,6 +81,7 @@ public class GameConsole : MonoBehaviour
 
         GUILayout.Space(2);
 
+        // Řádek pro psaní.
         GUILayout.BeginHorizontal();
         GUILayout.Label(">", promptStyle, GUILayout.Width(14));
         GUI.SetNextControlName("ConsoleInput");
@@ -76,9 +90,11 @@ public class GameConsole : MonoBehaviour
 
         GUILayout.EndArea();
 
+        // Drž kurzor pořád v textovém poli, ať může hráč hned psát.
         GUI.FocusControl("ConsoleInput");
     }
 
+    // Přidá řádek do výpisu a odscrolluje dolů. Drží max 80 řádků.
     void Log(string msg)
     {
         log.Add(msg);
@@ -86,9 +102,12 @@ public class GameConsole : MonoBehaviour
         scroll = new Vector2(0, float.MaxValue);
     }
 
+    // ── Zpracování příkazu ───────────────────────────────────────────────────
     void ExecuteCommand(string raw)
     {
         Log($"<color=#88ff88>> {raw}</color>");
+
+        // Rozděl vstup na slova: p[0] = příkaz, p[1..] = argumenty.
         string[] p = raw.ToLower().Trim().Split(' ');
 
         switch (p[0])
@@ -120,6 +139,7 @@ public class GameConsole : MonoBehaviour
         }
     }
 
+    // get money/fish/treasure/boat <hodnota>
     void HandleGet(string[] p)
     {
         if (p.Length < 2) { Log("Použití: get <money/fish/treasure/boat> ..."); return; }
@@ -158,10 +178,12 @@ public class GameConsole : MonoBehaviour
                 return;
         }
 
+        // Po každé úspěšné změně ulož a dej vědět HUD/minimapě.
         grid.Save();
         grid.NotifyWorldChanged();
     }
 
+    // upgrade speed/rod/mining
     void HandleUpgrade(string[] p)
     {
         if (p.Length < 2) { Log("Použití: upgrade <speed/rod/mining>"); return; }
@@ -178,14 +200,17 @@ public class GameConsole : MonoBehaviour
         grid.NotifyWorldChanged();
     }
 
+    // tp <x> <y>
     void HandleTp(string[] p)
     {
         if (p.Length < 3 || !int.TryParse(p[1], out int x) || !int.TryParse(p[2], out int y))
         { Log("Použití: tp <x> <y>"); return; }
+
         player.TeleportTo(x, y);
         Log($"Teleport → [{x}, {y}]");
     }
 
+    // explore [radius] — odkryje mlhu kolem hráče
     void HandleExplore(string[] p)
     {
         int radius = 25;
@@ -194,13 +219,21 @@ public class GameConsole : MonoBehaviour
         Log($"Odkryto oblast {radius * 2 + 1}×{radius * 2 + 1}");
     }
 
+    // reset money — vynuluje mince
     void HandleReset(string[] p)
     {
         if (p.Length < 2) { Log("Použití: reset money"); return; }
-        if (p[1] == "money") { grid.gameData.coins = 0; grid.Save(); grid.NotifyWorldChanged(); Log("Mince vynulovány."); }
+        if (p[1] == "money")
+        {
+            grid.gameData.coins = 0;
+            grid.Save();
+            grid.NotifyWorldChanged();
+            Log("Mince vynulovány.");
+        }
         else Log($"Neznámý reset: {p[1]}");
     }
 
+    // ── Styly (vytvoří se jen jednou) ────────────────────────────────────────
     void InitStyles()
     {
         if (stylesReady) return;
@@ -208,19 +241,19 @@ public class GameConsole : MonoBehaviour
         logStyle = new GUIStyle(GUI.skin.label)
         {
             fontSize = 13,
-            richText = true,
+            richText = true,   // povolí <color=...> tagy
             wordWrap = true,
-            normal = { textColor = new Color(0.85f, 0.95f, 0.85f) }
+            normal   = { textColor = new Color(0.85f, 0.95f, 0.85f) }
         };
         promptStyle = new GUIStyle(GUI.skin.label)
         {
-            fontSize = 15,
+            fontSize  = 15,
             fontStyle = FontStyle.Bold,
-            normal = { textColor = new Color(0.3f, 1f, 0.3f) }
+            normal    = { textColor = new Color(0.3f, 1f, 0.3f) }
         };
         inputStyle = new GUIStyle(GUI.skin.textField)
         {
-            fontSize = 14,
+            fontSize  = 14,
             fontStyle = FontStyle.Bold,
             normal  = { textColor = Color.green, background = MakeTex(new Color(0.04f, 0.1f, 0.04f)) },
             focused = { textColor = Color.green, background = MakeTex(new Color(0.04f, 0.1f, 0.04f)) }
@@ -229,6 +262,7 @@ public class GameConsole : MonoBehaviour
         stylesReady = true;
     }
 
+    // Vytvoří jednobarevnou texturu 1×1 (pro pozadí prvků).
     private Texture2D MakeTex(Color c)
     {
         var t = new Texture2D(1, 1);

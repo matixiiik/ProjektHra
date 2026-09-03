@@ -2,25 +2,45 @@ using UnityEngine;
 using UnityEngine.UI;
 using System.Collections.Generic;
 
+// ─────────────────────────────────────────────────────────────────────────────
+//  HUDCounter.cs
+//  Ukazatele v rohu obrazovky: počet ryb, pokladů, mincí + panel s aktivním
+//  questem nahoře uprostřed.
+//
+//  Celé UI si skript staví sám kódem při startu (nevytváří se v editoru).
+//  Překresluje se při každé změně světa (grid.OnWorldChanged).
+//
+//  V multiplayeru běží dvě kopie: P1 (playerIndex 0) a P2 (playerIndex 1).
+//  UpdateLayout() přesouvá prvky podle toho, jestli je obrazovka rozdělená.
+// ─────────────────────────────────────────────────────────────────────────────
+
 public class HUDCounter : MonoBehaviour
 {
-    [HideInInspector] public int playerIndex = 0;
+    [HideInInspector] public int playerIndex = 0; // 0 = P1, 1 = P2
 
     private GridManager grid;
-    private Text fishText;
-    private Text treasureText;
-    private Text coinsText;
-    private GameObject questPanel;
-    private Text questLine;
+    private Text        fishText;
+    private Text        treasureText;
+    private Text        coinsText;
+    private GameObject  questPanel;
+    private Text        questLine;
 
-    private List<RectTransform> rowRTs      = new List<RectTransform>();
-    private RectTransform       questPanelRT;
+    // Odkazy na RectTransformy prvků, abychom s nimi mohli hýbat při split screenu.
+    private List<RectTransform> rowRTs = new List<RectTransform>();
+    private RectTransform        questPanelRT;
 
     void Start()
     {
         grid = FindFirstObjectByType<GridManager>();
+        if (grid == null)
+        {
+            Debug.LogError("HUDCounter: GridManager nenalezen.");
+            enabled = false;
+            return;
+        }
+
         BuildHUD();
-        grid.OnWorldChanged += Refresh;
+        grid.OnWorldChanged += Refresh; // překresli při každé změně
         Refresh();
     }
 
@@ -29,25 +49,29 @@ public class HUDCounter : MonoBehaviour
         if (grid != null) grid.OnWorldChanged -= Refresh;
     }
 
+    // ── Stavba UI ────────────────────────────────────────────────────────────
     void BuildHUD()
     {
+        // Canvas přes celou obrazovku.
         var canvasGO = new GameObject("HUDCanvas");
         var canvas   = canvasGO.AddComponent<Canvas>();
         canvas.renderMode   = RenderMode.ScreenSpaceOverlay;
         canvas.sortingOrder = 10;
 
+        // Škálování podle rozlišení (návrh dělaný pro 1920×1080).
         var scaler = canvasGO.AddComponent<CanvasScaler>();
-        scaler.uiScaleMode        = CanvasScaler.ScaleMode.ScaleWithScreenSize;
+        scaler.uiScaleMode         = CanvasScaler.ScaleMode.ScaleWithScreenSize;
         scaler.referenceResolution = new Vector2(1920, 1080);
 
         canvasGO.AddComponent<GraphicRaycaster>();
 
+        // Tři řádky ukazatelů v pravém horním rohu.
         fishText     = MakeRow(canvasGO.transform, 0, new Color(0.3f, 0.8f, 1f));
         treasureText = MakeRow(canvasGO.transform, 1, new Color(1f, 0.85f, 0.2f));
         coinsText    = MakeRow(canvasGO.transform, 2, new Color(0.9f, 0.7f, 0.1f));
 
         BuildQuestPanel(canvasGO.transform);
-        questPanel.SetActive(false);
+        questPanel.SetActive(false); // schovaný, dokud hráč nemá quest
     }
 
     void BuildQuestPanel(Transform parent)
@@ -55,15 +79,16 @@ public class HUDCounter : MonoBehaviour
         questPanel = new GameObject("QuestPanel");
         questPanel.transform.SetParent(parent, false);
 
-        questPanelRT            = questPanel.AddComponent<RectTransform>();
-        // P2 je vždy v pravé polovině → anchor 0.75; P1 single → 0.5 (UpdateLayout to přesune při splitu)
+        questPanelRT = questPanel.AddComponent<RectTransform>();
+        // P2 je vždy v pravé polovině → kotva 0.75; P1 sám → 0.5 (UpdateLayout to případně přesune).
         float qax = playerIndex == 1 ? 0.75f : 0.5f;
-        questPanelRT.anchorMin  = new Vector2(qax, 1f);
-        questPanelRT.anchorMax  = new Vector2(qax, 1f);
-        questPanelRT.pivot      = new Vector2(0.5f, 1f);
+        questPanelRT.anchorMin        = new Vector2(qax, 1f);
+        questPanelRT.anchorMax        = new Vector2(qax, 1f);
+        questPanelRT.pivot            = new Vector2(0.5f, 1f);
         questPanelRT.anchoredPosition = new Vector2(0, -16f);
-        questPanelRT.sizeDelta  = new Vector2(280f, 38f);
+        questPanelRT.sizeDelta        = new Vector2(280f, 38f);
 
+        // Tmavé pozadí panelu.
         var bg = new GameObject("BG");
         bg.transform.SetParent(questPanel.transform, false);
         var bgRt = bg.AddComponent<RectTransform>();
@@ -71,6 +96,7 @@ public class HUDCounter : MonoBehaviour
         bgRt.offsetMin = bgRt.offsetMax = Vector2.zero;
         bg.AddComponent<Image>().color = new Color(0, 0, 0, 0.52f);
 
+        // Oranžový proužek nahoře.
         var accent = new GameObject("Accent");
         accent.transform.SetParent(questPanel.transform, false);
         var acRt = accent.AddComponent<RectTransform>();
@@ -79,6 +105,7 @@ public class HUDCounter : MonoBehaviour
         acRt.sizeDelta = new Vector2(0, 3);
         accent.AddComponent<Image>().color = new Color(1f, 0.6f, 0.1f);
 
+        // Text questu.
         questLine = MakeText(questPanel.transform,
             new Vector2(10, 0), new Vector2(-10, 0),
             Vector2.zero, Vector2.one,
@@ -86,6 +113,7 @@ public class HUDCounter : MonoBehaviour
         questLine.supportRichText = true;
     }
 
+    // Pomocná: vytvoří jeden Text s daným umístěním a stínem.
     Text MakeText(Transform parent, Vector2 offsetMin, Vector2 offsetMax,
         Vector2 anchorMin, Vector2 anchorMax, float fontSize, Color color, FontStyle style, TextAnchor align)
     {
@@ -94,27 +122,30 @@ public class HUDCounter : MonoBehaviour
         var rt = go.AddComponent<RectTransform>();
         rt.anchorMin = anchorMin; rt.anchorMax = anchorMax;
         rt.offsetMin = offsetMin; rt.offsetMax = offsetMax;
+
         var t = go.AddComponent<Text>();
-        t.font      = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+        t.font      = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf"); // vestavěný font
         t.fontSize  = (int)fontSize;
         t.fontStyle = style;
         t.color     = color;
         t.alignment = align;
+
         var shadow = go.AddComponent<Shadow>();
         shadow.effectColor    = new Color(0, 0, 0, 0.9f);
         shadow.effectDistance = new Vector2(1, -1);
         return t;
     }
 
+    // Pomocná: vytvoří jeden řádek ukazatele (pozadí + text) v pravém horním rohu.
     Text MakeRow(Transform parent, int index, Color color)
     {
         var go = new GameObject($"HUDRow{index}");
         go.transform.SetParent(parent, false);
 
         var rt = go.AddComponent<RectTransform>();
-        rt.anchorMin = rt.anchorMax = Vector2.one;
+        rt.anchorMin = rt.anchorMax = Vector2.one; // pravý horní roh
         rt.pivot     = Vector2.one;
-        rt.anchoredPosition = new Vector2(-20f, -20f - index * 40f);
+        rt.anchoredPosition = new Vector2(-20f, -20f - index * 40f); // každý řádek o 40 px níž
         rt.sizeDelta = new Vector2(240f, 34f);
         rowRTs.Add(rt);
 
@@ -148,14 +179,13 @@ public class HUDCounter : MonoBehaviour
         return text;
     }
 
-    // ── Layout pro split screen ───────────────────────────────────────────────
+    // ── Přemístění prvků pro split screen ────────────────────────────────────
     public void UpdateLayout(bool isSplit)
     {
-        // P1 v split: kotva na (0.5,1) = pravý kraj levé poloviny
-        // P2 vždy: (1,1) = pravý край pravé části / plné obrazovky
+        // Řádky: P1 při splitu ke středu (0.5), jinak k pravému kraji (1).
         float rowAnchorX = (playerIndex == 0 && isSplit) ? 0.5f : 1f;
 
-        // Quest panel: P1 split → 25%, P2 → 75%, single → 50%
+        // Quest panel: P1 split → 25 %, P2 → 75 %, jinak → 50 % šířky obrazovky.
         float questAnchorX = (playerIndex == 0 && isSplit) ? 0.25f
                            : (playerIndex == 1)            ? 0.75f
                            : 0.5f;
@@ -175,16 +205,17 @@ public class HUDCounter : MonoBehaviour
         }
     }
 
-    // ── Data refresh ─────────────────────────────────────────────────────────
+    // ── Aktualizace textů ────────────────────────────────────────────────────
     void Refresh()
     {
         if (grid == null) return;
         GameData d = grid.gameData;
 
+        // Vyber čísla podle toho, jestli jsme P1 nebo P2.
         int fish     = playerIndex == 0 ? d.fishCount     : d.player2FishCount;
         int treasure = playerIndex == 0 ? d.treasureCount : d.player2TreasureCount;
         int coins    = playerIndex == 0 ? d.coins         : d.player2Coins;
-        ActiveQuest q = playerIndex == 0 ? d.activeQuest  : d.player2ActiveQuest;
+        ActiveQuest q = playerIndex == 0 ? d.activeQuest   : d.player2ActiveQuest;
 
         fishText.text     = $"Ryby: {fish}";
         treasureText.text = $"Poklady: {treasure}";

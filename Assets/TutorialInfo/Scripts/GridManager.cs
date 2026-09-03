@@ -2,10 +2,26 @@ using UnityEngine;
 using System.Collections.Generic;
 using System;
 
+// ─────────────────────────────────────────────────────────────────────────────
+//  GridManager.cs  — SRDCE HRY
+//
+//  Stará se o celý herní svět (nekonečné moře s ostrovy):
+//   • generuje políčka kolem hráče, když tam ještě žádná nejsou,
+//   • vytváří / maže 3D objekty políček podle toho, kde zrovna hráč je,
+//   • drží data o mlze (co je prozkoumané),
+//   • ukládá a načítá hru (přes SaveManager),
+//   • posílá událost OnWorldChanged, na kterou reaguje HUD a minimapa.
+//
+//  Svět je nekonečná mřížka. Data políček jsou ve slovníku gameData.tileData,
+//  klíč je text "x,y". Uloží se jen políčka, která už byla někdy vygenerovaná.
+// ─────────────────────────────────────────────────────────────────────────────
+
 public class GridManager : MonoBehaviour
 {
+    // Kolik políček na každou stranu od hráče se drží "naživu" (s 3D objekty).
     public const int ACTIVE_GRID_SIZE = 15;
 
+    // Prefaby jednotlivých typů políček (nastavují se v inspektoru).
     public GameObject waterPrefab;
     public GameObject waterFishPrefab;
     public GameObject treasurePrefab;
@@ -14,44 +30,54 @@ public class GridManager : MonoBehaviour
     public GameObject upgradeShopPrefab;
     public GameObject questShopPrefab;
 
-    [HideInInspector] public GameData gameData;
+    [HideInInspector] public GameData gameData; // veškerý stav hry
+
+    // Právě existující 3D objekty políček. Klíč "x,y" → objekt ve scéně.
     private Dictionary<string, GameObject> activeTiles = new Dictionary<string, GameObject>();
 
+    /// <summary>Vyvolá se po každé změně světa (pohyb, těžba, nákup...). Poslouchá HUD a minimapa.</summary>
     public event Action OnWorldChanged;
 
-    private int fogLayer;
-    private int minimapLayer;
+    private int fogLayer;     // vrstva "Fog" (mlha se nekreslí do minimapy)
+    private int minimapLayer; // vrstva "MinimapOnly" (ikony jen pro minimapu)
 
-    private const int ISLAND_SIZE = 10;
-    private const int ISLAND_PADDING = 1;
-    private const int MIN_ISLAND_DISTANCE = 50;
-    private const int CLEANUP_LIMIT = 100;
+    // Parametry generování ostrovů.
+    private const int ISLAND_SIZE         = 10; // ostrov je 10×10 políček
+    private const int ISLAND_PADDING      = 1;  // volné pole kolem ostrova při kontrole místa
+    private const int MIN_ISLAND_DISTANCE = 50; // minimální rozestup mezi ostrovy
+    private const int CLEANUP_LIMIT       = 100;// políčka dál než tohle se ze save mažou
 
     void Awake()
     {
-        fogLayer      = LayerMask.NameToLayer("Fog");
-        minimapLayer  = LayerMask.NameToLayer("MinimapOnly");
+        fogLayer     = LayerMask.NameToLayer("Fog");
+        minimapLayer = LayerMask.NameToLayer("MinimapOnly");
 
-        // Odstraň duplicitní AudioListenery (nechá jen první)
+        // Ve scéně smí být aktivní jen jeden AudioListener (jinak Unity varuje).
         var listeners = FindObjectsByType<AudioListener>(FindObjectsSortMode.None);
         for (int i = 1; i < listeners.Length; i++) listeners[i].enabled = false;
 
-        // Načti naposledy použitý slot
+        // Načti naposledy použitý slot a jeho data.
         SaveManager.CurrentSlot = PlayerPrefs.GetInt("LastSlot", 0);
         gameData = SaveManager.LoadGame();
+
+        // Úplně nová hra → vygeneruj startovní ostrov.
         if (gameData.tileData.Count == 0) GenerateInitialWorld();
+
         GenerateWorld(gameData.playerGridX, gameData.playerGridY);
         OnWorldChanged?.Invoke();
     }
 
+    // Při zavření hry ulož.
     void OnApplicationQuit() => Save();
 
+    /// <summary>Uklidí zbytečná data a uloží hru na disk.</summary>
     public void Save()
     {
         CleanupWorldData();
         SaveManager.SaveGame(gameData);
     }
 
+    // ── Práce s klíči slovníku ("x,y") ──────────────────────────────────────
     private static string GridKey(int x, int y) => $"{x},{y}";
 
     private static (int x, int y) ParseGridKey(string key)
@@ -60,24 +86,35 @@ public class GridManager : MonoBehaviour
         return (int.Parse(p[0]), int.Parse(p[1]));
     }
 
+    // ── Úklid uložených dat ─────────────────────────────────────────────────
+    // Smaže políčka daleko od hráče, ale nechá důležitá (ostrovy, prozkoumaná),
+    // aby save nerostl donekonečna.
     private void CleanupWorldData()
     {
         var keysToRemove = new List<string>();
+
         foreach (var entry in gameData.tileData)
         {
             var (x, y) = ParseGridKey(entry.Key);
+
             bool isTooFar = Mathf.Abs(x - gameData.playerGridX) > CLEANUP_LIMIT
                          || Mathf.Abs(y - gameData.playerGridY) > CLEANUP_LIMIT;
-            bool isImportant = entry.Value.type == (int)TileType.Harbor
-                            || entry.Value.isExplored
+
+            bool isImportant = entry.Value.isExplored
+                            || entry.Value.type == (int)TileType.Harbor
                             || entry.Value.type == (int)TileType.Pier
                             || entry.Value.type == (int)TileType.UpgradeShop
                             || entry.Value.type == (int)TileType.QuestShop;
+
             if (isTooFar && !isImportant) keysToRemove.Add(entry.Key);
         }
+
         foreach (string key in keysToRemove) gameData.tileData.Remove(key);
     }
 
+    // ── Mlha / prozkoumávání ────────────────────────────────────────────────
+
+    /// <summary>Označí jedno políčko jako prozkoumané a schová u něj mlhu.</summary>
     public void MarkTileExplored(int x, int y)
     {
         string key = GridKey(x, y);
@@ -85,14 +122,11 @@ public class GridManager : MonoBehaviour
         if (gameData.tileData[key].isExplored) return;
 
         gameData.tileData[key].isExplored = true;
-        if (activeTiles.ContainsKey(key))
-        {
-            Transform fog = activeTiles[key].transform.Find("FogVisual");
-            if (fog != null) fog.gameObject.SetActive(false);
-        }
+        HideFogAt(key);
         OnWorldChanged?.Invoke();
     }
 
+    /// <summary>Označí čtverec políček (střed cx,cy, poloměr radius) jako prozkoumaný.</summary>
     public void MarkAreaExplored(int cx, int cy, int radius)
     {
         for (int x = -radius; x <= radius; x++)
@@ -101,22 +135,33 @@ public class GridManager : MonoBehaviour
                 string key = GridKey(cx + x, cy + y);
                 if (!gameData.tileData.ContainsKey(key)) continue;
                 if (gameData.tileData[key].isExplored) continue;
+
                 gameData.tileData[key].isExplored = true;
-                if (activeTiles.ContainsKey(key))
-                {
-                    Transform fog = activeTiles[key].transform.Find("FogVisual");
-                    if (fog != null) fog.gameObject.SetActive(false);
-                }
+                HideFogAt(key);
             }
         OnWorldChanged?.Invoke();
     }
 
+    // Vypne objekt "FogVisual" u aktivního políčka (pokud existuje).
+    private void HideFogAt(string key)
+    {
+        if (!activeTiles.ContainsKey(key)) return;
+        Transform fog = activeTiles[key].transform.Find("FogVisual");
+        if (fog != null) fog.gameObject.SetActive(false);
+    }
+
+    // ── Generování / obnova okolí hráče ─────────────────────────────────────
+
+    /// <summary>
+    /// Přegeneruje svět tak, aby kolem daného středu (a v multiplayeru i kolem
+    /// druhého hráče) byla políčka. Vzdálené 3D objekty smaže.
+    /// </summary>
     public void GenerateWorld(int centerX, int centerY)
     {
         ClearOldTiles();
         GenerateRegion(centerX, centerY);
 
-        // V multiplayeru generuj taky okolí druhého hráče
+        // V multiplayeru drž naživu i okolí obou hráčů.
         if (MultiplayerManager.IsMultiplayer)
         {
             int p1x = gameData.playerGridX,  p1y = gameData.playerGridY;
@@ -128,6 +173,7 @@ public class GridManager : MonoBehaviour
         OnWorldChanged?.Invoke();
     }
 
+    // Zajistí data i 3D objekty pro čtverec políček kolem středu.
     private void GenerateRegion(int centerX, int centerY)
     {
         for (int x = centerX - ACTIVE_GRID_SIZE; x <= centerX + ACTIVE_GRID_SIZE; x++)
@@ -135,20 +181,24 @@ public class GridManager : MonoBehaviour
             for (int y = centerY - ACTIVE_GRID_SIZE; y <= centerY + ACTIVE_GRID_SIZE; y++)
             {
                 string key = GridKey(x, y);
-                if (!gameData.tileData.ContainsKey(key)) CheckAndGenerateArea(x, y);
-                if (!activeTiles.ContainsKey(key)) InstantiateTile(x, y, gameData.tileData[key]);
+                if (!gameData.tileData.ContainsKey(key)) CheckAndGenerateArea(x, y); // vytvoř data
+                if (!activeTiles.ContainsKey(key))       InstantiateTile(x, y, gameData.tileData[key]); // vytvoř objekt
             }
         }
     }
 
+    // Rozhodne, co na daném (zatím prázdném) políčku vznikne: ostrov nebo moře.
     private void CheckAndGenerateArea(int x, int y)
     {
+        // Ostrovy vznikají jen na mřížce každých 20 políček, s 10% pravděpodobností,
+        // a jen když je kolem dost místa.
         if (x % 20 == 0 && y % 20 == 0 && UnityEngine.Random.value < 0.1f && CanPlaceIsland(x, y))
         {
             GenerateIsland(x, y);
             return;
         }
 
+        // Jinak obyčejné mořské políčko (většinou voda, občas ryby / poklad).
         string key = GridKey(x, y);
         if (!gameData.tileData.ContainsKey(key))
         {
@@ -159,50 +209,55 @@ public class GridManager : MonoBehaviour
         }
     }
 
+    // Je kolem [startX,startY] volné místo na nový ostrov?
     private bool CanPlaceIsland(int startX, int startY)
     {
         if (IsAnotherIslandTooClose(startX, startY)) return false;
 
         int fromX = startX - ISLAND_PADDING;
-        int toX = startX + ISLAND_SIZE - 1 + ISLAND_PADDING;
+        int toX   = startX + ISLAND_SIZE - 1 + ISLAND_PADDING;
         int fromY = startY - ISLAND_PADDING;
-        int toY = startY + ISLAND_SIZE - 1 + ISLAND_PADDING;
+        int toY   = startY + ISLAND_SIZE - 1 + ISLAND_PADDING;
 
+        // V ploše ostrova (+ okraj) nesmí být kus jiného ostrova.
         for (int x = fromX; x <= toX; x++)
         {
             for (int y = fromY; y <= toY; y++)
             {
                 string key = GridKey(x, y);
                 if (!gameData.tileData.ContainsKey(key)) continue;
-                int t = gameData.tileData[key].type;
-                if (t == (int)TileType.Harbor || t == (int)TileType.Pier
-                    || t == (int)TileType.UpgradeShop || t == (int)TileType.QuestShop) return false;
+                if (IsIslandTile(gameData.tileData[key].type)) return false;
             }
         }
         return true;
     }
 
+    // Je poblíž střed jiného ostrova (blíž než MIN_ISLAND_DISTANCE)?
     private bool IsAnotherIslandTooClose(int startX, int startY)
     {
         float cx = startX + (ISLAND_SIZE - 1) * 0.5f;
         float cy = startY + (ISLAND_SIZE - 1) * 0.5f;
-        int max = MIN_ISLAND_DISTANCE + ISLAND_SIZE;
+        int   max = MIN_ISLAND_DISTANCE + ISLAND_SIZE;
 
         foreach (var kv in gameData.tileData)
         {
-            int t = kv.Value.type;
-            if (t != (int)TileType.Harbor && t != (int)TileType.Pier
-                && t != (int)TileType.UpgradeShop && t != (int)TileType.QuestShop) continue;
+            if (!IsIslandTile(kv.Value.type)) continue;
 
             var (x, y) = ParseGridKey(kv.Key);
-            if (Mathf.Abs(x - cx) > max || Mathf.Abs(y - cy) > max) continue;
+            if (Mathf.Abs(x - cx) > max || Mathf.Abs(y - cy) > max) continue; // hrubý rychlý test
 
             float dx = x - cx, dy = y - cy;
-            if (dx * dx + dy * dy < MIN_ISLAND_DISTANCE * MIN_ISLAND_DISTANCE) return true;
+            if (dx * dx + dy * dy < MIN_ISLAND_DISTANCE * MIN_ISLAND_DISTANCE) return true; // přesný test
         }
         return false;
     }
 
+    // Patří tento typ políčka k ostrovu (pevnina / molo / obchod)?
+    private static bool IsIslandTile(int type)
+        => type == (int)TileType.Harbor || type == (int)TileType.Pier
+        || type == (int)TileType.UpgradeShop || type == (int)TileType.QuestShop;
+
+    // Vyplní čtverec 10×10 pevninou (Harbor). Zachová u políček dřívější "prozkoumáno".
     private void StampHarborBlock(int startX, int startY, bool explored = false)
     {
         for (int ix = 0; ix < ISLAND_SIZE; ix++)
@@ -210,18 +265,20 @@ public class GridManager : MonoBehaviour
             for (int iy = 0; iy < ISLAND_SIZE; iy++)
             {
                 string key = GridKey(startX + ix, startY + iy);
-                bool wasExplored = explored || (gameData.tileData.ContainsKey(key) && gameData.tileData[key].isExplored);
+                bool wasExplored = explored
+                    || (gameData.tileData.ContainsKey(key) && gameData.tileData[key].isExplored);
                 gameData.tileData[key] = new TileStatus((int)TileType.Harbor) { isExplored = wasExplored };
             }
         }
     }
 
+    // Vygeneruje celý ostrov: pevninu, dvě políčka mola na náhodné straně a dva obchody.
     private void GenerateIsland(int startX, int startY)
     {
         StampHarborBlock(startX, startY);
 
-        int side = UnityEngine.Random.Range(0, 4);
-        int px1, py1, px2, py2;
+        int side = UnityEngine.Random.Range(0, 4); // 0=dole, 1=nahoře, 2=vlevo, 3=vpravo
+        int px1, py1, px2, py2;                     // dvě políčka mola vedle sebe
 
         if (side == 0)
         {
@@ -250,34 +307,34 @@ public class GridManager : MonoBehaviour
         PlaceShops(startX, startY, side);
     }
 
+    // Umístí oba obchody (2×2) na hranu ostrova naproti molu.
     private void PlaceShops(int startX, int startY, int side)
     {
-        // Shops are 2x2, placed on the edge opposite the pier.
-        // Upgrade shop goes 2 tiles left of island center, Quest shop 2 tiles right.
-        if (side == 0) // piers at bottom (y=startY) → shops at top
+        if (side == 0) // molo dole → obchody nahoře
         {
             int shopRow = startY + ISLAND_SIZE - 2;
             PlaceShop2x2(startX + 2, shopRow, TileType.UpgradeShop);
             PlaceShop2x2(startX + 6, shopRow, TileType.QuestShop);
         }
-        else if (side == 1) // piers at top → shops at bottom
+        else if (side == 1) // molo nahoře → obchody dole
         {
             PlaceShop2x2(startX + 2, startY, TileType.UpgradeShop);
             PlaceShop2x2(startX + 6, startY, TileType.QuestShop);
         }
-        else if (side == 2) // piers at left → shops at right
+        else if (side == 2) // molo vlevo → obchody vpravo
         {
             int shopCol = startX + ISLAND_SIZE - 2;
             PlaceShop2x2(shopCol, startY + 2, TileType.UpgradeShop);
             PlaceShop2x2(shopCol, startY + 6, TileType.QuestShop);
         }
-        else // piers at right → shops at left
+        else // molo vpravo → obchody vlevo
         {
             PlaceShop2x2(startX, startY + 2, TileType.UpgradeShop);
             PlaceShop2x2(startX, startY + 6, TileType.QuestShop);
         }
     }
 
+    // Přepíše čtverec 2×2 na daný typ obchodu.
     private void PlaceShop2x2(int x, int y, TileType type)
     {
         for (int ix = 0; ix < 2; ix++)
@@ -285,6 +342,7 @@ public class GridManager : MonoBehaviour
                 gameData.tileData[GridKey(x + ix, y + iy)] = new TileStatus((int)type);
     }
 
+    // Náhodný typ mořského políčka: 0,5 % poklad, 0,5 % ryby, zbytek voda.
     private TileType GenerateRandomSeaType()
     {
         float roll = UnityEngine.Random.value * 100f;
@@ -293,6 +351,9 @@ public class GridManager : MonoBehaviour
         return TileType.Water;
     }
 
+    // ── Vytvoření / mazání 3D objektů políček ──────────────────────────────
+
+    // Vytvoří 3D objekt jednoho políčka podle jeho typu.
     private void InstantiateTile(int x, int y, TileStatus status)
     {
         GameObject prefab = GetPrefabForType((TileType)status.type);
@@ -302,6 +363,7 @@ public class GridManager : MonoBehaviour
         GameObject newTile = Instantiate(prefab, pos, Quaternion.identity, transform);
         activeTiles.Add(GridKey(x, y), newTile);
 
+        // Mlha: zapnutá, dokud políčko není prozkoumané.
         Transform fog = newTile.transform.Find("FogVisual");
         if (fog != null)
         {
@@ -309,55 +371,57 @@ public class GridManager : MonoBehaviour
             fog.gameObject.SetActive(!status.isExplored);
         }
 
+        // Ikona do minimapy. Prefaby ji mají, obchody ne → tomu ji dodělej.
         Transform icon = newTile.transform.Find("MapIcon");
-
-        // Shopy nemají MapIcon v prefabu — vytvoř ho za běhu
         if (icon == null)
-        {
-            TileType tileType = (TileType)status.type;
-            if (tileType == TileType.UpgradeShop || tileType == TileType.QuestShop)
-            {
-                Color iconColor = tileType == TileType.UpgradeShop
-                    ? new Color(1f, 0.8f, 0f)     // zlatá = upgrade shop
-                    : new Color(0.2f, 0.8f, 1f);  // azurová = quest shop
-
-                GameObject iconGO = GameObject.CreatePrimitive(PrimitiveType.Quad);
-                UnityEngine.Object.Destroy(iconGO.GetComponent<MeshCollider>());
-                iconGO.name = "MapIcon";
-                iconGO.transform.SetParent(newTile.transform);
-                iconGO.transform.localPosition = new Vector3(0.5f, 2f, 0.5f);
-                iconGO.transform.localRotation = Quaternion.Euler(90f, 0f, 0f);
-                iconGO.transform.localScale = new Vector3(1.5f, 1.5f, 1f);
-
-                Renderer r = iconGO.GetComponent<Renderer>();
-                if (r != null)
-                {
-                    Shader sh = Shader.Find("Universal Render Pipeline/Unlit")
-                             ?? Shader.Find("Unlit/Color")
-                             ?? Shader.Find("Standard");
-                    if (sh != null)
-                    {
-                        var mat = new Material(sh);
-                        // URP používá _BaseColor, built-in _Color
-                        mat.SetColor("_BaseColor", iconColor);
-                        mat.SetColor("_Color", iconColor);
-                        r.material = mat;
-                    }
-                    else
-                    {
-                        r.material.SetColor("_BaseColor", iconColor);
-                        r.material.SetColor("_Color", iconColor);
-                    }
-                }
-
-                icon = iconGO.transform;
-            }
-        }
+            icon = CreateShopMapIcon(newTile, (TileType)status.type);
 
         if (icon != null && minimapLayer >= 0)
             icon.gameObject.layer = minimapLayer;
     }
 
+    // Vytvoří barevnou ikonku obchodu (čtvereček nad budovou) jen pro minimapu.
+    private Transform CreateShopMapIcon(GameObject tile, TileType type)
+    {
+        if (type != TileType.UpgradeShop && type != TileType.QuestShop) return null;
+
+        Color iconColor = type == TileType.UpgradeShop
+            ? new Color(1f, 0.8f, 0f)    // zlatá  = upgrade shop
+            : new Color(0.2f, 0.8f, 1f); // azurová = quest shop
+
+        GameObject iconGO = GameObject.CreatePrimitive(PrimitiveType.Quad);
+        Destroy(iconGO.GetComponent<MeshCollider>()); // kolizi nechceme
+        iconGO.name = "MapIcon";
+        iconGO.transform.SetParent(tile.transform);
+        iconGO.transform.localPosition = new Vector3(0.5f, 2f, 0.5f);
+        iconGO.transform.localRotation = Quaternion.Euler(90f, 0f, 0f); // otoč plochou nahoru
+        iconGO.transform.localScale    = new Vector3(1.5f, 1.5f, 1f);
+
+        Renderer r = iconGO.GetComponent<Renderer>();
+        if (r != null)
+        {
+            // Zkus URP shader, pak starší varianty. _BaseColor = URP, _Color = built-in.
+            Shader sh = Shader.Find("Universal Render Pipeline/Unlit")
+                     ?? Shader.Find("Unlit/Color")
+                     ?? Shader.Find("Standard");
+            if (sh != null)
+            {
+                var mat = new Material(sh);
+                mat.SetColor("_BaseColor", iconColor);
+                mat.SetColor("_Color", iconColor);
+                r.material = mat;
+            }
+            else
+            {
+                r.material.SetColor("_BaseColor", iconColor);
+                r.material.SetColor("_Color", iconColor);
+            }
+        }
+
+        return iconGO.transform;
+    }
+
+    // Smaže 3D objekty políček, která jsou daleko od (obou) hráčů.
     private void ClearOldTiles()
     {
         var keysToRemove = new List<string>();
@@ -366,12 +430,13 @@ public class GridManager : MonoBehaviour
         foreach (var tile in activeTiles)
         {
             var (x, y) = ParseGridKey(tile.Key);
-            // Vždy používej aktuální pozice hráčů z gameData (ne parametr)
-            bool nearP1 = Mathf.Abs(x - gameData.playerGridX)  <= dist
-                       && Mathf.Abs(y - gameData.playerGridY)  <= dist;
+
+            bool nearP1 = Mathf.Abs(x - gameData.playerGridX) <= dist
+                       && Mathf.Abs(y - gameData.playerGridY) <= dist;
             bool nearP2 = MultiplayerManager.IsMultiplayer
                        && Mathf.Abs(x - gameData.player2GridX) <= dist
                        && Mathf.Abs(y - gameData.player2GridY) <= dist;
+
             if (!nearP1 && !nearP2) keysToRemove.Add(tile.Key);
         }
 
@@ -382,24 +447,31 @@ public class GridManager : MonoBehaviour
         }
     }
 
+    // ── Dotazy na políčka ──────────────────────────────────────────────────
+
+    /// <summary>Typ políčka (nevygenerované bere jako vodu).</summary>
     public TileType GetTileType(int x, int y)
     {
         string key = GridKey(x, y);
         return gameData.tileData.ContainsKey(key) ? (TileType)gameData.tileData[key].type : TileType.Water;
     }
 
+    /// <summary>Celý stav políčka, nebo null když neexistuje.</summary>
     public TileStatus GetTileStatus(int x, int y)
     {
         string key = GridKey(x, y);
         return gameData.tileData.ContainsKey(key) ? gameData.tileData[key] : null;
     }
 
+    /// <summary>Ručně vyvolá OnWorldChanged (překreslí HUD a minimapu).</summary>
     public void NotifyWorldChanged() => OnWorldChanged?.Invoke();
 
+    // ── Startovní ostrov (úplně nová hra) ──────────────────────────────────
     private void GenerateInitialWorld()
     {
         StampHarborBlock(0, 0, explored: true);
 
+        // Molo uprostřed dolní hrany.
         int px1 = ISLAND_SIZE / 2 - 1;
         int py1 = 0;
         int px2 = px1 + 1;
@@ -407,7 +479,7 @@ public class GridManager : MonoBehaviour
         gameData.tileData[GridKey(px1, py1)] = new TileStatus((int)TileType.Pier) { isExplored = true };
         gameData.tileData[GridKey(px2, py1)] = new TileStatus((int)TileType.Pier) { isExplored = true };
 
-        // Piers are on the bottom (side=0), so shops go on the top edge
+        // Molo je dole (side = 0) → obchody na horní hraně.
         PlaceShops(0, 0, side: 0);
 
         gameData.playerGridX = px1;
@@ -416,21 +488,26 @@ public class GridManager : MonoBehaviour
         MarkAreaExplored(ISLAND_SIZE / 2, ISLAND_SIZE / 2, ISLAND_SIZE / 2 + 2);
     }
 
+    // Prefab pro daný typ políčka (obchody padají zpět na harborPrefab, když nejsou nastavené).
     private GameObject GetPrefabForType(TileType t)
     {
         switch (t)
         {
-            case TileType.Water: return waterPrefab;
-            case TileType.Water_Fish: return waterFishPrefab;
-            case TileType.Treasure: return treasurePrefab;
-            case TileType.Harbor: return harborPrefab;
-            case TileType.Pier: return pierPrefab;
+            case TileType.Water:       return waterPrefab;
+            case TileType.Water_Fish:  return waterFishPrefab;
+            case TileType.Treasure:    return treasurePrefab;
+            case TileType.Harbor:      return harborPrefab;
+            case TileType.Pier:        return pierPrefab;
             case TileType.UpgradeShop: return upgradeShopPrefab != null ? upgradeShopPrefab : harborPrefab;
-            case TileType.QuestShop: return questShopPrefab != null ? questShopPrefab : harborPrefab;
-            default: return null;
+            case TileType.QuestShop:   return questShopPrefab   != null ? questShopPrefab   : harborPrefab;
+            default:                   return null;
         }
     }
 
+    /// <summary>
+    /// Změní typ existujícího políčka (např. políčko s rybami → obyčejná voda,
+    /// když se ryby vyloví) a hned mu vymění 3D objekt.
+    /// </summary>
     public void SetTileType(int x, int y, TileType newType)
     {
         string key = GridKey(x, y);
@@ -448,14 +525,16 @@ public class GridManager : MonoBehaviour
         OnWorldChanged?.Invoke();
     }
 
+    // ── Nová hra / načtení slotu ───────────────────────────────────────────
+
+    /// <summary>Nová hra ve stávajícím slotu (volá pauza).</summary>
     public void NewGameReset()
     {
         SaveManager.DeleteSave();
         gameData = new GameData();
         gameData.shipLevel = 0;
 
-        foreach (var kv in activeTiles) Destroy(kv.Value);
-        activeTiles.Clear();
+        DestroyAllActiveTiles();
 
         GenerateInitialWorld();
         GenerateWorld(0, 0);
@@ -463,14 +542,13 @@ public class GridManager : MonoBehaviour
         OnWorldChanged?.Invoke();
     }
 
-    // Načte existující save v daném slotu (volá se z hlavního menu)
+    /// <summary>Načte existující save v daném slotu (volá hlavní menu).</summary>
     public void LoadSlot(int slot)
     {
         SaveManager.CurrentSlot = slot;
         PlayerPrefs.SetInt("LastSlot", slot);
 
-        foreach (var kv in activeTiles) Destroy(kv.Value);
-        activeTiles.Clear();
+        DestroyAllActiveTiles();
 
         gameData = SaveManager.LoadGame();
         if (gameData.tileData.Count == 0) GenerateInitialWorld();
@@ -479,15 +557,14 @@ public class GridManager : MonoBehaviour
         OnWorldChanged?.Invoke();
     }
 
-    // Spustí novou hru v daném slotu (volá se z hlavního menu)
+    /// <summary>Spustí novou hru v daném slotu (volá hlavní menu).</summary>
     public void NewGameSlot(int slot)
     {
         SaveManager.CurrentSlot = slot;
         PlayerPrefs.SetInt("LastSlot", slot);
         SaveManager.DeleteSave();
 
-        foreach (var kv in activeTiles) Destroy(kv.Value);
-        activeTiles.Clear();
+        DestroyAllActiveTiles();
 
         gameData = new GameData();
         gameData.shipLevel = 0;
@@ -495,5 +572,12 @@ public class GridManager : MonoBehaviour
         GenerateWorld(0, 0);
         Save();
         OnWorldChanged?.Invoke();
+    }
+
+    // Zničí všechny existující 3D objekty políček (při načtení / nové hře).
+    private void DestroyAllActiveTiles()
+    {
+        foreach (var kv in activeTiles) Destroy(kv.Value);
+        activeTiles.Clear();
     }
 }

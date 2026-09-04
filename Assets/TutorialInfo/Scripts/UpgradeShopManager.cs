@@ -23,11 +23,21 @@ public class UpgradeShopManager : MonoBehaviour
     public int shipMediumCost    = 300;
     public int shipLargeCost     = 800;
 
-    private GridManager gridManager;
+    private GridManager gridManager;   // v SampleScene; ve scéně majáku je null
     private bool        isOpen;
     private int         buyerIndex; // 0 = obchod otevřel P1, 1 = P2
 
     public bool IsOpen => isOpen;
+
+    // Data hry — vždy přes GameSession (funguje i ve scéně majáku bez GridManageru).
+    private GameData Data => GameSession.Instance.Data;
+
+    // Ulož a překresli (v SampleScene přes GridManager, jinak jen přes GameSession).
+    private void Persist()
+    {
+        if (gridManager != null) { gridManager.Save(); gridManager.NotifyWorldChanged(); }
+        else                     { GameSession.Instance.Save(); }
+    }
 
     /// <summary>
     /// True, když je otevřený JAKÝKOLI obchod (upgrade i quest).
@@ -59,33 +69,33 @@ public class UpgradeShopManager : MonoBehaviour
     }
 
     // ── Per-buyer přístup k datům (P1 vs P2) ─────────────────────────────────
-    int  Coins()         => buyerIndex == 0 ? gridManager.gameData.coins : gridManager.gameData.player2Coins;
-    void SetCoins(int v)  { if (buyerIndex == 0) gridManager.gameData.coins = v; else gridManager.gameData.player2Coins = v; }
+    int  Coins()         => buyerIndex == 0 ? Data.coins : Data.player2Coins;
+    void SetCoins(int v)  { if (buyerIndex == 0) Data.coins = v; else Data.player2Coins = v; }
 
     // upgradeType: 0 = speed, 1 = rod (prut), 2 = mining (těžba)
     bool GetUpgrade(int t)
-        => t == 0 ? (buyerIndex == 0 ? gridManager.gameData.hasSpeedUpgrade  : gridManager.gameData.player2HasSpeedUpgrade)
-         : t == 1 ? (buyerIndex == 0 ? gridManager.gameData.hasRodUpgrade    : gridManager.gameData.player2HasRodUpgrade)
-         :          (buyerIndex == 0 ? gridManager.gameData.hasMiningUpgrade : gridManager.gameData.player2HasMiningUpgrade);
+        => t == 0 ? (buyerIndex == 0 ? Data.hasSpeedUpgrade  : Data.player2HasSpeedUpgrade)
+         : t == 1 ? (buyerIndex == 0 ? Data.hasRodUpgrade    : Data.player2HasRodUpgrade)
+         :          (buyerIndex == 0 ? Data.hasMiningUpgrade : Data.player2HasMiningUpgrade);
 
     void SetUpgrade(int t, bool v)
     {
         if (buyerIndex == 0)
         {
-            if      (t == 0) gridManager.gameData.hasSpeedUpgrade  = v;
-            else if (t == 1) gridManager.gameData.hasRodUpgrade    = v;
-            else             gridManager.gameData.hasMiningUpgrade = v;
+            if      (t == 0) Data.hasSpeedUpgrade  = v;
+            else if (t == 1) Data.hasRodUpgrade    = v;
+            else             Data.hasMiningUpgrade = v;
         }
         else
         {
-            if      (t == 0) gridManager.gameData.player2HasSpeedUpgrade  = v;
-            else if (t == 1) gridManager.gameData.player2HasRodUpgrade    = v;
-            else             gridManager.gameData.player2HasMiningUpgrade = v;
+            if      (t == 0) Data.player2HasSpeedUpgrade  = v;
+            else if (t == 1) Data.player2HasRodUpgrade    = v;
+            else             Data.player2HasMiningUpgrade = v;
         }
     }
 
-    int  ShipLevel()         => buyerIndex == 0 ? gridManager.gameData.shipLevel : gridManager.gameData.player2ShipLevel;
-    void SetShipLevel(int v)  { if (buyerIndex == 0) gridManager.gameData.shipLevel = v; else gridManager.gameData.player2ShipLevel = v; }
+    int  ShipLevel()         => buyerIndex == 0 ? Data.shipLevel : Data.player2ShipLevel;
+    void SetShipLevel(int v)  { if (buyerIndex == 0) Data.shipLevel = v; else Data.player2ShipLevel = v; }
 
     // ── Nákup vylepšení ─────────────────────────────────────────────────────
     // Podmínky: ještě to nemá + má dost mincí.
@@ -95,8 +105,7 @@ public class UpgradeShopManager : MonoBehaviour
 
         SetCoins(Coins() - cost);
         SetUpgrade(upgradeType, true);
-        gridManager.Save();
-        gridManager.NotifyWorldChanged();
+        Persist();
         return true;
     }
 
@@ -159,8 +168,7 @@ public class UpgradeShopManager : MonoBehaviour
 
             SetCoins(Coins() - cost);
             SetShipLevel(requiredLevel);
-            gridManager.Save();
-            gridManager.NotifyWorldChanged();
+            Persist();
 
             // Přepni 3D model lodě u toho správného hráče.
             var switchers = FindObjectsByType<ShipModelSwitcher>(FindObjectsSortMode.None);

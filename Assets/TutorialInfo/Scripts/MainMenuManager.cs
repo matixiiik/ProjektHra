@@ -34,7 +34,17 @@ public class MainMenuManager : MonoBehaviour
 
     void Awake()
     {
-        instance       = this;
+        instance = this;
+
+        // Návrat z majáku → menu přeskoč, hra rovnou pokračuje z uloženého stavu.
+        if (GameSession.ReturningFromLighthouse)
+        {
+            GameSession.ReturningFromLighthouse = false;
+            IsVisible      = false;
+            Time.timeScale = 1f;
+            return;
+        }
+
         IsVisible      = true;
         Time.timeScale = 0f; // zastav hru, dokud si hráč nevybere
     }

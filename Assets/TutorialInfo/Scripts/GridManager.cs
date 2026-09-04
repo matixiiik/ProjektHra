@@ -31,7 +31,9 @@ public class GridManager : MonoBehaviour
     public GameObject questShopPrefab;    // dtto
     public GameObject lighthousePrefab;   // maják (vejde se do něj – viz LighthouseManager)
 
-    [HideInInspector] public GameData gameData; // veškerý stav hry
+    // Veškerý stav hry. Fyzicky ho drží GameSession (přežívá i přechod do
+    // scény majáku), GridManager k němu jen přistupuje přes tuhle zkratku.
+    public GameData gameData => GameSession.Instance != null ? GameSession.Instance.Data : null;
 
     // Právě existující 3D objekty políček. Klíč "x,y" → objekt ve scéně.
     private Dictionary<string, GameObject> activeTiles = new Dictionary<string, GameObject>();
@@ -57,9 +59,11 @@ public class GridManager : MonoBehaviour
         var listeners = FindObjectsByType<AudioListener>(FindObjectsSortMode.None);
         for (int i = 1; i < listeners.Length; i++) listeners[i].enabled = false;
 
-        // Načti naposledy použitý slot a jeho data.
+        // Načti naposledy použitý slot a jeho data do GameSession.
+        // (Interiér majáku ukládá po každé změně, takže save je vždy aktuální —
+        //  i po návratu z majáku je bezpečné načíst ho znovu.)
         SaveManager.CurrentSlot = PlayerPrefs.GetInt("LastSlot", 0);
-        gameData = SaveManager.LoadGame();
+        GameSession.Ensure().SetData(SaveManager.LoadGame());
 
         // Úplně nová hra → vygeneruj startovní ostrov.
         if (gameData.tileData.Count == 0) GenerateInitialWorld();
@@ -511,7 +515,7 @@ public class GridManager : MonoBehaviour
     public void NewGameReset()
     {
         SaveManager.DeleteSave();
-        gameData = new GameData();
+        GameSession.Ensure().SetData(new GameData());
         gameData.shipLevel = 0;
 
         DestroyAllActiveTiles();
@@ -530,7 +534,7 @@ public class GridManager : MonoBehaviour
 
         DestroyAllActiveTiles();
 
-        gameData = SaveManager.LoadGame();
+        GameSession.Ensure().SetData(SaveManager.LoadGame());
         if (gameData.tileData.Count == 0) GenerateInitialWorld();
         GenerateWorld(gameData.playerGridX, gameData.playerGridY);
         Save();
@@ -546,7 +550,7 @@ public class GridManager : MonoBehaviour
 
         DestroyAllActiveTiles();
 
-        gameData = new GameData();
+        GameSession.Ensure().SetData(new GameData());
         gameData.shipLevel = 0;
         GenerateInitialWorld();
         GenerateWorld(0, 0);

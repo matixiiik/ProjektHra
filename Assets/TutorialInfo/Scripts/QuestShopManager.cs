@@ -24,6 +24,9 @@ public class QuestShopManager : MonoBehaviour
 
     public bool IsOpen => isOpen;
 
+    // Data hry — vždy přes GameSession (funguje i ve scéně majáku bez GridManageru).
+    private GameData Data => GameSession.Instance.Data;
+
     void Update()
     {
         // Zavření obchodu. Pozn.: sdílený příznak je v UpgradeShopManager.AnyShopOpen.
@@ -75,13 +78,13 @@ public class QuestShopManager : MonoBehaviour
     }
 
     // ── Per-buyer přístup k datům (P1 vs P2) ─────────────────────────────────
-    int         GetCoins()         => buyerIndex == 0 ? gridManager.gameData.coins         : gridManager.gameData.player2Coins;
-    void        SetCoins(int v)    { if (buyerIndex == 0) gridManager.gameData.coins = v;         else gridManager.gameData.player2Coins = v; }
-    int         GetFish()          => buyerIndex == 0 ? gridManager.gameData.fishCount     : gridManager.gameData.player2FishCount;
-    void        SetFish(int v)     { if (buyerIndex == 0) gridManager.gameData.fishCount = v;     else gridManager.gameData.player2FishCount = v; }
-    int         GetTreasure()      => buyerIndex == 0 ? gridManager.gameData.treasureCount : gridManager.gameData.player2TreasureCount;
-    void        SetTreasure(int v) { if (buyerIndex == 0) gridManager.gameData.treasureCount = v; else gridManager.gameData.player2TreasureCount = v; }
-    ActiveQuest GetQuest()         => buyerIndex == 0 ? gridManager.gameData.activeQuest    : gridManager.gameData.player2ActiveQuest;
+    int         GetCoins()         => buyerIndex == 0 ? Data.coins         : Data.player2Coins;
+    void        SetCoins(int v)    { if (buyerIndex == 0) Data.coins = v;         else Data.player2Coins = v; }
+    int         GetFish()          => buyerIndex == 0 ? Data.fishCount     : Data.player2FishCount;
+    void        SetFish(int v)     { if (buyerIndex == 0) Data.fishCount = v;     else Data.player2FishCount = v; }
+    int         GetTreasure()      => buyerIndex == 0 ? Data.treasureCount : Data.player2TreasureCount;
+    void        SetTreasure(int v) { if (buyerIndex == 0) Data.treasureCount = v; else Data.player2TreasureCount = v; }
+    ActiveQuest GetQuest()         => buyerIndex == 0 ? Data.activeQuest    : Data.player2ActiveQuest;
 
     // ── Generování nabídky questů ───────────────────────────────────────────
     private void GenerateOffers()
@@ -268,8 +271,12 @@ public class QuestShopManager : MonoBehaviour
         GUILayout.EndHorizontal();
     }
 
-    // Ulož hru a dej vědět HUD/minimapě.
-    private void Save() { gridManager.Save(); gridManager.NotifyWorldChanged(); }
+    // Ulož hru a dej vědět HUD/minimapě (ve scéně majáku bez GridManageru).
+    private void Save()
+    {
+        if (gridManager != null) { gridManager.Save(); gridManager.NotifyWorldChanged(); }
+        else                     { GameSession.Instance.Save(); }
+    }
 
     // ── Styly (jen jednou) ──────────────────────────────────────────────────
     private void InitStyles()

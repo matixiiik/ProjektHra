@@ -22,12 +22,14 @@ public class HUDCounter : MonoBehaviour
     private Text        fishText;
     private Text        treasureText;
     private Text        coinsText;
+    private Text        coordText;   // souřadnice hráče (levý horní roh)
     private GameObject  questPanel;
     private Text        questLine;
 
     // Odkazy na RectTransformy prvků, abychom s nimi mohli hýbat při split screenu.
     private List<RectTransform> rowRTs = new List<RectTransform>();
     private RectTransform        questPanelRT;
+    private RectTransform        coordRT;
 
     void Start()
     {
@@ -70,8 +72,35 @@ public class HUDCounter : MonoBehaviour
         treasureText = MakeRow(canvasGO.transform, 1, new Color(1f, 0.85f, 0.2f));
         coinsText    = MakeRow(canvasGO.transform, 2, new Color(0.9f, 0.7f, 0.1f));
 
+        BuildCoordLabel(canvasGO.transform);
+
         BuildQuestPanel(canvasGO.transform);
         questPanel.SetActive(false); // schovaný, dokud hráč nemá quest
+    }
+
+    // Souřadnice hráče v levém horním rohu ("X: 5   Y: 8").
+    void BuildCoordLabel(Transform parent)
+    {
+        var go = new GameObject("CoordLabel");
+        go.transform.SetParent(parent, false);
+
+        coordRT = go.AddComponent<RectTransform>();
+        coordRT.anchorMin = coordRT.anchorMax = new Vector2(0f, 1f); // levý horní roh
+        coordRT.pivot     = new Vector2(0f, 1f);
+        coordRT.anchoredPosition = new Vector2(20f, -20f);
+        coordRT.sizeDelta = new Vector2(200f, 34f);
+
+        var bg = new GameObject("BG");
+        bg.transform.SetParent(go.transform, false);
+        var bgRt = bg.AddComponent<RectTransform>();
+        bgRt.anchorMin = Vector2.zero; bgRt.anchorMax = Vector2.one;
+        bgRt.offsetMin = bgRt.offsetMax = Vector2.zero;
+        bg.AddComponent<Image>().color = new Color(0, 0, 0, 0.45f);
+
+        coordText = MakeText(go.transform,
+            new Vector2(8, 2), new Vector2(-8, -2),
+            Vector2.zero, Vector2.one,
+            22f, Color.white, FontStyle.Bold, TextAnchor.MiddleLeft);
     }
 
     void BuildQuestPanel(Transform parent)
@@ -203,6 +232,15 @@ public class HUDCounter : MonoBehaviour
             questPanelRT.pivot     = new Vector2(0.5f, 1f);
             questPanelRT.anchoredPosition = new Vector2(0, -16f);
         }
+
+        // Souřadnice: P1 vlevo nahoře (0), P2 při splitu na začátek pravé půlky (0.5).
+        if (coordRT != null)
+        {
+            float coordAnchorX = (playerIndex == 1 && isSplit) ? 0.5f : 0f;
+            coordRT.anchorMin = coordRT.anchorMax = new Vector2(coordAnchorX, 1f);
+            coordRT.pivot     = new Vector2(0f, 1f);
+            coordRT.anchoredPosition = new Vector2(20f, -20f);
+        }
     }
 
     // ── Aktualizace textů ────────────────────────────────────────────────────
@@ -219,9 +257,13 @@ public class HUDCounter : MonoBehaviour
 
         MegaQuest mq = playerIndex == 0 ? d.megaQuest : d.player2MegaQuest;
 
+        int gx = playerIndex == 0 ? d.playerGridX : d.player2GridX;
+        int gy = playerIndex == 0 ? d.playerGridY : d.player2GridY;
+
         fishText.text     = $"Ryby: {fish}";
         treasureText.text = $"Poklady: {treasure}";
         coinsText.text    = $"Mince: {coins}";
+        coordText.text    = $"X: {gx}   Y: {gy}";
         RefreshQuest(q, mq);
     }
 

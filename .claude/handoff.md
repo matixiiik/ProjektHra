@@ -41,6 +41,13 @@ Velký vícefázový úkol:
 | `6eaebda` | Ostrovy organický tvar (ne čtverce, jádro min. 3×3 + náhodné rozrůstání, plátno 14×14), 2 mola vedle sebe na kraji. Maják 2×2 dlaždice. |
 | `0a00690` | `IslandTerrain.cs` = hladký generovaný mesh na celý ostrov místo písečných dlaždic (svah pláže pod hladinu, Perlin šum, flat shading). GridManager: flood-fill souše, spawn u prvního objektu ostrova, cleanup. Harbor/Lighthouse/Chest prefaby už bez vlastního písku. Zaplňovací průchod v StampOrganicLand → žádné díry uvnitř. Ostrov vycentrovaný na %20 políčko (oprava crashe). **Hlavní kamera nakloněná 52° (3/4 pohled)** místo kolmo shora. |
 | `deff7a6` | Pěší hráč (`HeadDot`) = postavička (tělo+hlava+klobouk+nos, jako v majáku), otáčí se po směru chůze. `CameraOrbit.cs` na Main Camera: pravé tlačítko myši + tah = kamera obíhá hráče (yaw/pitch), blokuje se při UI. `ACTIVE_GRID_SIZE` 15→19. `RenderSettings.fog` ve scéně (Linear 15–32) schová okraj generování. |
+| `fce7557` | MP: `MultiplayerManager` rušil jen komponentu Camera z P2 klonu → URP varování "Can't remove Camera…". Teď ruší celé objekty kamer + CameraOrbit z P2. Split-screen = 3 kamery, 0 varování. |
+
+## PLNÝ PRŮCHOD HROU OTESTOVÁN (2026-09-04)
+Nová hra → plavba → rybaření → těžba → zakotvit → pěšky → maják → nákup upgrade +
+quest → ven → bedna → mega quest → doplout + vykopat → vyplatit v majáku (+bonus) →
+prodej s bonusem → 3 save sloty nezávislé → konzole (get/upgrade/tp/explore) →
+pauza → split-screen multiplayer. **Vše funguje, 0 chyb, ~127 fps.**
 
 ## STAV: CELÝ PŮVODNÍ PROJEKT HOTOVÝ ✅
 

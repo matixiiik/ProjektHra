@@ -37,6 +37,7 @@ Velký vícefázový úkol:
 | `0d78878` | **Fáze 2c** — vzhled interiéru: kamenné zdi + dřevěná podlaha + koberec, dollhouse pohled (přední zeď otevřená), 2 Kenney okenní díly v zadní zdi, barevné pulty (modrá/oranžová) s rekvizitami, rekvizity po místnosti (truhla/sudy/bedny/dělo), postavička hráče (tělo+hlava+klobouk), teplé světlo. Ověřeno: okruh dál funguje. |
 
 | `099cd95` | **Fáze 3** — bedny + mega quest. `TileType.Chest = 9`, ~40 % ostrovů má bednu. `ChestPrefab` (Kenney truhla, odklopitelné víko). `ChestManager`: E u bedny → mince + mega quest ("poklad na mapě", cíl 35–70 políček daleko). Kopání: v lodi na cíli Space → `DigRoutine` → `dug`. QuestShop: "Vyplatit mega quest" → mince + trvalý `sellBonus` (+5 k výkupu). HUD 2. řádek s mapou. `GameData`: `MegaQuest`, `openedChests`, `sellBonus` (+ player2). Ověřeno end-to-end + persistence. |
+| `efddd7d` | HUD: souřadnice hráče `X: n   Y: n` v levém horním rohu (aktualizuje se při pohybu, split-screen aware). |
 
 ## STAV: CELÝ PŮVODNÍ PROJEKT HOTOVÝ ✅
 

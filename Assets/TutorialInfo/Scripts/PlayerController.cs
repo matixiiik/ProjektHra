@@ -297,18 +297,55 @@ public class PlayerController : MonoBehaviour
         return null;
     }
 
-    // ── Rybaření / těžba ───────────────────────────────────────────────────
+    // ── Rybaření / těžba / kopání ─────────────────────────────────────────
     void TryInteract()
     {
         if (isOnFoot) return; // pěšky se nepracuje
         int cx = GridX, cy = GridY;
+
+        // Mega quest: hráč je v lodi na místě z mapy → vykopat poklad.
+        MegaQuest mq = MyMegaQuest;
+        if (mq != null && mq.active && !mq.dug && cx == mq.targetX && cy == mq.targetY)
+        {
+            StartCoroutine(DigRoutine());
+            return;
+        }
+
         TileType type = gridManager.GetTileType(cx, cy);
         if      (type == TileType.Water_Fish) StartCoroutine(FishingRoutine(cx, cy));
         else if (type == TileType.Treasure)   StartCoroutine(MineRoutine(cx, cy));
     }
 
-    // Interakce s budovou, u které hráč (pěšky) stojí. Vrací true, když se povedlo.
+    // Můj mega quest (P1 / P2).
+    private MegaQuest MyMegaQuest =>
+        playerIndex == 0 ? gridManager.gameData.megaQuest : gridManager.gameData.player2MegaQuest;
+
+    // Kopání pokladu z mapy — po chvíli nastaví dug = true (odměna se bere v QuestShopu).
+    IEnumerator DigRoutine()
+    {
+        isWorking = true;
+        WorkProgress = 0f;
+
+        float duration = 3f;
+        float elapsed  = 0f;
+        while (elapsed < duration)
+        {
+            elapsed += Time.deltaTime;
+            WorkProgress = elapsed / duration;
+            yield return null;
+        }
+
+        MyMegaQuest.dug = true;
+        gridManager.Save();
+        gridManager.NotifyWorldChanged();
+
+        WorkProgress = 0f;
+        isWorking = false;
+    }
+
+    // Interakce s budovou / bednou, u které hráč (pěšky) stojí. Vrací true, když se povedlo.
     //  • maják  → vejít dovnitř (LighthouseManager – uvnitř jsou oba obchody)
+    //  • bedna  → otevřít (ChestManager – mince + mega quest)
     //  • staré UpgradeShop / QuestShop dlaždice (jen ve starých savech) → původní IMGUI okno
     bool TryInteractAdjacentBuilding()
     {
@@ -317,12 +354,17 @@ public class PlayerController : MonoBehaviour
         Vector2Int[] dirs = { Vector2Int.right, Vector2Int.left, Vector2Int.up, Vector2Int.down };
         foreach (var d in dirs)
         {
-            TileType t = gridManager.GetTileType(px + d.x, py + d.y);
+            int tx = px + d.x, ty = py + d.y;
+            TileType t = gridManager.GetTileType(tx, ty);
 
             if (t == TileType.Lighthouse && LighthouseManager.Instance != null)
             {
                 LighthouseManager.Instance.Enter(playerIndex);
                 return true;
+            }
+            if (t == TileType.Chest && ChestManager.Instance != null)
+            {
+                return ChestManager.Instance.TryOpen(tx, ty, playerIndex);
             }
             if (t == TileType.UpgradeShop && upgradeShopManager != null) { upgradeShopManager.Open(playerIndex); return true; }
             if (t == TileType.QuestShop   && questShopManager   != null) { questShopManager.Open(playerIndex);   return true; }

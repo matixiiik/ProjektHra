@@ -30,6 +30,7 @@ public class GridManager : MonoBehaviour
     public GameObject upgradeShopPrefab;  // starý obchod — drží se kvůli starým savům
     public GameObject questShopPrefab;    // dtto
     public GameObject lighthousePrefab;   // maják (vejde se do něj – viz LighthouseManager)
+    public GameObject chestPrefab;        // bedna na ostrově (otevírá ChestManager)
 
     // Veškerý stav hry. Fyzicky ho drží GameSession (přežívá i přechod do
     // scény majáku), GridManager k němu jen přistupuje přes tuhle zkratku.
@@ -257,7 +258,7 @@ public class GridManager : MonoBehaviour
     private static bool IsIslandTile(int type)
         => type == (int)TileType.Harbor || type == (int)TileType.Pier
         || type == (int)TileType.UpgradeShop || type == (int)TileType.QuestShop
-        || type == (int)TileType.Lighthouse;
+        || type == (int)TileType.Lighthouse || type == (int)TileType.Chest;
 
     // Vyplní čtverec 10×10 pevninou (Harbor). Zachová u políček dřívější "prozkoumáno".
     private void StampHarborBlock(int startX, int startY, bool explored = false)
@@ -307,6 +308,26 @@ public class GridManager : MonoBehaviour
         gameData.tileData[GridKey(px2, py2)] = new TileStatus((int)TileType.Pier);
 
         PlaceLighthouse(startX, startY, side);
+        MaybePlaceChest(startX, startY);
+    }
+
+    // S 40% šancí položí jednu bednu doprostřed ostrova (na pevninu, ne na okraj).
+    // Nepřepíše molo ani maják.
+    private void MaybePlaceChest(int startX, int startY)
+    {
+        if (UnityEngine.Random.value >= 0.4f) return;
+
+        for (int tries = 0; tries < 12; tries++)
+        {
+            int cx = startX + UnityEngine.Random.Range(2, ISLAND_SIZE - 2);
+            int cy = startY + UnityEngine.Random.Range(2, ISLAND_SIZE - 2);
+            string key = GridKey(cx, cy);
+            if (gameData.tileData.ContainsKey(key) && gameData.tileData[key].type == (int)TileType.Harbor)
+            {
+                gameData.tileData[key] = new TileStatus((int)TileType.Chest);
+                return;
+            }
+        }
     }
 
     // Umístí jedno políčko majáku na hranu ostrova naproti molu, zhruba doprostřed.
@@ -360,6 +381,14 @@ public class GridManager : MonoBehaviour
 
         if (icon != null && minimapLayer >= 0)
             icon.gameObject.layer = minimapLayer;
+
+        // Otevřená bedna: pokud ji už někdo vybral, odklop víko (objekt "Lid" v prefabu).
+        if ((TileType)status.type == TileType.Chest
+            && ChestManager.Instance != null && ChestManager.Instance.IsOpened(x, y))
+        {
+            foreach (Transform t in newTile.GetComponentsInChildren<Transform>(true))
+                if (t.name == "Lid") { t.localRotation = Quaternion.Euler(-105f, 0f, 0f); break; }
+        }
     }
 
     // Vytvoří barevnou ikonku budovy (čtvereček nad ní) jen pro minimapu.
@@ -484,6 +513,7 @@ public class GridManager : MonoBehaviour
             case TileType.UpgradeShop: return upgradeShopPrefab != null ? upgradeShopPrefab : harborPrefab;
             case TileType.QuestShop:   return questShopPrefab   != null ? questShopPrefab   : harborPrefab;
             case TileType.Lighthouse:  return lighthousePrefab  != null ? lighthousePrefab  : harborPrefab;
+            case TileType.Chest:       return chestPrefab       != null ? chestPrefab       : harborPrefab;
             default:                   return null;
         }
     }

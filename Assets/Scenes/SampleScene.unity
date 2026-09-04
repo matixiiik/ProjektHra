@@ -163,6 +163,50 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &80841811
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 80841813}
+  - component: {fileID: 80841812}
+  m_Layer: 0
+  m_Name: ChestManager
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &80841812
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 80841811}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7a2db9e2460268d40b9d900f203bd61d, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::ChestManager
+--- !u!4 &80841813
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 80841811}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &103129290
 GameObject:
   m_ObjectHideFlags: 0
@@ -1422,49 +1466,7 @@ MonoBehaviour:
   upgradeShopPrefab: {fileID: 6430876485790390785, guid: 70b8054b13d4d344abf0c13e70594fbd, type: 3}
   questShopPrefab: {fileID: 6430876485790390785, guid: ebe0c438c05fd434489e7ba14298bb43, type: 3}
   lighthousePrefab: {fileID: 1421212493975396664, guid: d45fde991b2c5cc4f9a60ce7f71e6bb2, type: 3}
-  gameData:
-    playerGridX: 0
-    playerGridY: 0
-    coins: 0
-    hasSpeedUpgrade: 0
-    hasRodUpgrade: 0
-    hasMiningUpgrade: 0
-    fishCount: 0
-    treasureCount: 0
-    isOnFoot: 1
-    boatGridX: 0
-    boatGridY: 0
-    shipLevel: 0
-    activeQuest:
-      hasQuest: 0
-      questType: 0
-      description: 
-      target: 0
-      progress: 0
-      cost: 0
-      reward: 0
-      multiplier: 0
-    player2GridX: 0
-    player2GridY: 0
-    player2Coins: 0
-    player2FishCount: 0
-    player2TreasureCount: 0
-    player2HasSpeedUpgrade: 0
-    player2HasRodUpgrade: 0
-    player2HasMiningUpgrade: 0
-    player2ShipLevel: 0
-    player2ActiveQuest:
-      hasQuest: 0
-      questType: 0
-      description: 
-      target: 0
-      progress: 0
-      cost: 0
-      reward: 0
-      multiplier: 0
-    tileData:
-      keys: []
-      values: []
+  chestPrefab: {fileID: 6536307880878878697, guid: bddbb9ba0c8c9cc4bac8882358aecf83, type: 3}
 --- !u!4 &848664411
 Transform:
   m_ObjectHideFlags: 0
@@ -1819,6 +1821,7 @@ MonoBehaviour:
   harborColor: {r: 0.2, g: 0.85, b: 0.2, a: 1}
   pierColor: {r: 0.1, g: 0.1, b: 0.1, a: 1}
   lighthouseColor: {r: 1, g: 0.25, b: 0.2, a: 1}
+  chestColor: {r: 1, g: 0.75, b: 0.15, a: 1}
   fogColor: {r: 0.4, g: 0.4, b: 0.4, a: 1}
   playerColor: {r: 1, g: 1, b: 1, a: 1}
   otherPlayerColor: {r: 1, g: 0.5, b: 0, a: 1}
@@ -2523,3 +2526,4 @@ SceneRoots:
   - {fileID: 639679628}
   - {fileID: 339075000}
   - {fileID: 75222615}
+  - {fileID: 80841813}

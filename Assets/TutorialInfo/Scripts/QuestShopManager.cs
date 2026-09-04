@@ -85,6 +85,25 @@ public class QuestShopManager : MonoBehaviour
     int         GetTreasure()      => buyerIndex == 0 ? Data.treasureCount : Data.player2TreasureCount;
     void        SetTreasure(int v) { if (buyerIndex == 0) Data.treasureCount = v; else Data.player2TreasureCount = v; }
     ActiveQuest GetQuest()         => buyerIndex == 0 ? Data.activeQuest    : Data.player2ActiveQuest;
+    MegaQuest   GetMega()          => buyerIndex == 0 ? Data.megaQuest      : Data.player2MegaQuest;
+    bool        HasSellBonus()     => buyerIndex == 0 ? Data.sellBonus      : Data.player2SellBonus;
+    void        GiveSellBonus()    { if (buyerIndex == 0) Data.sellBonus = true; else Data.player2SellBonus = true; }
+
+    // Výkupní ceny — po splnění mega questu trvale +5 za kus.
+    int FishPrice()     => fishSellPrice     + (HasSellBonus() ? 5 : 0);
+    int TreasurePrice() => treasureSellPrice + (HasSellBonus() ? 5 : 0);
+
+    /// <summary>Vyplacení mega questu (poklad z mapy). Mince + trvalý bonus na výkup.</summary>
+    void ClaimMega()
+    {
+        MegaQuest mq = GetMega();
+        if (!mq.active || !mq.dug) return;
+
+        SetCoins(GetCoins() + mq.rewardCoins);
+        GiveSellBonus();
+        mq.Reset(); // hráč si teď může otevřít další bednu
+        Save();
+    }
 
     // ── Generování nabídky questů ───────────────────────────────────────────
     private void GenerateOffers()
@@ -186,19 +205,32 @@ public class QuestShopManager : MonoBehaviour
         GUILayout.Label($"OBCHOD S QUESTY{playerLabel}", titleStyle);
         GUILayout.Space(12);
 
+        // ── MEGA QUEST (poklad z mapy) ──────────────────────────────────────
+        MegaQuest mq = GetMega();
+        if (mq.active && mq.dug)
+        {
+            GUILayout.Label("MEGA QUEST", sectionStyle);
+            GUILayout.Label("Poklad z mapy je vykopany!", rowStyle);
+            if (GUILayout.Button($"  VYPLATIT  {mq.rewardCoins} minci  +  trvaly bonus na vykup  !", claimStyle, GUILayout.Height(38)))
+                ClaimMega();
+            GUILayout.Space(14);
+        }
+
         // ── PRODEJ ──────────────────────────────────────────────────────────
         GUILayout.Label("PRODEJ", sectionStyle);
 
         int fish     = GetFish();
         int treasure = GetTreasure();
+        int fp = FishPrice(), tp = TreasurePrice();
+        string bonusTag = HasSellBonus() ? "  (bonus!)" : "";
 
-        DrawSell($"Ryby  x{fish}  ( {fishSellPrice} minci / kus )",
-            fish * fishSellPrice, fish > 0,
-            () => { SetCoins(GetCoins() + fish * fishSellPrice); SetFish(0); Save(); });
+        DrawSell($"Ryby  x{fish}  ( {fp} minci / kus ){bonusTag}",
+            fish * fp, fish > 0,
+            () => { SetCoins(GetCoins() + fish * fp); SetFish(0); Save(); });
         GUILayout.Space(4);
-        DrawSell($"Poklady  x{treasure}  ( {treasureSellPrice} minci / kus )",
-            treasure * treasureSellPrice, treasure > 0,
-            () => { SetCoins(GetCoins() + treasure * treasureSellPrice); SetTreasure(0); Save(); });
+        DrawSell($"Poklady  x{treasure}  ( {tp} minci / kus ){bonusTag}",
+            treasure * tp, treasure > 0,
+            () => { SetCoins(GetCoins() + treasure * tp); SetTreasure(0); Save(); });
 
         GUILayout.Space(14);
 

@@ -43,6 +43,30 @@ public class ActiveQuest
 }
 
 /// <summary>
+/// "Poklad na mapě" — mega quest z bedny. Bedna dá hráči mapu s vzdáleným
+/// místem na moři; hráč tam dopluje, vykope poklad (dug = true) a odměnu si
+/// vyzvedne v kterémkoli QuestShopu (mince + trvalý bonus na výkupní ceny).
+/// </summary>
+[Serializable]
+public class MegaQuest
+{
+    public bool active;       // hráč má rozdělaný mega quest?
+    public int  targetX;      // kam doplout (X)
+    public int  targetY;      // kam doplout (Y)
+    public bool dug;          // hráč doplul na místo a vykopal → jde vyplatit
+    public int  rewardCoins;  // kolik mincí dá vyplacení
+
+    public void Reset()
+    {
+        active      = false;
+        targetX     = 0;
+        targetY     = 0;
+        dug         = false;
+        rewardCoins = 0;
+    }
+}
+
+/// <summary>
 /// Veškerý ukládaný stav hry. Jeden objekt = jeden save slot.
 /// Pole "player2..." se používají jen v multiplayeru (split screen).
 /// </summary>
@@ -62,7 +86,10 @@ public class GameData
     public int  boatGridX;         // kde nechal zakotvenou loď (X)
     public int  boatGridY;         // kde nechal zakotvenou loď (Y)
     public int  shipLevel;         // úroveň/vzhled lodě: 0=malá, 1=střední, 2=velká
+    public bool sellBonus;         // trvalý bonus k výkupním cenám (odměna za mega quest)
     public ActiveQuest activeQuest = new ActiveQuest();
+    public MegaQuest   megaQuest   = new MegaQuest();
+    public List<string> openedChests = new List<string>(); // klíče "x,y" už otevřených beden
 
     // ── Hráč 2 — oddělená ekonomika (jen multiplayer) ─────────────────────────
     public int  player2GridX;
@@ -74,7 +101,10 @@ public class GameData
     public bool player2HasRodUpgrade;
     public bool player2HasMiningUpgrade;
     public int  player2ShipLevel;
+    public bool player2SellBonus;
     public ActiveQuest player2ActiveQuest = new ActiveQuest();
+    public MegaQuest   player2MegaQuest   = new MegaQuest();
+    public List<string> player2OpenedChests = new List<string>();
 
     // ── Svět ─────────────────────────────────────────────────────────────────
     // Klíč = "x,y" (souřadnice políčka jako text), hodnota = stav políčka.

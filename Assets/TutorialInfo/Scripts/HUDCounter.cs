@@ -217,20 +217,40 @@ public class HUDCounter : MonoBehaviour
         int coins    = playerIndex == 0 ? d.coins         : d.player2Coins;
         ActiveQuest q = playerIndex == 0 ? d.activeQuest   : d.player2ActiveQuest;
 
+        MegaQuest mq = playerIndex == 0 ? d.megaQuest : d.player2MegaQuest;
+
         fishText.text     = $"Ryby: {fish}";
         treasureText.text = $"Poklady: {treasure}";
         coinsText.text    = $"Mince: {coins}";
-        RefreshQuest(q);
+        RefreshQuest(q, mq);
     }
 
-    void RefreshQuest(ActiveQuest q)
+    void RefreshQuest(ActiveQuest q, MegaQuest mq)
     {
-        questPanel.SetActive(q.hasQuest);
-        if (!q.hasQuest) return;
+        bool show = q.hasQuest || mq.active;
+        questPanel.SetActive(show);
+        if (!show) return;
 
-        if (q.IsComplete)
-            questLine.text = $"<color=#ffcc00>{q.description}</color>  <color=#66ff66>SPLNENO!</color>";
-        else
-            questLine.text = $"<color=#ffcc00>{q.description}</color>  <color=#ffffff>{q.progress}/{q.target}</color>";
+        var lines = new List<string>();
+
+        if (q.hasQuest)
+        {
+            lines.Add(q.IsComplete
+                ? $"<color=#ffcc00>{q.description}</color>  <color=#66ff66>SPLNENO!</color>"
+                : $"<color=#ffcc00>{q.description}</color>  <color=#ffffff>{q.progress}/{q.target}</color>");
+        }
+
+        if (mq.active)
+        {
+            lines.Add(mq.dug
+                ? "<color=#66ff66>Poklad vykopan!</color>  <color=#ffcc00>Vyplat v questshopu</color>"
+                : $"<color=#ffcc00>Mapa: poklad na [{mq.targetX}, {mq.targetY}]</color>");
+        }
+
+        questLine.text = string.Join("\n", lines.ToArray());
+
+        // Panel povyroste, když jsou dva řádky.
+        if (questPanelRT != null)
+            questPanelRT.sizeDelta = new Vector2(questPanelRT.sizeDelta.x, lines.Count > 1 ? 58f : 38f);
     }
 }

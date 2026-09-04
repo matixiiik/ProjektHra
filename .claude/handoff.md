@@ -40,6 +40,7 @@ Velký vícefázový úkol:
 | `efddd7d` | HUD: souřadnice hráče `X: n   Y: n` v levém horním rohu (aktualizuje se při pohybu, split-screen aware). |
 | `6eaebda` | Ostrovy organický tvar (ne čtverce, jádro min. 3×3 + náhodné rozrůstání, plátno 14×14), 2 mola vedle sebe na kraji. Maják 2×2 dlaždice. |
 | `0a00690` | `IslandTerrain.cs` = hladký generovaný mesh na celý ostrov místo písečných dlaždic (svah pláže pod hladinu, Perlin šum, flat shading). GridManager: flood-fill souše, spawn u prvního objektu ostrova, cleanup. Harbor/Lighthouse/Chest prefaby už bez vlastního písku. Zaplňovací průchod v StampOrganicLand → žádné díry uvnitř. Ostrov vycentrovaný na %20 políčko (oprava crashe). **Hlavní kamera nakloněná 52° (3/4 pohled)** místo kolmo shora. |
+| `deff7a6` | Pěší hráč (`HeadDot`) = postavička (tělo+hlava+klobouk+nos, jako v majáku), otáčí se po směru chůze. `CameraOrbit.cs` na Main Camera: pravé tlačítko myši + tah = kamera obíhá hráče (yaw/pitch), blokuje se při UI. `ACTIVE_GRID_SIZE` 15→19. `RenderSettings.fog` ve scéně (Linear 15–32) schová okraj generování. |
 
 ## STAV: CELÝ PŮVODNÍ PROJEKT HOTOVÝ ✅
 

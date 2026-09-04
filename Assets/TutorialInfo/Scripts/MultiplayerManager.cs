@@ -64,7 +64,9 @@ public class MultiplayerManager : MonoBehaviour
 
         // Z kopie smaž komponenty, které mají být ve scéně jen jednou.
         // (ShipModelSwitcher se NECHÁVÁ — řídí model lodě P2.)
-        foreach (var c in p2Go.GetComponentsInChildren<Camera>())            Destroy(c);
+        // Kamery se ruší jako celé objekty — v URP nejdou smazat jen Camera
+        // (závisí na ní UniversalAdditionalCameraData). P2 dostane vlastní kameru níž.
+        foreach (var c in p2Go.GetComponentsInChildren<Camera>(true))        Destroy(c.gameObject);
         foreach (var c in p2Go.GetComponentsInChildren<CameraFollow>())      Destroy(c);
         foreach (var c in p2Go.GetComponentsInChildren<HUDCounter>())        Destroy(c);
         foreach (var c in p2Go.GetComponentsInChildren<MinimapUIRenderer>()) Destroy(c);

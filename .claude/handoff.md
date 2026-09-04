@@ -33,16 +33,16 @@ Velký vícefázový úkol:
 | `1a9943c` | **Fáze 1** — dlaždicové prefaby z Kenney dílů: HarborPrefab = písek + `IslandDecor.cs` (náhodně palma/kámen/tráva), PierPrefab = dřevěná plošina, TreasurePrefab = truhla, Shop1/Shop2 = písek + rekvizita. Voda hlubší tyrkys, měkčí světlo, ambient Trilight. |
 | `82c844c` | **Fáze 2a** — `TileType.Lighthouse = 8`. `GridManager.PlaceLighthouse()` (nahradil `PlaceShops`) staví 1 maják na ostrov. `LighthousePrefab` = skládaná Kenney věž. Minimapa maják červeně. Staré UpgradeShop/QuestShop dlaždice se pořád vykreslí (staré savy), jen se negenerují. |
 | `10ede05` | **Fáze 2b (1/3)** — `GameSession` singleton (DontDestroyOnLoad) drží `GameData`. `GridManager.gameData` je teď property → `GameSession.Instance.Data` (~85 externích čtení beze změny). Shopy čtou přes `GameData Data => GameSession.Instance.Data`, ukládají přes `Persist()`/`Save()` co fungují i bez GridManageru. `MainMenuManager` skip přes `GameSession.ReturningFromLighthouse`. |
-| `f54152f` | **Fáze 2b (2/3) + většina 2c** — scéna `LighthouseInterior.unity` (místnost: podlaha/zdi/dveře/lampa/kamera, v Build Settings). `LighthouseManager.Enter()` = save + LoadScene. `LighthouseInterior.cs` (řídí scénu, ukazatel mincí, `ExitToIsland()`). `InteriorPlayer.cs` (plynulá chůze WASD/šipky, `E` = nejbližší bod). `InteriorInteractable.cs` (UpgradeShop/QuestShop/Exit). **Oba obchody fungují uvnitř přes GameSession.** Materiály interiéru v `Assets/TutorialInfo/Materials/Interior*.mat`. **Celý okruh ověřen: E u majáku → interiér → nákup → dveře ven → zpět na ostrov, stav zachován, menu nevyskočí.** |
+| `f54152f` | **Fáze 2b (2/3)** — scéna `LighthouseInterior.unity` (v Build Settings). `LighthouseManager.Enter()` = save + LoadScene. `LighthouseInterior.cs` (řídí scénu, ukazatel mincí, `ExitToIsland()`). `InteriorPlayer.cs` (plynulá chůze WASD/šipky, `E` = nejbližší bod). `InteriorInteractable.cs` (UpgradeShop/QuestShop/Exit). **Oba obchody fungují uvnitř přes GameSession.** |
+| `0d78878` | **Fáze 2c** — vzhled interiéru: kamenné zdi + dřevěná podlaha + koberec, dollhouse pohled (přední zeď otevřená), 2 Kenney okenní díly v zadní zdi, barevné pulty (modrá/oranžová) s rekvizitami, rekvizity po místnosti (truhla/sudy/bedny/dělo), postavička hráče (tělo+hlava+klobouk), teplé světlo. Ověřeno: okruh dál funguje. |
 
 ## DALŠÍ KROK
 
-**Fáze 2b je HOTOVÁ.** Zbývá:
+**➡️ CELÁ FÁZE 2 (2a + 2b + 2c) JE HOTOVÁ.** Maják funguje celý end-to-end.
+(Případný polish interiéru: postavička hráče je pořád trochu „modrý sloup" z herní
+kamery — dá se zvětšit hlava/klobouk, ale je to detail.)
 
-### Fáze 2c – dodělat vzhled interiéru (~1 h, nepovinné teď)
-- Pulty (`Counter_Upgrade`, `Counter_Quest` ve scéně) jsou jen barevné kostky —
-  vyměnit za Kenney stůl/regál. Postavička hráče = kapsle → něco hezčího.
-- Kulatější „věžní" pokoj místo hranatého, koberec, útulnější světlo.
+Další = **Fáze 3**:
 
 ### Fáze 3a – bedna (nová featura)
 - `E` u bedny (pěšky) → otevře se, dá mince + **mega quest**.

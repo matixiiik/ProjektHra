@@ -46,7 +46,8 @@ public class GridManager : MonoBehaviour
     private int minimapLayer; // vrstva "MinimapOnly" (ikony jen pro minimapu)
 
     // Parametry generování ostrovů.
-    private const int ISLAND_SIZE         = 10; // ostrov je 10×10 políček
+    private const int ISLAND_SIZE         = 10; // "jmenovitá" velikost (kompatibilita se starým kódem)
+    private const int ISLAND_CANVAS       = 14; // max rozměr organického ostrova (plátno, do kterého se vejde)
     private const int ISLAND_PADDING      = 1;  // volné pole kolem ostrova při kontrole místa
     private const int MIN_ISLAND_DISTANCE = 50; // minimální rozestup mezi ostrovy
     private const int CLEANUP_LIMIT       = 100;// políčka dál než tohle se ze save mažou
@@ -217,11 +218,11 @@ public class GridManager : MonoBehaviour
         if (IsAnotherIslandTooClose(startX, startY)) return false;
 
         int fromX = startX - ISLAND_PADDING;
-        int toX   = startX + ISLAND_SIZE - 1 + ISLAND_PADDING;
+        int toX   = startX + ISLAND_CANVAS - 1 + ISLAND_PADDING;
         int fromY = startY - ISLAND_PADDING;
-        int toY   = startY + ISLAND_SIZE - 1 + ISLAND_PADDING;
+        int toY   = startY + ISLAND_CANVAS - 1 + ISLAND_PADDING;
 
-        // V ploše ostrova (+ okraj) nesmí být kus jiného ostrova.
+        // V ploše plátna ostrova (+ okraj) nesmí být kus jiného ostrova.
         for (int x = fromX; x <= toX; x++)
         {
             for (int y = fromY; y <= toY; y++)
@@ -237,9 +238,9 @@ public class GridManager : MonoBehaviour
     // Je poblíž střed jiného ostrova (blíž než MIN_ISLAND_DISTANCE)?
     private bool IsAnotherIslandTooClose(int startX, int startY)
     {
-        float cx = startX + (ISLAND_SIZE - 1) * 0.5f;
-        float cy = startY + (ISLAND_SIZE - 1) * 0.5f;
-        int   max = MIN_ISLAND_DISTANCE + ISLAND_SIZE;
+        float cx = startX + (ISLAND_CANVAS - 1) * 0.5f;
+        float cy = startY + (ISLAND_CANVAS - 1) * 0.5f;
+        int   max = MIN_ISLAND_DISTANCE + ISLAND_CANVAS;
 
         foreach (var kv in gameData.tileData)
         {
@@ -260,89 +261,141 @@ public class GridManager : MonoBehaviour
         || type == (int)TileType.UpgradeShop || type == (int)TileType.QuestShop
         || type == (int)TileType.Lighthouse || type == (int)TileType.Chest;
 
-    // Vyplní čtverec 10×10 pevninou (Harbor). Zachová u políček dřívější "prozkoumáno".
-    private void StampHarborBlock(int startX, int startY, bool explored = false)
+    // ── Organický (nepravidelný) ostrov ────────────────────────────────────
+    // Ostrov není čtverec: pevné jádro (min. 3×3) + náhodné rozrůstání na okraj.
+    // Vrací seznam souřadnic pevniny (Harbor).
+    private List<(int x, int y)> StampOrganicLand(int startX, int startY, bool explored)
     {
-        for (int ix = 0; ix < ISLAND_SIZE; ix++)
+        int cx = startX + ISLAND_CANVAS / 2;
+        int cy = startY + ISLAND_CANVAS / 2;
+        int half = ISLAND_CANVAS / 2 - 1; // meze plátna (nech okraj volný pro molo)
+
+        var land = new HashSet<(int, int)>();
+
+        // 1) Pevné jádro — náhodný obdélník 3..5 × 3..5 uprostřed (splňuje "min. 3×3").
+        int cw = UnityEngine.Random.Range(3, 6);
+        int ch = UnityEngine.Random.Range(3, 6);
+        for (int x = cx - cw / 2; x <= cx - cw / 2 + cw - 1; x++)
+            for (int y = cy - ch / 2; y <= cy - ch / 2 + ch - 1; y++)
+                land.Add((x, y));
+
+        // 2) Organické rozrůstání — opakovaně přilep náhodné políčko na okraj tvaru.
+        var dirs = new (int dx, int dy)[] { (1, 0), (-1, 0), (0, 1), (0, -1) };
+        var frontier = new List<(int, int)>(land);
+        int grow = UnityEngine.Random.Range(40, 90);
+        for (int i = 0; i < grow; i++)
         {
-            for (int iy = 0; iy < ISLAND_SIZE; iy++)
-            {
-                string key = GridKey(startX + ix, startY + iy);
-                bool wasExplored = explored
-                    || (gameData.tileData.ContainsKey(key) && gameData.tileData[key].isExplored);
-                gameData.tileData[key] = new TileStatus((int)TileType.Harbor) { isExplored = wasExplored };
-            }
+            var pick = frontier[UnityEngine.Random.Range(0, frontier.Count)];
+            var d = dirs[UnityEngine.Random.Range(0, 4)];
+            var n = (pick.Item1 + d.dx, pick.Item2 + d.dy);
+            if (Mathf.Abs(n.Item1 - cx) > half || Mathf.Abs(n.Item2 - cy) > half) continue;
+            if (land.Add(n)) frontier.Add(n);
         }
+
+        // 3) Zapiš jako Harbor.
+        var result = new List<(int x, int y)>();
+        foreach (var p in land)
+        {
+            string key = GridKey(p.Item1, p.Item2);
+            bool wasExplored = explored
+                || (gameData.tileData.ContainsKey(key) && gameData.tileData[key].isExplored);
+            gameData.tileData[key] = new TileStatus((int)TileType.Harbor) { isExplored = wasExplored };
+            result.Add((p.Item1, p.Item2));
+        }
+        return result;
     }
 
-    // Vygeneruje celý ostrov: pevninu, dvě políčka mola na náhodné straně a dva obchody.
+    // Vygeneruje celý ostrov: organická pevnina + molo + maják + (možná) bedna.
     private void GenerateIsland(int startX, int startY)
     {
-        StampHarborBlock(startX, startY);
+        var land = StampOrganicLand(startX, startY, explored: false);
+        if (land.Count < 9) return; // pojistka
 
-        int side = UnityEngine.Random.Range(0, 4); // 0=dole, 1=nahoře, 2=vlevo, 3=vpravo
-        int px1, py1, px2, py2;                     // dvě políčka mola vedle sebe
-
-        if (side == 0)
-        {
-            int x = UnityEngine.Random.Range(startX, startX + ISLAND_SIZE - 1);
-            px1 = x; py1 = startY; px2 = x + 1; py2 = startY;
-        }
-        else if (side == 1)
-        {
-            int x = UnityEngine.Random.Range(startX, startX + ISLAND_SIZE - 1);
-            px1 = x; py1 = startY + ISLAND_SIZE - 1; px2 = x + 1; py2 = startY + ISLAND_SIZE - 1;
-        }
-        else if (side == 2)
-        {
-            int y = UnityEngine.Random.Range(startY, startY + ISLAND_SIZE - 1);
-            px1 = startX; py1 = y; px2 = startX; py2 = y + 1;
-        }
-        else
-        {
-            int y = UnityEngine.Random.Range(startY, startY + ISLAND_SIZE - 1);
-            px1 = startX + ISLAND_SIZE - 1; py1 = y; px2 = startX + ISLAND_SIZE - 1; py2 = y + 1;
-        }
-
-        gameData.tileData[GridKey(px1, py1)] = new TileStatus((int)TileType.Pier);
-        gameData.tileData[GridKey(px2, py2)] = new TileStatus((int)TileType.Pier);
-
-        PlaceLighthouse(startX, startY, side);
-        MaybePlaceChest(startX, startY);
+        PlaceEdgePier(land);
+        PlaceLighthouse(land);
+        MaybePlaceChest(land);
     }
 
-    // S 40% šancí položí jednu bednu doprostřed ostrova (na pevninu, ne na okraj).
-    // Nepřepíše molo ani maják.
-    private void MaybePlaceChest(int startX, int startY)
+    // Dvě políčka mola vedle sebe na okraji ostrova (obě mají "ven" vodu).
+    private void PlaceEdgePier(List<(int x, int y)> land)
     {
-        if (UnityEngine.Random.value >= 0.4f) return;
+        var set = new HashSet<(int, int)>(land);
+        var dirs = new (int dx, int dy)[] { (0, -1), (0, 1), (-1, 0), (1, 0) };
 
-        for (int tries = 0; tries < 12; tries++)
+        // Zamíchej strany, ať molo není vždy stejně.
+        for (int i = 0; i < dirs.Length; i++)
         {
-            int cx = startX + UnityEngine.Random.Range(2, ISLAND_SIZE - 2);
-            int cy = startY + UnityEngine.Random.Range(2, ISLAND_SIZE - 2);
-            string key = GridKey(cx, cy);
-            if (gameData.tileData.ContainsKey(key) && gameData.tileData[key].type == (int)TileType.Harbor)
+            int j = UnityEngine.Random.Range(i, dirs.Length);
+            var t = dirs[i]; dirs[i] = dirs[j]; dirs[j] = t;
+        }
+
+        foreach (var d in dirs)
+        {
+            var perp = d.dx == 0 ? (dx: 1, dy: 0) : (dx: 0, dy: 1); // kolmo = "vedle sebe"
+
+            // Zamíchané pořadí pevniny, ať molo není vždy v rohu.
+            var shuffled = new List<(int x, int y)>(land);
+            for (int i = 0; i < shuffled.Count; i++)
             {
-                gameData.tileData[key] = new TileStatus((int)TileType.Chest);
+                int j = UnityEngine.Random.Range(i, shuffled.Count);
+                var t = shuffled[i]; shuffled[i] = shuffled[j]; shuffled[j] = t;
+            }
+
+            foreach (var p in shuffled)
+            {
+                if (set.Contains((p.x + d.dx, p.y + d.dy))) continue;          // p musí mít ven vodu
+                var q = (p.x + perp.dx, p.y + perp.dy);
+                if (!set.Contains(q)) continue;                                // vedlejší musí být pevnina
+                if (set.Contains((q.Item1 + d.dx, q.Item2 + d.dy))) continue;  // a taky mít ven vodu
+
+                gameData.tileData[GridKey(p.x, p.y)]           = new TileStatus((int)TileType.Pier);
+                gameData.tileData[GridKey(q.Item1, q.Item2)]   = new TileStatus((int)TileType.Pier);
                 return;
             }
         }
     }
 
-    // Umístí jedno políčko majáku na hranu ostrova naproti molu, zhruba doprostřed.
-    // Na maják se nechodí — hráč u něj stojí pěšky na sousední pevnině a dá `E`.
-    private void PlaceLighthouse(int startX, int startY, int side)
+    // Maják zabírá 2×2 políčka uvnitř pevniny (na maják se nechodí).
+    private void PlaceLighthouse(List<(int x, int y)> land)
     {
-        int mid = ISLAND_SIZE / 2;
-        int lx, ly;
+        var set = new HashSet<(int, int)>(land);
 
-        if      (side == 0) { lx = startX + mid; ly = startY + ISLAND_SIZE - 2; } // molo dole → maják nahoře
-        else if (side == 1) { lx = startX + mid; ly = startY + 1;              } // molo nahoře → maják dole
-        else if (side == 2) { lx = startX + ISLAND_SIZE - 2; ly = startY + mid; } // molo vlevo → maják vpravo
-        else                { lx = startX + 1;              ly = startY + mid; } // molo vpravo → maják vlevo
+        var spots = new List<(int x, int y)>();
+        foreach (var p in land)
+        {
+            // p = levý dolní roh 2×2, všechny 4 musí být pevnina a zatím Harbor
+            if (set.Contains((p.x + 1, p.y)) && set.Contains((p.x, p.y + 1)) && set.Contains((p.x + 1, p.y + 1))
+                && IsHarborTile(p.x, p.y) && IsHarborTile(p.x + 1, p.y)
+                && IsHarborTile(p.x, p.y + 1) && IsHarborTile(p.x + 1, p.y + 1))
+                spots.Add(p);
+        }
+        if (spots.Count == 0) return;
 
-        gameData.tileData[GridKey(lx, ly)] = new TileStatus((int)TileType.Lighthouse);
+        var a = spots[UnityEngine.Random.Range(0, spots.Count)];
+        for (int ix = 0; ix < 2; ix++)
+            for (int iy = 0; iy < 2; iy++)
+                gameData.tileData[GridKey(a.x + ix, a.y + iy)] = new TileStatus((int)TileType.Lighthouse);
+    }
+
+    // S 40% šancí položí jednu bednu na náhodné (volné) políčko pevniny.
+    private void MaybePlaceChest(List<(int x, int y)> land)
+    {
+        if (UnityEngine.Random.value >= 0.4f) return;
+
+        var free = new List<(int x, int y)>();
+        foreach (var p in land)
+            if (IsHarborTile(p.x, p.y)) free.Add(p);
+        if (free.Count == 0) return;
+
+        var c = free[UnityEngine.Random.Range(0, free.Count)];
+        gameData.tileData[GridKey(c.x, c.y)] = new TileStatus((int)TileType.Chest);
+    }
+
+    private bool IsHarborTile(int x, int y)
+    {
+        string key = GridKey(x, y);
+        return gameData.tileData.ContainsKey(key)
+            && gameData.tileData[key].type == (int)TileType.Harbor;
     }
 
     // Náhodný typ mořského políčka: 0,5 % poklad, 0,5 % ryby, zbytek voda.
@@ -388,6 +441,29 @@ public class GridManager : MonoBehaviour
         {
             foreach (Transform t in newTile.GetComponentsInChildren<Transform>(true))
                 if (t.name == "Lid") { t.localRotation = Quaternion.Euler(-105f, 0f, 0f); break; }
+        }
+
+        // Maják zabírá 2×2 políčka. Věž ("Tower") se ukáže jen na levém dolním
+        // rohu bloku a přesune se doprostřed 2×2 + zvětší; ostatní 3 dlaždice
+        // ukážou jen písčitý podklad.
+        if ((TileType)status.type == TileType.Lighthouse)
+        {
+            Transform tower = newTile.transform.Find("Tower");
+            if (tower != null)
+            {
+                bool anchor = GetTileType(x + 1, y) == TileType.Lighthouse
+                           && GetTileType(x, y + 1) == TileType.Lighthouse
+                           && GetTileType(x + 1, y + 1) == TileType.Lighthouse;
+                if (anchor)
+                {
+                    tower.localPosition += new Vector3(0.5f, 0f, 0.5f);
+                    tower.localScale    *= 1.6f;
+                }
+                else
+                {
+                    tower.gameObject.SetActive(false);
+                }
+            }
         }
     }
 
@@ -481,23 +557,26 @@ public class GridManager : MonoBehaviour
     // ── Startovní ostrov (úplně nová hra) ──────────────────────────────────
     private void GenerateInitialWorld()
     {
-        StampHarborBlock(0, 0, explored: true);
+        // Stejný organický generátor jako pro ostatní ostrovy, jen kolem počátku
+        // a rovnou prozkoumaný.
+        var land = StampOrganicLand(-ISLAND_CANVAS / 2, -ISLAND_CANVAS / 2, explored: true);
+        PlaceEdgePier(land);
+        PlaceLighthouse(land);
+        MaybePlaceChest(land);
 
-        // Molo uprostřed dolní hrany.
-        int px1 = ISLAND_SIZE / 2 - 1;
-        int py1 = 0;
-        int px2 = px1 + 1;
+        // Postav hráče (v lodi) na jedno z políček mola.
+        foreach (var kv in gameData.tileData)
+        {
+            if (kv.Value.type != (int)TileType.Pier) continue;
+            var (px, py) = ParseGridKey(kv.Key);
+            gameData.playerGridX = px;
+            gameData.playerGridY = py;
+            gameData.boatGridX   = px;
+            gameData.boatGridY   = py;
+            break;
+        }
 
-        gameData.tileData[GridKey(px1, py1)] = new TileStatus((int)TileType.Pier) { isExplored = true };
-        gameData.tileData[GridKey(px2, py1)] = new TileStatus((int)TileType.Pier) { isExplored = true };
-
-        // Molo je dole (side = 0) → maják na horní hraně.
-        PlaceLighthouse(0, 0, side: 0);
-
-        gameData.playerGridX = px1;
-        gameData.playerGridY = py1;
-
-        MarkAreaExplored(ISLAND_SIZE / 2, ISLAND_SIZE / 2, ISLAND_SIZE / 2 + 2);
+        MarkAreaExplored(gameData.playerGridX, gameData.playerGridY, ISLAND_CANVAS);
     }
 
     // Prefab pro daný typ políčka (obchody padají zpět na harborPrefab, když nejsou nastavené).

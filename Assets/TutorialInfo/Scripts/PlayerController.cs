@@ -230,12 +230,20 @@ public class PlayerController : MonoBehaviour
         lastExploredY = cy;
     }
 
-    // Otočí model lodě po směru pohybu.
+    // Otočí model (loď nebo pěší postavičku) po směru pohybu.
     void RotateBoatModel(int x, int y)
     {
-        if (boatModel == null || isOnFoot) return;
         Vector3 dir = new Vector3(x, 0, y).normalized;
-        if (dir != Vector3.zero) boatModel.rotation = Quaternion.LookRotation(dir);
+        if (dir == Vector3.zero) return;
+
+        if (isOnFoot)
+        {
+            if (headDot != null) headDot.transform.rotation = Quaternion.LookRotation(dir);
+        }
+        else if (boatModel != null)
+        {
+            boatModel.rotation = Quaternion.LookRotation(dir);
+        }
     }
 
     // ── Přesedání loď ↔ pěšky ──────────────────────────────────────────────

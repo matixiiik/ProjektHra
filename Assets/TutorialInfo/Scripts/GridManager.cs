@@ -19,7 +19,9 @@ using System;
 public class GridManager : MonoBehaviour
 {
     // Kolik políček na každou stranu od hráče se drží "naživu" (s 3D objekty).
-    public const int ACTIVE_GRID_SIZE = 15;
+    // Nakloněná kamera vidí dál dopředu, proto větší než dřív (bylo 15).
+    // Vzdálený okraj schová mlha (RenderSettings.fog ve scéně).
+    public const int ACTIVE_GRID_SIZE = 19;
 
     // Prefaby jednotlivých typů políček (nastavují se v inspektoru).
     public GameObject waterPrefab;

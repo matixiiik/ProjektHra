@@ -38,6 +38,7 @@ Velký vícefázový úkol:
 
 | `099cd95` | **Fáze 3** — bedny + mega quest. `TileType.Chest = 9`, ~40 % ostrovů má bednu. `ChestPrefab` (Kenney truhla, odklopitelné víko). `ChestManager`: E u bedny → mince + mega quest ("poklad na mapě", cíl 35–70 políček daleko). Kopání: v lodi na cíli Space → `DigRoutine` → `dug`. QuestShop: "Vyplatit mega quest" → mince + trvalý `sellBonus` (+5 k výkupu). HUD 2. řádek s mapou. `GameData`: `MegaQuest`, `openedChests`, `sellBonus` (+ player2). Ověřeno end-to-end + persistence. |
 | `efddd7d` | HUD: souřadnice hráče `X: n   Y: n` v levém horním rohu (aktualizuje se při pohybu, split-screen aware). |
+| `6eaebda` | Ostrovy organický tvar (ne čtverce, jádro min. 3×3 + náhodné rozrůstání, plátno 14×14), 2 mola vedle sebe na kraji. Maják 2×2 dlaždice (věž jen na kotevní dlaždici, přesun do středu + 1.6×). Díry v pevnině opraveny = "GroundBase" plný kvádr 1.14× v každém dlaždicovém prefabu. |
 
 ## STAV: CELÝ PŮVODNÍ PROJEKT HOTOVÝ ✅
 

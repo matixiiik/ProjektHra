@@ -23,7 +23,8 @@ public class PlayerController : MonoBehaviour
 
     public GameObject headDot;          // tečka nad hlavou, když je hráč pěšky
     public Transform  boatModel;        // 3D model lodě (přepíná ShipModelSwitcher)
-    public float moveSpeed       = 5f;  // rychlost plynulého posunu mezi políčky
+    public float moveSpeed       = 5f;  // rychlost jízdy (jednotky/s) — volný pohyb podle kamery
+    public float turnSpeed       = 6f;  // jak rychle se loď/postavička natáčí do směru jízdy
     public float fishingDuration = 1.5f;// jak dlouho trvá jeden zátah
     public float miningDuration  = 3.0f;// jak dlouho trvá vytěžit poklad
 
@@ -128,62 +129,69 @@ public class PlayerController : MonoBehaviour
             return;
         }
 
-        // Směr pohybu. S rychlostním upgradem (a jen na lodi) se jde o 2 pole.
-        int x = 0, y = 0;
-        int step = (!isOnFoot && PHasSpeedUpgrade) ? 2 : 1;
+        // Volný pohyb podle kamery: dopředu = tam, kam se kamera dívá, do stran
+        // podle jejího natočení. Jde jet i diagonálně (např. W+D) — žádné
+        // skákání po políčkách, ale plynulá "freestyle" jízda.
+        float h = 0f, v = 0f;
+        if (Key(KeyCode.W, KeyCode.UpArrow))    v += 1f;
+        if (Key(KeyCode.S, KeyCode.DownArrow))  v -= 1f;
+        if (Key(KeyCode.D, KeyCode.RightArrow)) h += 1f;
+        if (Key(KeyCode.A, KeyCode.LeftArrow))  h -= 1f;
 
-        if      (Key(KeyCode.W, KeyCode.UpArrow))    y =  step;
-        else if (Key(KeyCode.S, KeyCode.DownArrow))  y = -step;
-        else if (Key(KeyCode.A, KeyCode.LeftArrow))  x = -step;
-        else if (Key(KeyCode.D, KeyCode.RightArrow)) x =  step;
-
-        if (x != 0 || y != 0) AttemptMove(x, y);
+        if (h != 0f || v != 0f) Move(h, v);
 
         // Space / Numpad0 → rybaření / těžba na aktuálním políčku.
         if (KeyDown(KeyCode.Space, KeyCode.Keypad0)) TryInteract();
     }
 
     // ── Pohyb ──────────────────────────────────────────────────────────────
-    void AttemptMove(int x, int y)
+
+    // Posune hráče podle vstupu (h = doleva/doprava, v = dopředu/dozadu) ve
+    // směru, kam se dívá kamera — ne podle pevných světových os X/Z. Díky
+    // tomu jízda kopíruje natočení kamery (otoč kameru, W jede "tam kam koukáš").
+    void Move(float h, float v)
     {
-        int targetX = GridX + x;
-        int targetY = GridY + y;
+        Transform cam = Camera.main != null ? Camera.main.transform : transform;
 
-        // Krok o 2 pole: když je prostřední pole "zajímavé" (ryby / poklad / molo),
-        // zastav se na něm místo přeskočení.
-        if (Mathf.Abs(x) == 2 || Mathf.Abs(y) == 2)
-        {
-            int midX = GridX + x / 2;
-            int midY = GridY + y / 2;
-            TileType midType = gridManager.GetTileType(midX, midY);
-            if (midType == TileType.Water_Fish || midType == TileType.Treasure || midType == TileType.Pier)
-            {
-                targetX = midX;
-                targetY = midY;
-            }
-        }
+        Vector3 forward = cam.forward; forward.y = 0f;
+        Vector3 right   = cam.right;   right.y   = 0f;
+        forward = forward.sqrMagnitude > 0.0001f ? forward.normalized : Vector3.forward;
+        right   = right.sqrMagnitude   > 0.0001f ? right.normalized   : Vector3.right;
 
-        // Nemůžu vplout/vejít → nedělej nic.
-        if (!CanEnter(gridManager.GetTileType(targetX, targetY))) return;
+        Vector3 dir = forward * v + right * h;
+        if (dir.sqrMagnitude < 0.0001f) return;
+        dir.Normalize();
 
-        RotateBoatModel(x, y);
+        // S rychlostním upgradem (jen na lodi) je jízda 2× rychlejší.
+        float speed = moveSpeed * ((!isOnFoot && PHasSpeedUpgrade) ? 2f : 1f);
 
-        GridX = targetX;
-        GridY = targetY;
+        TryMoveBy(dir * speed * Time.deltaTime);
+        RotateTowards(dir);
+    }
 
-        // Na lodi si pamatuj i pozici lodě (kde kotví).
-        if (!isOnFoot)
-        {
-            boatGridX = targetX;
-            boatGridY = targetY;
-            if (playerIndex == 0)
-            {
-                gridManager.gameData.boatGridX = boatGridX;
-                gridManager.gameData.boatGridY = boatGridY;
-            }
-        }
+    // Zkusí posunout hráče o "delta". Když by narazil na nesjízdné políčko
+    // (pevnina pro loď, voda pro pěšího), zkusí sklouznout jen po jedné ose,
+    // aby šlo "otřít" se o pobřeží místo úplného zaseknutí — jízda tak
+    // zůstane plynulá i těsně u břehu.
+    void TryMoveBy(Vector3 delta)
+    {
+        Vector3 pos = transform.position;
 
-        MoveToGrid(targetX, targetY);
+        if (StepTo(new Vector3(pos.x + delta.x, pos.y, pos.z + delta.z))) return;
+        if (StepTo(new Vector3(pos.x + delta.x, pos.y, pos.z)))           return;
+        StepTo(new Vector3(pos.x, pos.y, pos.z + delta.z));
+    }
+
+    // Přesune hráče na "target", pokud je pod ním sjízdné políčko. Vrací, jestli se to povedlo.
+    bool StepTo(Vector3 target)
+    {
+        int tx = Mathf.RoundToInt(target.x);
+        int ty = Mathf.RoundToInt(target.z);
+        if (!CanEnter(gridManager.GetTileType(tx, ty))) return false;
+
+        transform.position = target;
+        OnEnteredTile(tx, ty);
+        return true;
     }
 
     // Na co smí hráč vstoupit? V lodi = voda a molo, pěšky = pevnina a molo.
@@ -194,7 +202,35 @@ public class PlayerController : MonoBehaviour
         return t == TileType.Harbor || t == TileType.Pier;
     }
 
-    // Řekne světu, kde teď hráč je, a spustí plynulý přesun.
+    // Zavolá se, kdykoli plynulá jízda přenese hráče na jiné políčko, než na
+    // kterém byl naposled — zapíše novou pozici do GameData, přegeneruje svět
+    // kolem a odkryje mlhu (stejné věci, které dřív dělal jeden krok po mřížce).
+    void OnEnteredTile(int tx, int ty)
+    {
+        if (tx == GridX && ty == GridY) return;
+
+        GridX = tx;
+        GridY = ty;
+
+        // Na lodi si pamatuj i pozici lodě (kde kotví).
+        if (!isOnFoot)
+        {
+            boatGridX = tx;
+            boatGridY = ty;
+            if (playerIndex == 0)
+            {
+                gridManager.gameData.boatGridX = boatGridX;
+                gridManager.gameData.boatGridY = boatGridY;
+            }
+        }
+
+        gridManager.GenerateWorld(tx, ty);
+        ExploreCurrentPosition();
+    }
+
+    // Řekne světu, kde teď hráč je, a spustí krátký plynulý přesun — používá
+    // se jen pro nastupování/vystupování z lodě a teleport z konzole. Běžná
+    // jízda jede přímo přes Move()/TryMoveBy() výše.
     void MoveToGrid(int x, int y)
     {
         gridManager.GenerateWorld(x, y);
@@ -230,20 +266,17 @@ public class PlayerController : MonoBehaviour
         lastExploredY = cy;
     }
 
-    // Otočí model (loď nebo pěší postavičku) po směru pohybu.
-    void RotateBoatModel(int x, int y)
+    // Plynule natočí model (loď nebo pěší postavička) do směru jízdy —
+    // ne skokem, ale postupně (Slerp), aby se zatáčky jely obloukem.
+    void RotateTowards(Vector3 dir)
     {
-        Vector3 dir = new Vector3(x, 0, y).normalized;
-        if (dir == Vector3.zero) return;
+        if (dir.sqrMagnitude < 0.0001f) return;
+        Quaternion targetRot = Quaternion.LookRotation(dir);
 
-        if (isOnFoot)
-        {
-            if (headDot != null) headDot.transform.rotation = Quaternion.LookRotation(dir);
-        }
-        else if (boatModel != null)
-        {
-            boatModel.rotation = Quaternion.LookRotation(dir);
-        }
+        Transform model = isOnFoot ? (headDot != null ? headDot.transform : null) : boatModel;
+        if (model == null) return;
+
+        model.rotation = Quaternion.Slerp(model.rotation, targetRot, turnSpeed * Time.deltaTime);
     }
 
     // ── Přesedání loď ↔ pěšky ──────────────────────────────────────────────
@@ -269,10 +302,10 @@ public class PlayerController : MonoBehaviour
         }
         else
         {
-            // Nastoupit zpět jde jen když hráč stojí přesně vedle své lodě
-            // a loď je na molu.
-            int dist = Mathf.Abs(px - boatGridX) + Mathf.Abs(py - boatGridY);
-            if (dist != 1) return;
+            // Nastoupit zpět jde jen když hráč stojí těsně vedle své lodě
+            // (i diagonálně — volná jízda nedrží přesnou mřížku) a loď je na molu.
+            int dist = Mathf.Max(Mathf.Abs(px - boatGridX), Mathf.Abs(py - boatGridY));
+            if (dist > 1) return;
             if (gridManager.GetTileType(boatGridX, boatGridY) != TileType.Pier) return;
 
             isOnFoot = false;

@@ -1,4 +1,4 @@
-# Handoff — kde jsme skončili (2026-09-04, aktualizováno večer)
+# Handoff — kde jsme skončili (2026-09-04, aktualizováno — volná jízda podle kamery)
 
 Tenhle soubor je most mezi počítači. Claude paměť se nesyncuje přes git, tak si
 sem Claude píše, kde se přestalo, aby se dalo pokračovat i z notebooku.
@@ -42,6 +42,7 @@ Velký vícefázový úkol:
 | `0a00690` | `IslandTerrain.cs` = hladký generovaný mesh na celý ostrov místo písečných dlaždic (svah pláže pod hladinu, Perlin šum, flat shading). GridManager: flood-fill souše, spawn u prvního objektu ostrova, cleanup. Harbor/Lighthouse/Chest prefaby už bez vlastního písku. Zaplňovací průchod v StampOrganicLand → žádné díry uvnitř. Ostrov vycentrovaný na %20 políčko (oprava crashe). **Hlavní kamera nakloněná 52° (3/4 pohled)** místo kolmo shora. |
 | `deff7a6` | Pěší hráč (`HeadDot`) = postavička (tělo+hlava+klobouk+nos, jako v majáku), otáčí se po směru chůze. `CameraOrbit.cs` na Main Camera: pravé tlačítko myši + tah = kamera obíhá hráče (yaw/pitch), blokuje se při UI. `ACTIVE_GRID_SIZE` 15→19. `RenderSettings.fog` ve scéně (Linear 15–32) schová okraj generování. |
 | `fce7557` | MP: `MultiplayerManager` rušil jen komponentu Camera z P2 klonu → URP varování "Can't remove Camera…". Teď ruší celé objekty kamer + CameraOrbit z P2. Split-screen = 3 kamery, 0 varování. |
+| `596b059` | **Volná jízda podle kamery.** `PlayerController.Move()` počítá směr z `Camera.main.forward/right` (jen vodorovně) místo pevných os W/A/S/D → otoč kameru (RMB), `W` jede tam, kam se kamera dívá. Jde i diagonálně (`W`+`D`), model se natáčí plynule (`Quaternion.Slerp`, pole `turnSpeed`). Kolize u pobřeží řeší sklouznutí po jedné ose (`TryMoveBy`) místo zaseknutí. `GridX/GridY` (a tedy generování světa, mlha, save) se aktualizují při každém přechodu na jinou dlaždici (`OnEnteredTile`), ne jen jednou za stisk klávesy. Nastupování do lodě teď funguje i z diagonální pozice (Chebyshev vzdálenost ≤1, dřív jen přesně 1 pole rovně). Ověřeno přes UnityMCP (reflexe do `Move`/`TryToggleBoatFoot`): jízda podle kamery, diagonála, plynulé otáčení, diagonální nástup — vše sedí, 0 chyb v konzoli. |
 
 ## PLNÝ PRŮCHOD HROU OTESTOVÁN (2026-09-04)
 Nová hra → plavba → rybaření → těžba → zakotvit → pěšky → maják → nákup upgrade +
@@ -55,7 +56,6 @@ Fáze 1 (Kenney grafika) + 2 (maják se scénou a obchody) + 3 (bedny + mega que
 jsou všechny hotové, ověřené v Unity, na GitHubu.
 
 ### Možný polish / co dál (nic z toho není nutné)
-- Postavička hráče v majáku i venku (headDot = šedá kostka) = pořád placeholder.
 - Mega quest: žádný kompas/šipka k cíli — jen souřadnice v HUD. Šlo by přidat
   směrovku na okraj minimapy.
 - Interiér majáku: dá se ještě zútulnit.

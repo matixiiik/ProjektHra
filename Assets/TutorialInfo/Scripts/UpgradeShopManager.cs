@@ -194,7 +194,7 @@ public class UpgradeShopManager : MonoBehaviour
         {
             GUILayout.Label($"{cost} minci", rowStyle, GUILayout.Width(90));
             GUI.enabled = Coins() >= cost; // tlačítko jde zmáčknout jen s dost mincemi
-            if (GUILayout.Button("Koupit", buyStyle, GUILayout.Width(90), GUILayout.Height(28)))
+            if (SoundManager.Click(GUILayout.Button("Koupit", buyStyle, GUILayout.Width(90), GUILayout.Height(28))))
                 onBuy();
             GUI.enabled = true;
         }

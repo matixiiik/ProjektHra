@@ -431,6 +431,8 @@ public class PlayerController : MonoBehaviour
             yield return null;
         }
 
+        SoundManager.PlaySplash();
+
         // S lepším prutem hráč dostane 2 ryby, jinak 1. Z políčka ubyde 1 "hejno".
         int catchAmount = PHasRodUpgrade ? 2 : 1;
         tile.fishRemaining -= 1;

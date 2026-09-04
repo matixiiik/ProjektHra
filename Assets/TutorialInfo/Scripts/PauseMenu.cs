@@ -82,13 +82,13 @@ public class PauseMenu : MonoBehaviour
         GUILayout.Label("PAUZA", titleStyle);
         GUILayout.Space(14);
 
-        if (GUILayout.Button("Pokračovat", buttonStyle, GUILayout.Height(44)))
+        if (SoundManager.Click(GUILayout.Button("Pokračovat", buttonStyle, GUILayout.Height(44))))
             ContinueGame();
         GUILayout.Space(8);
-        if (GUILayout.Button("Nová hra", buttonStyle, GUILayout.Height(44)))
+        if (SoundManager.Click(GUILayout.Button("Nová hra", buttonStyle, GUILayout.Height(44))))
             NewGame();
         GUILayout.Space(8);
-        if (GUILayout.Button("Hlavní menu", buttonStyle, GUILayout.Height(44)))
+        if (SoundManager.Click(GUILayout.Button("Hlavní menu", buttonStyle, GUILayout.Height(44))))
             GoToMainMenu();
 
         // ── Převod peněz mezi hráči (jen v multiplayeru) ─────────────────────
@@ -112,10 +112,10 @@ public class PauseMenu : MonoBehaviour
             GUILayout.BeginHorizontal();
             transferAmount = GUILayout.TextField(transferAmount, 8, inputStyle, GUILayout.Width(90), GUILayout.Height(34));
             GUILayout.Space(6);
-            if (GUILayout.Button("P1 → P2", transferBtnStyle, GUILayout.Height(34), GUILayout.ExpandWidth(true)))
+            if (SoundManager.Click(GUILayout.Button("P1 → P2", transferBtnStyle, GUILayout.Height(34), GUILayout.ExpandWidth(true))))
                 TryTransfer(0, 1);
             GUILayout.Space(4);
-            if (GUILayout.Button("P2 → P1", transferBtnStyle, GUILayout.Height(34), GUILayout.ExpandWidth(true)))
+            if (SoundManager.Click(GUILayout.Button("P2 → P1", transferBtnStyle, GUILayout.Height(34), GUILayout.ExpandWidth(true))))
                 TryTransfer(1, 0);
             GUILayout.EndHorizontal();
         }

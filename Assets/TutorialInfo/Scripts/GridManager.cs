@@ -80,6 +80,9 @@ public class GridManager : MonoBehaviour
 
         GenerateWorld(gameData.playerGridX, gameData.playerGridY);
         OnWorldChanged?.Invoke();
+
+        SoundManager.StartWaves(); // hukot moře na pozadí
+        if (GameSession.ReturningFromLighthouse) SoundManager.PlayDoor(); // vrznutí — vyšel ven z majáku
     }
 
     // Při zavření hry ulož.

@@ -96,7 +96,7 @@ public class MainMenuManager : MonoBehaviour
         GUILayout.Label("LODNÍ DOBRODRUŽSTVÍ", titleStyle);
         GUILayout.Space(20);
 
-        if (GUILayout.Button("Nová hra", buttonStyle, GUILayout.Height(50)))
+        if (SoundManager.Click(GUILayout.Button("Nová hra", buttonStyle, GUILayout.Height(50))))
             currentPage = MenuPage.NewGame;
 
         GUILayout.Space(10);
@@ -104,18 +104,18 @@ public class MainMenuManager : MonoBehaviour
         // "Pokračovat" jde zmáčknout jen když existuje aspoň jeden save.
         bool hasSave = SaveManager.SlotExists(0) || SaveManager.SlotExists(1) || SaveManager.SlotExists(2);
         GUI.enabled = hasSave;
-        if (GUILayout.Button("Pokračovat", buttonStyle, GUILayout.Height(50)))
+        if (SoundManager.Click(GUILayout.Button("Pokračovat", buttonStyle, GUILayout.Height(50))))
             currentPage = MenuPage.Continue;
         GUI.enabled = true;
 
         GUILayout.Space(10);
 
-        if (GUILayout.Button("🎮  Multiplayer (split screen)", multiStyle, GUILayout.Height(50)))
+        if (SoundManager.Click(GUILayout.Button("🎮  Multiplayer (split screen)", multiStyle, GUILayout.Height(50))))
             currentPage = MenuPage.Multiplayer;
 
         GUILayout.Space(10);
 
-        if (GUILayout.Button("Konec", buttonStyle, GUILayout.Height(50)))
+        if (SoundManager.Click(GUILayout.Button("Konec", buttonStyle, GUILayout.Height(50))))
         {
             Application.Quit();
 #if UNITY_EDITOR
@@ -153,7 +153,7 @@ public class MainMenuManager : MonoBehaviour
 
             GUI.enabled = canClick;
             GUIStyle st = (exists || mode == SlotMode.Multiplayer) ? slotStyle : slotEmptyStyle;
-            if (GUILayout.Button(label, st, GUILayout.Height(58)))
+            if (SoundManager.Click(GUILayout.Button(label, st, GUILayout.Height(58))))
             {
                 switch (mode)
                 {
@@ -167,7 +167,7 @@ public class MainMenuManager : MonoBehaviour
         }
 
         GUILayout.Space(8);
-        if (GUILayout.Button("← Zpět", backStyle, GUILayout.Height(34)))
+        if (SoundManager.Click(GUILayout.Button("← Zpět", backStyle, GUILayout.Height(34))))
             currentPage = MenuPage.Main;
 
         GUILayout.EndArea();

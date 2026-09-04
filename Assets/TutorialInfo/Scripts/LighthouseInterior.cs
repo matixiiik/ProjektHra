@@ -24,6 +24,8 @@ public class LighthouseInterior : MonoBehaviour
             SaveManager.CurrentSlot = PlayerPrefs.GetInt("LastSlot", 0);
             GameSession.Ensure().SetData(SaveManager.LoadGame());
         }
+
+        SoundManager.PlayDoor(); // vrznutí dveří — hráč právě vešel dovnitř
     }
 
     /// <summary>Odejít z majáku ven na ostrov (volá dveře v interiéru).</summary>

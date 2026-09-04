@@ -1,4 +1,4 @@
-# Handoff — kde jsme skončili (2026-09-04, aktualizováno — volná jízda podle kamery)
+# Handoff — kde jsme skončili (2026-09-04, aktualizováno — polish: zvuk, voda, kompas, post-processing)
 
 Tenhle soubor je most mezi počítači. Claude paměť se nesyncuje přes git, tak si
 sem Claude píše, kde se přestalo, aby se dalo pokračovat i z notebooku.
@@ -43,6 +43,42 @@ Velký vícefázový úkol:
 | `deff7a6` | Pěší hráč (`HeadDot`) = postavička (tělo+hlava+klobouk+nos, jako v majáku), otáčí se po směru chůze. `CameraOrbit.cs` na Main Camera: pravé tlačítko myši + tah = kamera obíhá hráče (yaw/pitch), blokuje se při UI. `ACTIVE_GRID_SIZE` 15→19. `RenderSettings.fog` ve scéně (Linear 15–32) schová okraj generování. |
 | `fce7557` | MP: `MultiplayerManager` rušil jen komponentu Camera z P2 klonu → URP varování "Can't remove Camera…". Teď ruší celé objekty kamer + CameraOrbit z P2. Split-screen = 3 kamery, 0 varování. |
 | `596b059` | **Volná jízda podle kamery.** `PlayerController.Move()` počítá směr z `Camera.main.forward/right` (jen vodorovně) místo pevných os W/A/S/D → otoč kameru (RMB), `W` jede tam, kam se kamera dívá. Jde i diagonálně (`W`+`D`), model se natáčí plynule (`Quaternion.Slerp`, pole `turnSpeed`). Kolize u pobřeží řeší sklouznutí po jedné ose (`TryMoveBy`) místo zaseknutí. `GridX/GridY` (a tedy generování světa, mlha, save) se aktualizují při každém přechodu na jinou dlaždici (`OnEnteredTile`), ne jen jednou za stisk klávesy. Nastupování do lodě teď funguje i z diagonální pozice (Chebyshev vzdálenost ≤1, dřív jen přesně 1 pole rovně). Ověřeno přes UnityMCP (reflexe do `Move`/`TryToggleBoatFoot`): jízda podle kamery, diagonála, plynulé otáčení, diagonální nástup — vše sedí, 0 chyb v konzoli. |
+| *(polish)* | **4 vylepšení z backlogu, na žádost uživatele.** Viz sekce níže. |
+
+## POLISH: zvuk, voda, kompas, post-processing (2026-09-04)
+
+Uživatel vybral "všechno" z nepovinného polish backlogu. Hotovo:
+
+1. **Zvuk** — nový `SoundManager.cs`. Klipy se **negenerují ze souborů, ale přímo
+   v kódu** (`AudioClip.Create` + sinusovky/filtrovaný šum) — žádné externí
+   soubory, žádná licence k řešení. Objekt se sám vytvoří, jakmile ho někdo
+   poprvé potřebuje (`SoundManager.Ensure()`, stejný princip jako minimapa
+   pro P2) — nic se neinstaluje ručně do scény. Zvuky: klik v UI (`Click()` —
+   obaluje `GUILayout.Button(...)`, viz níže), cink mincí (prodej v questshopu,
+   vyplacení questu/mega questu, otevření bedny), šplouchnutí při rybaření,
+   vrznutí dveří majáku (vchod v `LighthouseInterior.Awake()`, východ v
+   `GridManager.Awake()` přes `GameSession.ReturningFromLighthouse`), hukot
+   moře na pozadí (smyčka, start v `GridManager.Awake()`, automaticky zmizí
+   v majáku protože scéna má vlastní instanci). `generate_audio` (fal.ai) není
+   nakonfigurované (žádný API klíč) — proto čistě procedurální přístup.
+2. **Post-processing** — `Assets/Settings/SampleSceneProfile.asset` (Global
+   Volume) měl už Bloom/Vignette/Tonemapping, jen na slabých hodnotách.
+   Zesíleno (bloom 0.25→0.45, vignette 0.2→0.28) + přidán `ColorAdjustments`
+   (saturace +10, kontrast +6, expozice +0.05).
+3. **Water shader** — `WaterWave.cs` na `WaterPrefab`/`WaterFishPrefab`: jemné
+   houpání nahoru/dolů (`Mathf.Sin`), fáze podle souřadnic dlaždice (sousední
+   dlaždice se houpou mimo takt → vypadá to jako vlnění, ne jako poskakující
+   deska). Bez shaderu/textur, čistě transform.
+4. **Mega quest kompas** — zlatá šipka na okraji minimapy (`MinimapUIRenderer`),
+   ukazuje směr k rozdělanému (nevykopanému) mega questu, otáčí se podle
+   `Atan2(dx,dy)`. Po vykopání/bez questu zmizí. Matematika ověřená přes
+   UnityMCP pro všechny 4 světové strany (sever/jih/východ/západ).
+
+Ověřeno přes UnityMCP: kompilace 0 chyb, herní test (nová hra → hukot moře
+běží → vstup do majáku → dveře → východ → dveře → hukot zase běží), kompas
+otestován reflexí pro N/S/E/W i skrývání. Vizuální houpání vody nešlo přes
+MCP ověřit snímek po snímku (editor mimo fokus tiká jen zřídka) — funkčně
+je ale hotové a stojí za rychlé kouknutí v Play módu.
 
 ## PLNÝ PRŮCHOD HROU OTESTOVÁN (2026-09-04)
 Nová hra → plavba → rybaření → těžba → zakotvit → pěšky → maják → nákup upgrade +
@@ -56,12 +92,13 @@ Fáze 1 (Kenney grafika) + 2 (maják se scénou a obchody) + 3 (bedny + mega que
 jsou všechny hotové, ověřené v Unity, na GitHubu.
 
 ### Možný polish / co dál (nic z toho není nutné)
-- Mega quest: žádný kompas/šipka k cíli — jen souřadnice v HUD. Šlo by přidat
-  směrovku na okraj minimapy.
 - Interiér majáku: dá se ještě zútulnit.
-- Zvuk: hra pořád nemá žádné audio (viz původní návrh — největší cheap win).
-- Post-processing (URP Volume): pořád prázdný `Global Volume` ve scéně.
-- Voda je plochá — žádný shader.
+- Postavička hráče: pořád jednoduchý low-poly panáček (tělo+hlava+klobouk+nos),
+  ne pořádný model.
+- Zvuk je čistě procedurální (syntetizovaný v kódu) — kdyby šlo sehnat/vygenerovat
+  skutečné CC0 klipy (např. Kenney audio pack), mohly by znít lépe. Vyžaduje
+  buď povolení stáhnout externí soubory, nebo nakonfigurovaný `generate_audio`
+  (fal.ai API klíč v MCP for Unity → Asset Generation).
 
 ## Setup na novém počítači (notebook)
 

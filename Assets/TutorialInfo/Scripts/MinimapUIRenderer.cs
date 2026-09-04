@@ -39,9 +39,14 @@ public class MinimapUIRenderer : MonoBehaviour
     public int   borderPixels = 2;
     public Color borderColor  = new Color(0.2f, 0.2f, 0.2f, 1f);
 
+    [Header("Kompas k mega questu")]
+    public Color compassColor = new Color(1f, 0.85f, 0.1f, 1f); // zlatá šipka k pokladu z mapy
+
     private GridManager grid;
     private Texture2D   tex;  // samotná textura minimapy
     private int         size; // šířka i výška textury v pixelech
+
+    private RectTransform compassRT; // šipka ukazující směr k cíli mega questu
 
     void Start()
     {
@@ -67,6 +72,8 @@ public class MinimapUIRenderer : MonoBehaviour
 
         minimapImage.texture = tex;
         minimapImage.uvRect  = new Rect(0, 0, 1, 1);
+
+        CreateCompass();
 
         // Překresli minimapu při každé změně světa.
         grid.OnWorldChanged += Refresh;
@@ -112,6 +119,71 @@ public class MinimapUIRenderer : MonoBehaviour
         return imgGO.AddComponent<RawImage>();
     }
 
+    // ── Kompas k mega questu (zlatá šipka na okraji minimapy) ─────────────────
+    void CreateCompass()
+    {
+        var arrowGO = new GameObject("MegaQuestCompass");
+        arrowGO.transform.SetParent(minimapImage.transform, false);
+
+        compassRT = arrowGO.AddComponent<RectTransform>();
+        compassRT.sizeDelta   = new Vector2(16f, 16f);
+        compassRT.anchorMin   = compassRT.anchorMax = new Vector2(0.5f, 0.5f);
+        compassRT.pivot       = new Vector2(0.5f, 0.5f);
+        compassRT.anchoredPosition = Vector2.zero;
+
+        var img = arrowGO.AddComponent<Image>();
+        img.sprite        = MakeArrowSprite();
+        img.color         = compassColor;
+        img.raycastTarget = false;
+
+        arrowGO.SetActive(false);
+    }
+
+    // Vytvoří jednoduchou trojúhelníkovou šipku (mířící nahoru) jako sprite.
+    Sprite MakeArrowSprite()
+    {
+        const int s = 20;
+        Texture2D t = new Texture2D(s, s, TextureFormat.RGBA32, false);
+        t.filterMode = FilterMode.Bilinear;
+
+        float center = (s - 1) * 0.5f;
+        for (int y = 0; y < s; y++)
+        {
+            // Nahoře (velké y) úzké, dole (malé y) široké — trojúhelník hrotem nahoru.
+            float halfWidth = center * (1f - (float)y / (s - 1));
+            for (int x = 0; x < s; x++)
+            {
+                bool inside = Mathf.Abs(x - center) <= halfWidth;
+                t.SetPixel(x, y, inside ? Color.white : new Color(0f, 0f, 0f, 0f));
+            }
+        }
+        t.Apply();
+
+        return Sprite.Create(t, new Rect(0, 0, s, s), new Vector2(0.5f, 0.5f));
+    }
+
+    // Natočí a umístí šipku podle směru k rozdělanému (nevykopanému) mega questu.
+    // Bez aktivního questu se šipka schová.
+    void UpdateCompass(MegaQuest mq, int cx, int cy)
+    {
+        if (compassRT == null) return;
+
+        bool show = mq != null && mq.active && !mq.dug && (mq.targetX != cx || mq.targetY != cy);
+        compassRT.gameObject.SetActive(show);
+        if (!show) return;
+
+        int dx = mq.targetX - cx;
+        int dy = mq.targetY - cy;
+
+        // Sever (nahoru na minimapě) = 0°, ve směru hodinových ručiček k východu (doprava).
+        float bearing = Mathf.Atan2(dx, dy) * Mathf.Rad2Deg;
+        compassRT.localEulerAngles = new Vector3(0f, 0f, -bearing);
+
+        float radius = minimapImage.rectTransform.rect.width * 0.5f - 12f;
+        Vector2 dir = new Vector2(dx, dy).normalized;
+        compassRT.anchoredPosition = dir * radius;
+    }
+
     // ── Překreslení textury ─────────────────────────────────────────────────
     void Refresh()
     {
@@ -120,6 +192,8 @@ public class MinimapUIRenderer : MonoBehaviour
         // Střed minimapy = pozice tohoto hráče.
         int cx = playerIndex == 0 ? d.playerGridX : d.player2GridX;
         int cy = playerIndex == 0 ? d.playerGridY : d.player2GridY;
+
+        UpdateCompass(playerIndex == 0 ? d.megaQuest : d.player2MegaQuest, cx, cy);
 
         // Projdi všechny pixely a obarvi je podle políčka, které leží pod nimi.
         for (int px = 0; px < size; px++)

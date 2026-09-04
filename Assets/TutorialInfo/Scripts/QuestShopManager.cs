@@ -103,6 +103,7 @@ public class QuestShopManager : MonoBehaviour
         GiveSellBonus();
         mq.Reset(); // hráč si teď může otevřít další bednu
         Save();
+        SoundManager.PlayCoin();
     }
 
     // ── Generování nabídky questů ───────────────────────────────────────────
@@ -173,6 +174,7 @@ public class QuestShopManager : MonoBehaviour
         SetCoins(GetCoins() + aq.reward);
         aq.Reset(); // hráč si teď může koupit další
         Save();
+        SoundManager.PlayCoin();
     }
 
     // ── GUI ─────────────────────────────────────────────────────────────────
@@ -211,7 +213,7 @@ public class QuestShopManager : MonoBehaviour
         {
             GUILayout.Label("MEGA QUEST", sectionStyle);
             GUILayout.Label("Poklad z mapy je vykopany!", rowStyle);
-            if (GUILayout.Button($"  VYPLATIT  {mq.rewardCoins} minci  +  trvaly bonus na vykup  !", claimStyle, GUILayout.Height(38)))
+            if (SoundManager.Click(GUILayout.Button($"  VYPLATIT  {mq.rewardCoins} minci  +  trvaly bonus na vykup  !", claimStyle, GUILayout.Height(38))))
                 ClaimMega();
             GUILayout.Space(14);
         }
@@ -226,11 +228,11 @@ public class QuestShopManager : MonoBehaviour
 
         DrawSell($"Ryby  x{fish}  ( {fp} minci / kus ){bonusTag}",
             fish * fp, fish > 0,
-            () => { SetCoins(GetCoins() + fish * fp); SetFish(0); Save(); });
+            () => { SetCoins(GetCoins() + fish * fp); SetFish(0); Save(); SoundManager.PlayCoin(); });
         GUILayout.Space(4);
         DrawSell($"Poklady  x{treasure}  ( {tp} minci / kus ){bonusTag}",
             treasure * tp, treasure > 0,
-            () => { SetCoins(GetCoins() + treasure * tp); SetTreasure(0); Save(); });
+            () => { SetCoins(GetCoins() + treasure * tp); SetTreasure(0); Save(); SoundManager.PlayCoin(); });
 
         GUILayout.Space(14);
 
@@ -248,7 +250,7 @@ public class QuestShopManager : MonoBehaviour
 
             if (aq.IsComplete)
             {
-                if (GUILayout.Button($"  VYPLATIT  {aq.reward} minci  !", claimStyle, GUILayout.Height(38)))
+                if (SoundManager.Click(GUILayout.Button($"  VYPLATIT  {aq.reward} minci  !", claimStyle, GUILayout.Height(38))))
                     ClaimQuest();
             }
             else
@@ -273,7 +275,7 @@ public class QuestShopManager : MonoBehaviour
                     GUILayout.Label($"{q.desc}    odmena: {q.cost * q.multiplier} minci  ( {q.multiplier}x )", rowStyle, GUILayout.ExpandWidth(true));
                     GUILayout.Label($"{q.cost} minci", rowStyle, GUILayout.Width(90));
                     GUI.enabled = GetCoins() >= q.cost;
-                    if (GUILayout.Button("Koupit", buyStyle, GUILayout.Width(80), GUILayout.Height(26)))
+                    if (SoundManager.Click(GUILayout.Button("Koupit", buyStyle, GUILayout.Width(80), GUILayout.Height(26))))
                     {
                         BuyQuest(q);
                         break; // seznam se hned změní → ukonči smyčku
@@ -297,7 +299,7 @@ public class QuestShopManager : MonoBehaviour
         GUILayout.Label(label, rowStyle, GUILayout.ExpandWidth(true));
         GUILayout.Label($"= {total} minci", rowStyle, GUILayout.Width(110));
         GUI.enabled = enabled; // nejde prodat, když hráč nic nemá
-        if (GUILayout.Button("Prodat vse", buyStyle, GUILayout.Width(110), GUILayout.Height(26)))
+        if (SoundManager.Click(GUILayout.Button("Prodat vse", buyStyle, GUILayout.Width(110), GUILayout.Height(26))))
             onSell();
         GUI.enabled = true;
         GUILayout.EndHorizontal();

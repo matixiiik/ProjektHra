@@ -78,6 +78,7 @@ public class ChestManager : MonoBehaviour
             msg += "\n(Mapu si nech na priste — jednu uz mas rozdelanou.)";
         }
         Toast(msg);
+        SoundManager.PlayCoin();
 
         // Překresli bednu (otevřené víko).
         grid.SetTileType(x, y, TileType.Chest);

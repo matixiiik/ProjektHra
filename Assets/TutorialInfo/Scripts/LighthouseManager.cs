@@ -8,8 +8,8 @@ using UnityEngine;
 //  stojí pěšky a dá `E` → PlayerController zavolá Enter(). Uvnitř majáku jsou
 //  oba obchody (upgrade + quest).
 //
-//  FÁZE 2a: zatím jen zaznamená, že se do majáku "vešlo". Skutečný přechod do
-//  samostatné scény LighthouseInterior doplní fáze 2b.
+//  `E` u majáku → uloží hru a načte scénu LighthouseInterior. Návrat zpět
+//  řeší LighthouseInterior.ExitToIsland().
 // ─────────────────────────────────────────────────────────────────────────────
 
 public class LighthouseManager : MonoBehaviour
@@ -30,14 +30,22 @@ public class LighthouseManager : MonoBehaviour
         if (Instance == this) Instance = null;
     }
 
-    /// <summary>Hráč vešel do majáku.</summary>
+    /// <summary>Hráč vešel do majáku → ulož hru a přepni na scénu interiéru.</summary>
     public void Enter(int playerIndex)
     {
         // Ve split-screenu do majáku pustíme jen hráče 1 (interiér je jedna kamera).
         if (MultiplayerManager.IsMultiplayer && playerIndex != 0) return;
 
         InsidePlayerIndex = playerIndex;
-        Debug.Log("Vstup do majáku (hráč " + playerIndex + ") — TODO: načíst scénu LighthouseInterior (fáze 2b)");
+
+        var grid = FindFirstObjectByType<GridManager>();
+        if (grid != null && grid.gameData != null)
+        {
+            grid.gameData.isOnFoot = true; // po návratu ať hráč stojí pěšky u majáku
+            grid.Save();
+        }
+
+        UnityEngine.SceneManagement.SceneManager.LoadScene("LighthouseInterior");
     }
 
     /// <summary>Hráč vyšel z majáku ven na ostrov.</summary>

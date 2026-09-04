@@ -36,26 +36,21 @@ Velký vícefázový úkol:
 | `f54152f` | **Fáze 2b (2/3)** — scéna `LighthouseInterior.unity` (v Build Settings). `LighthouseManager.Enter()` = save + LoadScene. `LighthouseInterior.cs` (řídí scénu, ukazatel mincí, `ExitToIsland()`). `InteriorPlayer.cs` (plynulá chůze WASD/šipky, `E` = nejbližší bod). `InteriorInteractable.cs` (UpgradeShop/QuestShop/Exit). **Oba obchody fungují uvnitř přes GameSession.** |
 | `0d78878` | **Fáze 2c** — vzhled interiéru: kamenné zdi + dřevěná podlaha + koberec, dollhouse pohled (přední zeď otevřená), 2 Kenney okenní díly v zadní zdi, barevné pulty (modrá/oranžová) s rekvizitami, rekvizity po místnosti (truhla/sudy/bedny/dělo), postavička hráče (tělo+hlava+klobouk), teplé světlo. Ověřeno: okruh dál funguje. |
 
-## DALŠÍ KROK
+| `099cd95` | **Fáze 3** — bedny + mega quest. `TileType.Chest = 9`, ~40 % ostrovů má bednu. `ChestPrefab` (Kenney truhla, odklopitelné víko). `ChestManager`: E u bedny → mince + mega quest ("poklad na mapě", cíl 35–70 políček daleko). Kopání: v lodi na cíli Space → `DigRoutine` → `dug`. QuestShop: "Vyplatit mega quest" → mince + trvalý `sellBonus` (+5 k výkupu). HUD 2. řádek s mapou. `GameData`: `MegaQuest`, `openedChests`, `sellBonus` (+ player2). Ověřeno end-to-end + persistence. |
 
-**➡️ CELÁ FÁZE 2 (2a + 2b + 2c) JE HOTOVÁ.** Maják funguje celý end-to-end.
-(Případný polish interiéru: postavička hráče je pořád trochu „modrý sloup" z herní
-kamery — dá se zvětšit hlava/klobouk, ale je to detail.)
+## STAV: CELÝ PŮVODNÍ PROJEKT HOTOVÝ ✅
 
-Další = **Fáze 3**:
+Fáze 1 (Kenney grafika) + 2 (maják se scénou a obchody) + 3 (bedny + mega quest)
+jsou všechny hotové, ověřené v Unity, na GitHubu.
 
-### Fáze 3a – bedna (nová featura)
-- `E` u bedny (pěšky) → otevře se, dá mince + **mega quest**.
-- Ukládat otevřené bedny: nové pole `GameData` (např. `List<string> openedChests`
-  s klíči "x,y" — JsonUtility-safe).
-- Kde se bedny berou: buď nový TileType.Chest, nebo existující Treasure dlaždice
-  na pevnině. Rozmyslet s uživatelem.
-
-### Fáze 3b – mega quest
-- Nové pole `GameData.megaQuest` (vlastní `ActiveQuest`, aby šel vedle běžného).
-- Cíl: „dopluj daleko od ostrova" / „na jiný ostrov". Sledovat v pohybu hráče.
-- Výplata: `QuestShopManager` dostane tlačítko „Vyplatit mega quest" když je splněn,
-  funguje v kterémkoli questshopu.
+### Možný polish / co dál (nic z toho není nutné)
+- Postavička hráče v majáku i venku (headDot = šedá kostka) = pořád placeholder.
+- Mega quest: žádný kompas/šipka k cíli — jen souřadnice v HUD. Šlo by přidat
+  směrovku na okraj minimapy.
+- Interiér majáku: dá se ještě zútulnit.
+- Zvuk: hra pořád nemá žádné audio (viz původní návrh — největší cheap win).
+- Post-processing (URP Volume): pořád prázdný `Global Volume` ve scéně.
+- Voda je plochá — žádný shader.
 
 ## Setup na novém počítači (notebook)
 

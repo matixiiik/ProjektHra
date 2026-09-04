@@ -31,6 +31,7 @@ public class GridManager : MonoBehaviour
     public GameObject questShopPrefab;    // dtto
     public GameObject lighthousePrefab;   // maják (vejde se do něj – viz LighthouseManager)
     public GameObject chestPrefab;        // bedna na ostrově (otevírá ChestManager)
+    public Material   islandTerrainMaterial; // materiál hladkého terénu ostrova
 
     // Veškerý stav hry. Fyzicky ho drží GameSession (přežívá i přechod do
     // scény majáku), GridManager k němu jen přistupuje přes tuhle zkratku.
@@ -38,6 +39,11 @@ public class GridManager : MonoBehaviour
 
     // Právě existující 3D objekty políček. Klíč "x,y" → objekt ve scéně.
     private Dictionary<string, GameObject> activeTiles = new Dictionary<string, GameObject>();
+
+    // Hladké terénní meshe ostrovů. Klíč = "minX,minY" ostrova.
+    private class IslandRec { public GameObject go; public List<string> tileKeys; }
+    private Dictionary<string, IslandRec> islandTerrains = new Dictionary<string, IslandRec>();
+    private HashSet<string> islandTilesWithTerrain = new HashSet<string>();
 
     /// <summary>Vyvolá se po každé změně světa (pohyb, těžba, nákup...). Poslouchá HUD a minimapa.</summary>
     public event Action OnWorldChanged;
@@ -194,12 +200,10 @@ public class GridManager : MonoBehaviour
     private void CheckAndGenerateArea(int x, int y)
     {
         // Ostrovy vznikají jen na mřížce každých 20 políček, s 10% pravděpodobností,
-        // a jen když je kolem dost místa.
+        // a jen když je kolem dost místa. Ostrov je organický a nemusí přesně
+        // pokrýt spouštěcí políčko [x,y] — pokud ne, doplní se dole moře.
         if (x % 20 == 0 && y % 20 == 0 && UnityEngine.Random.value < 0.1f && CanPlaceIsland(x, y))
-        {
             GenerateIsland(x, y);
-            return;
-        }
 
         // Jinak obyčejné mořské políčko (většinou voda, občas ryby / poklad).
         string key = GridKey(x, y);
@@ -212,15 +216,16 @@ public class GridManager : MonoBehaviour
         }
     }
 
-    // Je kolem [startX,startY] volné místo na nový ostrov?
-    private bool CanPlaceIsland(int startX, int startY)
+    // Je kolem [centerX,centerY] volné místo na nový ostrov? (ostrov je vycentrovaný na tento bod)
+    private bool CanPlaceIsland(int centerX, int centerY)
     {
-        if (IsAnotherIslandTooClose(startX, startY)) return false;
+        if (IsAnotherIslandTooClose(centerX, centerY)) return false;
 
-        int fromX = startX - ISLAND_PADDING;
-        int toX   = startX + ISLAND_CANVAS - 1 + ISLAND_PADDING;
-        int fromY = startY - ISLAND_PADDING;
-        int toY   = startY + ISLAND_CANVAS - 1 + ISLAND_PADDING;
+        int r     = ISLAND_CANVAS / 2 + ISLAND_PADDING;
+        int fromX = centerX - r;
+        int toX   = centerX + r;
+        int fromY = centerY - r;
+        int toY   = centerY + r;
 
         // V ploše plátna ostrova (+ okraj) nesmí být kus jiného ostrova.
         for (int x = fromX; x <= toX; x++)
@@ -235,21 +240,19 @@ public class GridManager : MonoBehaviour
         return true;
     }
 
-    // Je poblíž střed jiného ostrova (blíž než MIN_ISLAND_DISTANCE)?
-    private bool IsAnotherIslandTooClose(int startX, int startY)
+    // Je poblíž jiný ostrov (blíž než MIN_ISLAND_DISTANCE)? centerX,centerY = střed nového ostrova.
+    private bool IsAnotherIslandTooClose(int centerX, int centerY)
     {
-        float cx = startX + (ISLAND_CANVAS - 1) * 0.5f;
-        float cy = startY + (ISLAND_CANVAS - 1) * 0.5f;
-        int   max = MIN_ISLAND_DISTANCE + ISLAND_CANVAS;
+        int max = MIN_ISLAND_DISTANCE + ISLAND_CANVAS;
 
         foreach (var kv in gameData.tileData)
         {
             if (!IsIslandTile(kv.Value.type)) continue;
 
             var (x, y) = ParseGridKey(kv.Key);
-            if (Mathf.Abs(x - cx) > max || Mathf.Abs(y - cy) > max) continue; // hrubý rychlý test
+            if (Mathf.Abs(x - centerX) > max || Mathf.Abs(y - centerY) > max) continue; // hrubý rychlý test
 
-            float dx = x - cx, dy = y - cy;
+            float dx = x - centerX, dy = y - centerY;
             if (dx * dx + dy * dy < MIN_ISLAND_DISTANCE * MIN_ISLAND_DISTANCE) return true; // přesný test
         }
         return false;
@@ -264,10 +267,10 @@ public class GridManager : MonoBehaviour
     // ── Organický (nepravidelný) ostrov ────────────────────────────────────
     // Ostrov není čtverec: pevné jádro (min. 3×3) + náhodné rozrůstání na okraj.
     // Vrací seznam souřadnic pevniny (Harbor).
-    private List<(int x, int y)> StampOrganicLand(int startX, int startY, bool explored)
+    private List<(int x, int y)> StampOrganicLand(int centerX, int centerY, bool explored)
     {
-        int cx = startX + ISLAND_CANVAS / 2;
-        int cy = startY + ISLAND_CANVAS / 2;
+        int cx = centerX;
+        int cy = centerY;
         int half = ISLAND_CANVAS / 2 - 1; // meze plátna (nech okraj volný pro molo)
 
         var land = new HashSet<(int, int)>();
@@ -280,16 +283,35 @@ public class GridManager : MonoBehaviour
                 land.Add((x, y));
 
         // 2) Organické rozrůstání — opakovaně přilep náhodné políčko na okraj tvaru.
-        var dirs = new (int dx, int dy)[] { (1, 0), (-1, 0), (0, 1), (0, -1) };
+        var dirs4 = new (int dx, int dy)[] { (1, 0), (-1, 0), (0, 1), (0, -1) };
         var frontier = new List<(int, int)>(land);
         int grow = UnityEngine.Random.Range(40, 90);
         for (int i = 0; i < grow; i++)
         {
             var pick = frontier[UnityEngine.Random.Range(0, frontier.Count)];
-            var d = dirs[UnityEngine.Random.Range(0, 4)];
+            var d = dirs4[UnityEngine.Random.Range(0, 4)];
             var n = (pick.Item1 + d.dx, pick.Item2 + d.dy);
             if (Mathf.Abs(n.Item1 - cx) > half || Mathf.Abs(n.Item2 - cy) > half) continue;
             if (land.Add(n)) frontier.Add(n);
+        }
+
+        // 2b) Zaplň zálivy/díry: nepevninové políčko se 3+ pevninovými sousedy → pevnina.
+        //     (opakuj — zahladí i užší výběžky, ať ostrov není děravý)
+        for (int pass = 0; pass < 3; pass++)
+        {
+            var fill = new List<(int, int)>();
+            foreach (var p in land)
+                foreach (var d in dirs4)
+                {
+                    var n = (p.Item1 + d.dx, p.Item2 + d.dy);
+                    if (land.Contains(n)) continue;
+                    if (Mathf.Abs(n.Item1 - cx) > half || Mathf.Abs(n.Item2 - cy) > half) continue;
+                    int nb = 0;
+                    foreach (var dd in dirs4)
+                        if (land.Contains((n.Item1 + dd.dx, n.Item2 + dd.dy))) nb++;
+                    if (nb >= 3) fill.Add(n);
+                }
+            foreach (var p in fill) land.Add(p);
         }
 
         // 3) Zapiš jako Harbor.
@@ -443,6 +465,10 @@ public class GridManager : MonoBehaviour
                 if (t.name == "Lid") { t.localRotation = Quaternion.Euler(-105f, 0f, 0f); break; }
         }
 
+        // Souš → zajisti hladký terénní mesh celého ostrova.
+        if (IsMeshLandTile((TileType)status.type))
+            EnsureIslandTerrain(x, y);
+
         // Maják zabírá 2×2 políčka. Věž ("Tower") se ukáže jen na levém dolním
         // rohu bloku a přesune se doprostřed 2×2 + zvětší; ostatní 3 dlaždice
         // ukážou jen písčitý podklad.
@@ -465,6 +491,77 @@ public class GridManager : MonoBehaviour
                 }
             }
         }
+    }
+
+    // Políčka, pod která patří hladký terénní mesh ostrova (ne molo — to je nad vodou).
+    private static bool IsMeshLandTile(TileType t)
+        => t == TileType.Harbor || t == TileType.Lighthouse || t == TileType.Chest;
+
+    // Zajistí, že ostrov obsahující políčko [x,y] má vygenerovaný hladký terén.
+    private void EnsureIslandTerrain(int x, int y)
+    {
+        if (islandTilesWithTerrain.Contains(GridKey(x, y))) return;
+
+        // Flood-fill spojité souše z tileData.
+        var land   = new HashSet<Vector2Int>();
+        var keys   = new List<string>();
+        var stack  = new Stack<Vector2Int>();
+        stack.Push(new Vector2Int(x, y));
+        int minX = x, minY = y;
+
+        while (stack.Count > 0)
+        {
+            var p = stack.Pop();
+            if (land.Contains(p)) continue;
+            if (!IsMeshLandTile(GetTileType(p.x, p.y))) continue;
+
+            land.Add(p);
+            keys.Add(GridKey(p.x, p.y));
+            if (p.x < minX) minX = p.x;
+            if (p.y < minY) minY = p.y;
+
+            stack.Push(new Vector2Int(p.x + 1, p.y));
+            stack.Push(new Vector2Int(p.x - 1, p.y));
+            stack.Push(new Vector2Int(p.x, p.y + 1));
+            stack.Push(new Vector2Int(p.x, p.y - 1));
+        }
+        if (land.Count == 0) return;
+
+        foreach (string k in keys) islandTilesWithTerrain.Add(k);
+
+        string islandKey = minX + "," + minY;
+        if (islandTerrains.ContainsKey(islandKey)) return;
+
+        var go = new GameObject("IslandTerrain " + islandKey);
+        go.transform.SetParent(transform);
+        go.transform.position = new Vector3(0f, -0.1f, 0f); // stejná rovina jako dlaždice
+        var mf = go.AddComponent<MeshFilter>();
+        var mr = go.AddComponent<MeshRenderer>();
+        mf.sharedMesh      = IslandTerrain.Build(land);
+        mr.sharedMaterial  = islandTerrainMaterial;
+        mr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.On;
+
+        islandTerrains[islandKey] = new IslandRec { go = go, tileKeys = keys };
+    }
+
+    // Smaže terénní meshe ostrovů, ze kterých už nezůstalo žádné aktivní políčko.
+    private void CleanupIslandTerrains()
+    {
+        var dead = new List<string>();
+        foreach (var kv in islandTerrains)
+        {
+            bool anyActive = false;
+            foreach (string tk in kv.Value.tileKeys)
+                if (activeTiles.ContainsKey(tk)) { anyActive = true; break; }
+
+            if (!anyActive)
+            {
+                Destroy(kv.Value.go);
+                foreach (string tk in kv.Value.tileKeys) islandTilesWithTerrain.Remove(tk);
+                dead.Add(kv.Key);
+            }
+        }
+        foreach (string k in dead) islandTerrains.Remove(k);
     }
 
     // Vytvoří barevnou ikonku budovy (čtvereček nad ní) jen pro minimapu.
@@ -533,6 +630,8 @@ public class GridManager : MonoBehaviour
             Destroy(activeTiles[k]);
             activeTiles.Remove(k);
         }
+
+        CleanupIslandTerrains();
     }
 
     // ── Dotazy na políčka ──────────────────────────────────────────────────
@@ -559,7 +658,7 @@ public class GridManager : MonoBehaviour
     {
         // Stejný organický generátor jako pro ostatní ostrovy, jen kolem počátku
         // a rovnou prozkoumaný.
-        var land = StampOrganicLand(-ISLAND_CANVAS / 2, -ISLAND_CANVAS / 2, explored: true);
+        var land = StampOrganicLand(0, 0, explored: true);
         PlaceEdgePier(land);
         PlaceLighthouse(land);
         MaybePlaceChest(land);
@@ -672,5 +771,9 @@ public class GridManager : MonoBehaviour
     {
         foreach (var kv in activeTiles) Destroy(kv.Value);
         activeTiles.Clear();
+
+        foreach (var kv in islandTerrains) Destroy(kv.Value.go);
+        islandTerrains.Clear();
+        islandTilesWithTerrain.Clear();
     }
 }

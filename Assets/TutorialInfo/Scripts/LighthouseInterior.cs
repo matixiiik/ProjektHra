@@ -37,9 +37,12 @@ public class LighthouseInterior : MonoBehaviour
     }
 
     // Coop: interiér je načtený vedle herní scény. Posuň ho pryč od oceánu
-    // a nech MultiplayerManager dát ho hráči 1 na jeho půlku obrazovky.
+    // a nech MultiplayerManager dát ho tomu hráči, co vešel, na jeho půlku.
     private void SetUpCoopSplit()
     {
+        int who = LighthouseManager.PendingPlayerIndex;
+        if (who < 0) who = 0;
+
         Scene scene = gameObject.scene;
 
         Camera interiorCam = null;
@@ -54,11 +57,16 @@ public class LighthouseInterior : MonoBehaviour
             }
         }
 
-        // Pochozí hráč se pohybuje s mezemi kolem počátku → posuň i ten střed.
+        // Pochozí hráč: nastav mu, kterého hráče ovládá, a posuň střed pochozí
+        // plochy na ten offset (pohybuje se s mezemi kolem středu).
         var ip = FindFirstObjectByType<InteriorPlayer>();
-        if (ip != null) ip.SetAreaCenter(CoopOffset);
+        if (ip != null)
+        {
+            ip.ownerPlayerIndex = who;
+            ip.SetAreaCenter(CoopOffset);
+        }
 
-        MultiplayerManager.BeginLighthouseSplit(interiorCam);
+        MultiplayerManager.BeginLighthouseSplit(interiorCam, who);
     }
 
     /// <summary>Odejít z majáku ven na ostrov (volá dveře v interiéru).</summary>
@@ -88,8 +96,12 @@ public class LighthouseInterior : MonoBehaviour
                 normal = { textColor = new Color(1f, 0.85f, 0.2f) }
             };
 
-        int coins = GameSession.Instance != null && GameSession.Instance.Data != null
-            ? GameSession.Instance.Data.coins : 0;
-        GUI.Label(new Rect(20, 16, 300, 30), "Mince: " + coins, coinStyle);
+        // V coopu je interiér na půlce obrazovky toho hráče — mince tam.
+        bool p2Inside = MultiplayerManager.IsMultiplayer && LighthouseManager.InsidePlayerIndex == 1;
+        int  coinsP1  = GameSession.Instance != null && GameSession.Instance.Data != null ? GameSession.Instance.Data.coins : 0;
+        int  coinsP2  = GameSession.Instance != null && GameSession.Instance.Data != null ? GameSession.Instance.Data.player2Coins : 0;
+        float labelX  = p2Inside ? Screen.width * 0.5f + 20f : 20f;
+        int   coins   = p2Inside ? coinsP2 : coinsP1;
+        GUI.Label(new Rect(labelX, 16, 300, 30), "Mince: " + coins, coinStyle);
     }
 }

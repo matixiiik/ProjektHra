@@ -47,6 +47,33 @@ Velký vícefázový úkol:
 | *(coop 1)* | **6 coop/gen úprav (2026-09-07).** Viz sekce "COOP + GENEROVÁNÍ" níže. |
 | *(coop 2)* | **Coop maják = pochozí interiér navíc + 3 další (2026-09-07/08).** |
 | *(coop 3)* | **Vrak místo truhly na moři + P1 se schová v majáku + per-hráč obchod (2026-09-08).** Viz níže. |
+| *(coop 4)* | **Coop maják pro OBA hráče + kulatá místnost + šipky nikdy P1 (2026-09-08).** Viz níže. |
+
+## COOP MAJÁK PRO OBA + KULATÁ MÍSTNOST (2026-09-08) — HOTOVO, OTESTOVÁNO přes MCP
+
+1. **Do majáku v coopu může KTERÝKOLI hráč** (dřív jen P1). `LighthouseManager.Enter()`
+   už neblokuje P2. `PendingPlayerIndex` (static) říká `LighthouseInterior`, kdo
+   vešel. `MultiplayerManager.BeginLighthouseSplit(cam, playerIndex)` → interiér
+   na LEVOU půlku (P1) nebo PRAVOU (P2), vypne herní kameru + zmrazí + schová
+   toho hráče; druhý hráč hraje dál. Naráz jen jeden uvnitř
+   (`if (InsidePlayerIndex >= 0) return`). Ověřeno: P1 vejde (levá), vyjde,
+   P2 vejde (pravá), P1 se celou dobu hýbe.
+2. **Interiér majáku je KULATÝ** (maják je válec). Scéna `LighthouseInterior`
+   přestavěná přes `execute_code`: kulatá podlaha + koberec (Cylinder), zeď
+   z 19 segmentů do kruhu (poloměr 4, mezera vepředu = dollhouse pohled),
+   pulty + dveře + decor rozmístěné po obvodu. Kamera stažená
+   (0, 8.6, -9.2, sklon 42°).
+3. **`InteriorPlayer` per-hráč klávesy + kruhové omezení.** `ownerPlayerIndex`
+   (0 = P1/sólo = WASD+E, 1 = P2 = šipky+Numpad1). **Šipky NIKDY neovládají
+   hráče 1** (ani venku — `PlayerController.Key()` to už dělal, teď i uvnitř).
+   Nové pole `areaRadius` (3.4) místo `areaHalfSize` — kruhový clamp
+   `if (fromCenter.magnitude > areaRadius) …`.
+4. `InteriorInteractable.Trigger(int playerIndex)` — obchod se otevře za
+   správného hráče (P2 uvnitř → `Open(1)` → GUI na pravé půlce).
+5. `LighthouseInterior` OnGUI mince: P2 uvnitř → mince P2, na pravé půlce.
+
+Ověřeno přes MCP: sólo maják (plné přepnutí, kulatá místnost, nákup projde,
+odchod OK), coop P1 i P2 vstup/výstup, 1 AudioListener, 0 chyb.
 
 ## VRAK / SKRÝVÁNÍ P1 / PER-HRÁČ OBCHOD (2026-09-08) — HOTOVO, OTESTOVÁNO přes MCP
 

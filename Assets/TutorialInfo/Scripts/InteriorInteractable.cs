@@ -22,19 +22,19 @@ public class InteriorInteractable : MonoBehaviour
     [Tooltip("Text, co se hráči ukáže, když je v dosahu.")]
     public string prompt = "E — otevřít";
 
-    /// <summary>Vykoná akci tohoto bodu.</summary>
-    public void Trigger()
+    /// <summary>Vykoná akci tohoto bodu za daného hráče (0 = P1/sólo, 1 = P2 ve split).</summary>
+    public void Trigger(int playerIndex)
     {
         switch (action)
         {
             case InteriorAction.UpgradeShop:
                 var us = FindInMyScene<UpgradeShopManager>();
-                if (us != null) us.Open(0);
+                if (us != null) us.Open(playerIndex);
                 break;
 
             case InteriorAction.QuestShop:
                 var qs = FindInMyScene<QuestShopManager>();
-                if (qs != null) qs.Open(0);
+                if (qs != null) qs.Open(playerIndex);
                 break;
 
             case InteriorAction.Exit:

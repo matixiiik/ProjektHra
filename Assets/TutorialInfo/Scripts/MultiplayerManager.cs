@@ -43,20 +43,29 @@ public class MultiplayerManager : MonoBehaviour
     public static void StartMultiplayer() { instance?.Setup(); }
     public static void Stop()             { instance?.Teardown(); }
 
-    // Coop: hráč 1 vešel do majáku (additivní scéna). Jeho půlka ukáže interiér,
-    // hráč 2 hraje dál. Volá LighthouseInterior po načtení scény.
-    public static void BeginLighthouseSplit(Camera interiorCam) => instance?.DoBeginLighthouseSplit(interiorCam);
-    // Coop: hráč 1 vyšel z majáku — vrať jeho půlce normální kameru a ovládání.
+    // Coop: hráč (playerIndex) vešel do majáku (additivní scéna). Jeho půlka
+    // ukáže interiér, druhý hráč hraje dál. Volá LighthouseInterior po Awake.
+    public static void BeginLighthouseSplit(Camera interiorCam, int playerIndex)
+        => instance?.DoBeginLighthouseSplit(interiorCam, playerIndex);
+    // Coop: hráč vyšel z majáku — vrať jeho půlce normální kameru a ovládání.
     public static void EndLighthouseSplit() => instance?.DoEndLighthouseSplit();
 
-    private CameraOrbit p1Orbit; // orbitální kamera hráče 1 (kvůli vypnutí, když je v majáku)
+    private CameraOrbit insideOrbit; // orbitální kamera hráče, co je v majáku (kvůli vypnutí)
+    private int         insideIdx = -1;
 
-    void DoBeginLighthouseSplit(Camera interiorCam)
+    void DoBeginLighthouseSplit(Camera interiorCam, int playerIndex)
     {
+        insideIdx = playerIndex;
+
+        Camera           gameCam = playerIndex == 0 ? p1Camera : p2Camera;
+        PlayerController gamePc  = playerIndex == 0 ? p1Player : p2Player;
+
         if (interiorCam != null)
         {
-            interiorCam.rect  = new Rect(0f, 0f, 0.5f, 1f);           // levá půlka = hráč 1
-            interiorCam.depth = (p1Camera != null ? p1Camera.depth : 0);
+            // Interiér na půlku obrazovky toho hráče (P1 vlevo, P2 vpravo).
+            float x0 = playerIndex == 0 ? 0f : 0.5f;
+            interiorCam.rect  = new Rect(x0, 0f, 0.5f, 1f);
+            interiorCam.depth = (gameCam != null ? gameCam.depth : 0) + 2;
 
             // Interiér má vlastní AudioListener — vypni ho, ať jich není ve scéně víc
             // (o poslech se dál stará listener v herní scéně; zvuky jsou stejně 2D).
@@ -64,36 +73,42 @@ public class MultiplayerManager : MonoBehaviour
             if (ial != null) ial.enabled = false;
         }
 
-        // Vypni kameru hráče 1 v herní scéně (ať se nekreslí přes interiér).
-        // AudioListener P1 kamery NEsaháme — mohl být vypnutý kvůli minimapě.
-        if (p1Camera != null)
+        // Vypni herní kameru toho hráče (ať se nekreslí přes interiér).
+        // AudioListener NEsaháme — mohl být vypnutý kvůli minimapě.
+        if (gameCam != null)
         {
-            p1Camera.enabled = false;
-            p1Orbit = p1Camera.GetComponent<CameraOrbit>();
-            if (p1Orbit != null) p1Orbit.enabled = false;
+            gameCam.enabled = false;
+            insideOrbit = gameCam.GetComponent<CameraOrbit>();
+            if (insideOrbit != null) insideOrbit.enabled = false;
         }
 
-        // Zmraž hráče 1 v herní scéně (uvnitř majáku za něj chodí InteriorPlayer)
-        // a schovej jeho model — ať nestojí jako duch na ostrově na obrazovce hráče 2.
-        if (p1Player != null)
+        // Zmraž toho hráče v herní scéně (uvnitř majáku za něj chodí InteriorPlayer)
+        // a schovej jeho model — ať nestojí jako duch na ostrově na druhé obrazovce.
+        if (gamePc != null)
         {
-            p1Player.enabled = false;
-            p1Player.SetVisualHidden(true);
+            gamePc.enabled = false;
+            gamePc.SetVisualHidden(true);
         }
     }
 
     void DoEndLighthouseSplit()
     {
-        if (p1Camera != null)
+        Camera           gameCam = insideIdx == 0 ? p1Camera : p2Camera;
+        PlayerController gamePc  = insideIdx == 0 ? p1Player : p2Player;
+
+        if (gameCam != null)
         {
-            p1Camera.enabled = true;
-            if (p1Orbit != null) p1Orbit.enabled = true;
+            gameCam.enabled = true;
+            if (insideOrbit != null) insideOrbit.enabled = true;
         }
-        if (p1Player != null)
+        if (gamePc != null)
         {
-            p1Player.enabled = true;
-            p1Player.SetVisualHidden(false); // zase ukaž model hráče 1
+            gamePc.enabled = true;
+            gamePc.SetVisualHidden(false);
         }
+
+        insideIdx   = -1;
+        insideOrbit = null;
     }
 
     // ── Zapnutí split screenu ─────────────────────────────────────────────────

@@ -1,0 +1,22 @@
+predelej tresuery (co jsou na mori na grafiku ship-wreck, aby to vypadalo jako ze lovi poklad z ty lodi), udelej jeste kdyz ve split screenu nekdo vejde do majaku tak at na druhe obrazovce nejde videt ten panacek na ostrove (vpodstate u vseho musi byt pouze na jednom miste - ostrov, lod, majak zatim), jeset uprav ze kdyz mas split screen tak player jedna vsechno co otevira pismeno - e tak bude delat u player 2 - 1 a takhle se vsim ale jenom u split screenu
+
+predel to ze kdyz vejdes do majaku je to ctverec - uprav to nejak aby to bylo kolo a tam ty shopy oka atd (kdyz to je kulaty majak tak je napicu kdyz to vypada pak jako ctverec), nikde nesmi fungovat na player 1 sipky na chozeni (jenom na pyer 2 jenom ve split screenu)
+
+
+
+predelej aby to more nebyli nejlip tyle ale jedna velka voda a pridat tam nejak vlny (aby to nevypadlo jako ze tam glitchuje textura), udelej jeste aby kdyz natocis kameru tak to vypada ze ta lod lita tak ji dej vic do vody aby to vypadalo jako ze fakt pluje, uber spawn rate pokladu aby nebyli tak caste a ty pole s rybama taky (ale porad nejvic basic jsou ryby pak poklady pak ostrovy pak mege quest bedny atd...) + ty poklady maji trosku tmavsi barvu nez more dej tam stejnou barvu kdyz tam je takovahle extra textura vraku, kdyz uz se jednou otevre bedna s mega questem tak uz nikdy potom nupujde otevrit znova (ani ve split screenu muze ji otevrti jenom jeden clovek bud player 2 nebo player 1
+
+pridej npc stejne postavicky jako ja jenom sede ale jenom na ten zakladni ostrov (chtel bych z tehle hry udelat alespon kratkou pribehovku a tadyta postava, deda, to zacne jakoze bude rikat ze si schoval pokald a ze je to jeho posldni prani abych ho nasel (ale to pak jeste nejak doladime zatim nacrt))
+
+pridej jeste ze se nebude zacinat se small boat ale s boat row small a pak se to teprve zacne dokupat na ty lepsi v shopu, pridej kazde lodi at ma nejake vylepseni oproti ty posledni
+
+udelej ze lod se da opravovat v pristavu a kdyz se vystou pi z lodi tak misto toho aby zmyzela, tak tam zustane stat (bude mit helth bar 100 a to pridej i panackovi a dej ty helth bary nad minimapu)
+
+dale pridame na ostovy dela a 20% z ostovu bude nejdriv nepratelsky a kdyz se dostanes na dostrel ostrovu tak na tebe zacne strilet, stejne udelej aby se dalo strilet z lode a v upgrade shopu se bude dat dokupovat munice, bude se strilet levym tlacitkem na mysi, potom jeste pridej ze se nekde na lodi budou objevovat pirati od small az large lodi a podle toho je bude tezky zabit, kdyz na ne narazis tak je muzes potopit a dostat za to odmenu nebo udejt a po nejaky dobe te nechajhi byt, kdyz prijedes k nim tak se oprostred nahode objevi jejich helth bar (takovej boss fight type)
+
+pridej toto na ostrov aby to vypadalo lip: rocks-a/b/c (kameny v trávě), rocks-sand-b/c (další varianty — používáš jen -a)
+grass, grass-plant (drobné trsy), palm-bend, palm-straight (lehčí palmy, víc druhů)
+patch-grass-foliage, patch-sand-foliage (záplaty terénu s křovím rovnou v modelu — rychlé oživení)
+
+
+

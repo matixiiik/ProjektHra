@@ -94,6 +94,9 @@ public class GameData
     // ── Hráč 2 — oddělená ekonomika (jen multiplayer) ─────────────────────────
     public int  player2GridX;
     public int  player2GridY;
+    public bool player2IsOnFoot;    // true = P2 je pěšky na ostrově, ne v lodi
+    public int  player2BoatGridX;   // kde nechal P2 zakotvenou loď (X)
+    public int  player2BoatGridY;   // kde nechal P2 zakotvenou loď (Y)
     public int  player2Coins;
     public int  player2FishCount;
     public int  player2TreasureCount;

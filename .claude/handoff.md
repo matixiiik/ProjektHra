@@ -1,10 +1,26 @@
-# Handoff — kde jsme skončili (2026-09-04, aktualizováno — polish: zvuk, voda, kompas, post-processing)
+# Handoff — kde jsme skončili (2026-09-08 večer)
 
 Tenhle soubor je most mezi počítači. Claude paměť se nesyncuje přes git, tak si
 sem Claude píše, kde se přestalo, aby se dalo pokračovat i z notebooku.
 
 > **Claude: přečti si tohle na začátku session a rovnou navaž. Až se kus práce
 > udělá, tenhle soubor aktualizuj a zacommituj.**
+
+---
+
+## STAV 2026-09-08 večer — vše commitnuté a pushnuté (`a4e363b`), working tree čistý
+
+Hotová série coop/maják úprav (viz commity `873f425` … `17f8568` a sekce níže):
+vrak místo truhly, kulatý maják, oba hráči v jedné místnosti majáku (modrý+červený),
+per-hráč obchody, souřadnice per-hráč, oprava nasedání do lodě.
+
+**Zítra (2026-09-08+1): uživatel bude dávat další úkoly PO KOUSKÁCH přímo do chatu.**
+Větší backlog nápadů je v **`Napady.txt`** v kořeni repa (jedna velká voda místo
+dlaždic + vlny, loď víc do vody, nižší spawn rate pokladů/ryb, bedna mega questu
+jen 1× a jen jeden hráč, NPC děda + příběh, start s "boat row small",
+opravování lodí + health bary, děla na ostrovech + nepřátelské ostrovy,
+střílení z lodě + munice v shopu, piráti / boss fighty, víc decoru na ostrov).
+Nedělat proaktivně — počkat, až to uživatel zadá.
 
 ---
 

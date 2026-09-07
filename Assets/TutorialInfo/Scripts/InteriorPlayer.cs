@@ -10,9 +10,8 @@ using UnityEngine;
 //    ownerPlayerIndex 1 = hráč 2 (jen split screen) → šipky, Numpad1
 //  Šipky NIKDY neovládají hráče 1.
 //
-//  Když je otevřený obchod TÉHLE kopie majáku, ovládání se vypne, ať se hráč
-//  nehýbe pod menu. (V coopu má každý hráč vlastní kopii scény majáku, tak se
-//  kouká na obchod ve své scéně, ne na globální příznak.)
+//  Když má obchod otevřený TENHLE hráč, jeho ovládání se vypne (ať se nehýbe
+//  pod menu). Obchod druhého hráče (jsou v majáku spolu) ho nezmrazí.
 // ─────────────────────────────────────────────────────────────────────────────
 
 public class InteriorPlayer : MonoBehaviour
@@ -33,22 +32,22 @@ public class InteriorPlayer : MonoBehaviour
     private InteriorInteractable nearest; // co je zrovna v dosahu (kvůli nápovědě)
     private GUIStyle promptStyle;
 
-    // Obchody v TÉHLE kopii scény majáku (kvůli coopu — každý hráč má svou kopii).
-    private UpgradeShopManager myUpgradeShop;
-    private QuestShopManager   myQuestShop;
+    // Obchody v majáku (P1 a P2 jsou spolu v jedné místnosti).
+    private UpgradeShopManager shopUpgrade;
+    private QuestShopManager   shopQuest;
 
-    // Je otevřený obchod v mojí scéně? (Obchod druhého hráče mě nezajímá.)
+    // Mám JÁ otevřený obchod? (Obchod druhého hráče mě nezmrazí.)
     private bool MyShopOpen()
     {
-        if (myUpgradeShop == null)
+        if (shopUpgrade == null)
             foreach (var u in FindObjectsByType<UpgradeShopManager>(FindObjectsSortMode.None))
-                if (u.gameObject.scene == gameObject.scene) { myUpgradeShop = u; break; }
-        if (myQuestShop == null)
+                if (u.gameObject.scene == gameObject.scene) { shopUpgrade = u; break; }
+        if (shopQuest == null)
             foreach (var q in FindObjectsByType<QuestShopManager>(FindObjectsSortMode.None))
-                if (q.gameObject.scene == gameObject.scene) { myQuestShop = q; break; }
+                if (q.gameObject.scene == gameObject.scene) { shopQuest = q; break; }
 
-        return (myUpgradeShop != null && myUpgradeShop.IsOpen)
-            || (myQuestShop   != null && myQuestShop.IsOpen);
+        return (shopUpgrade != null && shopUpgrade.IsOpenForBuyer(ownerPlayerIndex))
+            || (shopQuest   != null && shopQuest.IsOpenForBuyer(ownerPlayerIndex));
     }
 
     // Jsem hráč 1 (nebo sólo)?

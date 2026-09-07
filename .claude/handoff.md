@@ -80,22 +80,30 @@ odchod OK), coop P1 i P2 vstup/výstup, 1 AudioListener, 0 chyb.
    `UpdateLayout(true)`, když `IsMultiplayer` (P2 HUD vzniká až po zapnutí MP,
    tak si to musí udělat sám). Dřív P2 souřadnice zůstaly vlevo nahoře přes P1.
    Teď P1 = levý horní roh levé půlky, P2 = levý horní roh pravé půlky.
-2. **Do majáku můžou oba hráči NARÁZ.** Každý hráč, co vejde, dostane VLASTNÍ
-   kopii scény `LighthouseInterior` (additivně, `LoadSceneAsync` 2×), posunutou
-   na +5000 (P1) / +10000 (P2). `LighthouseManager` drží `inside[2]` +
-   `Dictionary<int,Scene> playerScenes`. `Enter()` už neblokuje druhého (jen
-   `if (inside[playerIndex]) return`). `ExitCoop(playerIndex)` odečte JEN tu
-   jeho kopii. `MultiplayerManager.BeginLighthouseSplit(cam, idx)` /
-   `EndLighthouseSplit(idx)` — per-hráč (pole `insideOrbit[2]`), interiér
-   kamera → levá (idx 0) / pravá (idx 1) půlka, tag "Untagged".
-   `LighthouseInterior` má `who`, `OffsetFor(idx)`, `ExitToIsland(int)`.
-   `InteriorInteractable.Trigger(idx)` → Exit předá idx.
-   `InteriorPlayer.MyShopOpen()` — kouká na obchod ve SVÉ kopii scény (ne
-   globální `AnyShopOpen`), takže P1 nakupující nemrazí P2 uvnitř.
-   Ověřeno přes MCP: oba vejdou (2× LighthouseInterior scéna, 2 interiér kamery
-   L+R, oba PC frozen+hidden, 1 AudioListener), P1 otevře svůj obchod → P2
-   uvnitr se dál hýbe, P1 vyjde (jeho kopie se odečte, P2 kopie zůstává), P2
-   vyjde (zpět 1 scéna, 3 kamery). 0 chyb.
+2. **Do majáku můžou oba hráči NARÁZ — v JEDNÉ místnosti** (jeden modrý, druhý
+   červený, vidí na sebe). Scéna `LighthouseInterior` se načte ADITIVNĚ JEDNOU
+   (offset +5000). `LighthouseInterior`:
+   - `SetUpCoopFirstPlayer()` (Awake): posun rootů, první hráč použije
+     postavičku + kameru přímo ze scény (`figures[who]`, `cams[who]`),
+     obarví ji (P1 modrá, P2 červená přes MPB na dílech s `InteriorPlayerMat`),
+     `BeginLighthouseSplit(cam, who)`.
+   - `AddPlayer(idx)` (volá `LighthouseManager.Enter` když je scéna už načtená):
+     naklonuje postavičku + kameru z prvního hráče, `MoveGameObjectToScene`
+     do scény majáku (jinak spadnou do herní!), obarví, `BeginLighthouseSplit`.
+   - `RemovePlayer(idx)`: `EndLighthouseSplit(idx)` + zničí figuru+kameru.
+   `LighthouseManager`: `inside[2]`, jedna `Scene interiorScene`. `Enter` už
+   neblokuje druhého. `ExitCoop(idx)` → `RemovePlayer(idx)`, a když je uvnitř
+   0 hráčů → odečte scénu.
+   **Obchody teď mají per-hráč stav** (`UpgradeShopManager`/`QuestShopManager`
+   pole `openFor[2]`, `IsOpenForBuyer(i)`, `OnGUI` smyčka kreslí panel pro
+   každého otevřeného hráče na jeho půlce). `AnyShopOpen` je teď počítaná
+   property (projde všechny obchody). `Open(idx)` per-hráč, zavírání
+   Escape (P1) / NumpadEnter (P2). `InteriorPlayer.MyShopOpen()` kouká na
+   `IsOpenForBuyer(ownerPlayerIndex)`.
+   Ověřeno přes MCP: oba vejdou do 1 místnosti (modrá+červená figura,
+   screenshoty L+R), P1 má upgrade obchod otevřený + P2 quest obchod naráz,
+   nezávisle nakupují, každý vyjde zvlášť (poslední zavře scénu), re-enter OK,
+   sólo maják beze změny, 1 AudioListener, 0 chyb.
 
 ### PLNÝ COOP PRŮCHOD OTESTOVÁN (2026-09-08)
 Nová MP hra → oba pěšky na pevnině vedle sebe (P2 červený) → oba nasednou na

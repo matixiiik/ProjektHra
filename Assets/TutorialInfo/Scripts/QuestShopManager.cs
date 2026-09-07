@@ -19,26 +19,26 @@ public class QuestShopManager : MonoBehaviour
     public int treasureSellPrice = 30; // cena za 1 poklad
 
     private GridManager gridManager;
-    private bool        isOpen;
-    private int         buyerIndex; // 0 = P1, 1 = P2
 
-    public bool IsOpen => isOpen;
+    // Obchod může být otevřený zvlášť pro hráče 1 i 2 naráz (jsou spolu v majáku).
+    private readonly bool[] openFor = new bool[2];
+    private int             buyerIndex;
 
-    /// <summary>Je obchod otevřený a nakupuje v něm zrovna TENHLE hráč? (ve split screenu
-    /// obchod jednoho hráče nemá mrazit druhého)</summary>
-    public bool IsOpenForBuyer(int playerIndex) => isOpen && buyerIndex == playerIndex;
+    public bool IsOpen => openFor[0] || openFor[1];
+
+    /// <summary>Je obchod otevřený zrovna pro TOHOHLE hráče?</summary>
+    public bool IsOpenForBuyer(int playerIndex) => playerIndex >= 0 && playerIndex < 2 && openFor[playerIndex];
 
     // Data hry — vždy přes GameSession (funguje i ve scéně majáku bez GridManageru).
     private GameData Data => GameSession.Instance.Data;
 
     void Update()
     {
-        // Zavření obchodu. Pozn.: sdílený příznak je v UpgradeShopManager.AnyShopOpen.
-        if (isOpen && (Input.GetKeyDown(KeyCode.Escape) || Input.GetKeyDown(KeyCode.KeypadEnter)))
-        {
-            isOpen = false;
-            UpgradeShopManager.AnyShopOpen = false;
-        }
+        // Zavření obchodu — hráč 1 Escape, hráč 2 NumpadEnter (v sólu obojí zavře P1).
+        bool p1Close = Input.GetKeyDown(KeyCode.Escape) || (!MultiplayerManager.IsMultiplayer && Input.GetKeyDown(KeyCode.KeypadEnter));
+        bool p2Close = Input.GetKeyDown(KeyCode.KeypadEnter);
+        if (openFor[0] && p1Close) openFor[0] = false;
+        if (openFor[1] && p2Close) openFor[1] = false;
     }
 
     // Tři questy, ze kterých si hráč vybírá (vygenerují se při otevření obchodu).
@@ -73,9 +73,9 @@ public class QuestShopManager : MonoBehaviour
     /// <summary>Otevře obchod pro daného hráče a případně vygeneruje nabídku questů.</summary>
     public void Open(int playerIndex = 0)
     {
+        if (playerIndex < 0 || playerIndex > 1) playerIndex = 0;
         buyerIndex = playerIndex;
-        isOpen     = true;
-        UpgradeShopManager.AnyShopOpen = true;
+        openFor[playerIndex] = true;
 
         // Nabídku generuj jen když hráč zrovna žádný quest nemá.
         if (!GetQuest().hasQuest) GenerateOffers();
@@ -184,15 +184,26 @@ public class QuestShopManager : MonoBehaviour
     // ── GUI ─────────────────────────────────────────────────────────────────
     void OnGUI()
     {
-        if (!isOpen) return;
+        if (!IsOpen) return;
         InitStyles();
 
+        // Kresli panel pro každého hráče, co má obchod otevřený (klidně oba naráz).
+        for (int i = 0; i < 2; i++)
+        {
+            if (!openFor[i]) continue;
+            buyerIndex = i;
+            DrawShopPanel(i);
+        }
+    }
+
+    private void DrawShopPanel(int who)
+    {
         // V coopu kresli obchod jen na půlku obrazovky toho hráče (ať druhému nezakryje hru).
         float sx = 0f, sw = Screen.width;
         if (MultiplayerManager.IsMultiplayer)
         {
             sw = Screen.width * 0.5f;
-            sx = buyerIndex == 1 ? Screen.width * 0.5f : 0f;
+            sx = who == 1 ? Screen.width * 0.5f : 0f;
         }
 
         // Tmavý overlay.

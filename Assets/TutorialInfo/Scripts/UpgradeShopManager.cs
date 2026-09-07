@@ -24,14 +24,16 @@ public class UpgradeShopManager : MonoBehaviour
     public int shipLargeCost     = 800;
 
     private GridManager gridManager;   // v SampleScene; ve scéně majáku je null
-    private bool        isOpen;
-    private int         buyerIndex; // 0 = obchod otevřel P1, 1 = P2
 
-    public bool IsOpen => isOpen;
+    // Obchod může být otevřený zvlášť pro hráče 1 i hráče 2 naráz (jsou spolu
+    // v jednom majáku). buyerIndex říká, čí panel se zrovna kreslí / kdo nakupuje.
+    private readonly bool[] openFor = new bool[2];
+    private int             buyerIndex;
 
-    /// <summary>Je obchod otevřený a nakupuje v něm zrovna TENHLE hráč? (ve split screenu
-    /// obchod jednoho hráče nemá mrazit druhého)</summary>
-    public bool IsOpenForBuyer(int playerIndex) => isOpen && buyerIndex == playerIndex;
+    public bool IsOpen => openFor[0] || openFor[1];
+
+    /// <summary>Je obchod otevřený zrovna pro TOHOHLE hráče? (obchod jednoho hráče nemá mrazit druhého)</summary>
+    public bool IsOpenForBuyer(int playerIndex) => playerIndex >= 0 && playerIndex < 2 && openFor[playerIndex];
 
     // Data hry — vždy přes GameSession (funguje i ve scéně majáku bez GridManageru).
     private GameData Data => GameSession.Instance.Data;
@@ -44,10 +46,20 @@ public class UpgradeShopManager : MonoBehaviour
     }
 
     /// <summary>
-    /// True, když je otevřený JAKÝKOLI obchod (upgrade i quest).
+    /// True, když je otevřený JAKÝKOLI obchod (upgrade i quest, kteréhokoli hráče).
     /// Pauza se podle toho pozná, že Esc má zavřít obchod, ne otevřít pauzu.
     /// </summary>
-    public static bool AnyShopOpen;
+    public static bool AnyShopOpen
+    {
+        get
+        {
+            foreach (var u in FindObjectsByType<UpgradeShopManager>(FindObjectsSortMode.None))
+                if (u.IsOpen) return true;
+            foreach (var q in FindObjectsByType<QuestShopManager>(FindObjectsSortMode.None))
+                if (q.IsOpen) return true;
+            return false;
+        }
+    }
 
     private GUIStyle titleStyle, rowStyle, ownedStyle, buyStyle, coinsStyle;
     private bool     stylesReady;
@@ -57,19 +69,18 @@ public class UpgradeShopManager : MonoBehaviour
     /// <summary>Otevře obchod pro daného hráče.</summary>
     public void Open(int playerIndex = 0)
     {
-        buyerIndex  = playerIndex;
-        isOpen      = true;
-        AnyShopOpen = true;
+        if (playerIndex < 0 || playerIndex > 1) playerIndex = 0;
+        openFor[playerIndex] = true;
+        buyerIndex = playerIndex;
     }
 
     void Update()
     {
-        // Zavření obchodu.
-        if (isOpen && (Input.GetKeyDown(KeyCode.Escape) || Input.GetKeyDown(KeyCode.KeypadEnter)))
-        {
-            isOpen      = false;
-            AnyShopOpen = false;
-        }
+        // Zavření obchodu — hráč 1 Escape, hráč 2 NumpadEnter (v sólu obojí zavře P1).
+        bool p1Close = Input.GetKeyDown(KeyCode.Escape) || (!MultiplayerManager.IsMultiplayer && Input.GetKeyDown(KeyCode.KeypadEnter));
+        bool p2Close = Input.GetKeyDown(KeyCode.KeypadEnter);
+        if (openFor[0] && p1Close) openFor[0] = false;
+        if (openFor[1] && p2Close) openFor[1] = false;
     }
 
     // ── Per-buyer přístup k datům (P1 vs P2) ─────────────────────────────────
@@ -116,15 +127,27 @@ public class UpgradeShopManager : MonoBehaviour
     // ── GUI ─────────────────────────────────────────────────────────────────
     void OnGUI()
     {
-        if (!isOpen) return;
+        if (!IsOpen) return;
         InitStyles();
 
+        // Kresli panel pro každého hráče, co má obchod otevřený (klidně oba naráz,
+        // každý na své půlce). buyerIndex řídí, čí data pomocné metody čtou.
+        for (int i = 0; i < 2; i++)
+        {
+            if (!openFor[i]) continue;
+            buyerIndex = i;
+            DrawShopPanel(i);
+        }
+    }
+
+    private void DrawShopPanel(int who)
+    {
         // V coopu kresli obchod jen na půlku obrazovky toho hráče (ať druhému nezakryje hru).
         float sx = 0f, sw = Screen.width;
         if (MultiplayerManager.IsMultiplayer)
         {
             sw = Screen.width * 0.5f;
-            sx = buyerIndex == 1 ? Screen.width * 0.5f : 0f;
+            sx = who == 1 ? Screen.width * 0.5f : 0f;
         }
 
         // Tmavý overlay.

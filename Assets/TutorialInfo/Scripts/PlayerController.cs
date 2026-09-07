@@ -23,6 +23,10 @@ public class PlayerController : MonoBehaviour
 
     public GameObject headDot;          // tečka nad hlavou, když je hráč pěšky
     public Transform  boatModel;        // 3D model lodě (přepíná ShipModelSwitcher)
+
+    // Kamera, podle které se tenhle hráč hýbe (W = "kam kouká kamera").
+    // P1 = hlavní kamera (necháme null → Camera.main), P2 ji dostane od MultiplayerManageru.
+    [HideInInspector] public Transform viewCamera;
     public float moveSpeed       = 5f;  // rychlost jízdy (jednotky/s) — volný pohyb podle kamery
     public float turnSpeed       = 6f;  // jak rychle se loď/postavička natáčí do směru jízdy
     public float fishingDuration = 1.5f;// jak dlouho trvá jeden zátah
@@ -100,13 +104,36 @@ public class PlayerController : MonoBehaviour
         }
         else
         {
-            // P2 startuje na pozici P1, vždy v lodi.
-            isOnFoot  = false;
-            boatGridX = gridManager.gameData.playerGridX;
-            boatGridY = gridManager.gameData.playerGridY;
-            gridManager.gameData.player2GridX = gridManager.gameData.playerGridX;
-            gridManager.gameData.player2GridY = gridManager.gameData.playerGridY;
-            transform.position = new Vector3(gridManager.gameData.playerGridX, 0.5f, gridManager.gameData.playerGridY);
+            // Hráč 2 startuje hned vedle hráče 1 a ve stejném režimu (pěšky / loď) —
+            // takže při nové hře se oba probudí jako panáčci na ostrově.
+            isOnFoot = gridManager.gameData.isOnFoot;
+
+            int p1x = gridManager.gameData.playerGridX;
+            int p1y = gridManager.gameData.playerGridY;
+
+            // Najdi políčko hned vedle P1, na které P2 smí vstoupit.
+            int sx = p1x, sy = p1y;
+            Vector2Int[] around = { Vector2Int.right, Vector2Int.left, Vector2Int.up, Vector2Int.down };
+            foreach (var d in around)
+            {
+                TileType t = gridManager.GetTileType(p1x + d.x, p1y + d.y);
+                bool ok = isOnFoot
+                    ? (t == TileType.Harbor || t == TileType.Pier)
+                    : (t == TileType.Water || t == TileType.Water_Fish || t == TileType.Pier);
+                if (ok) { sx = p1x + d.x; sy = p1y + d.y; break; }
+            }
+
+            gridManager.gameData.player2GridX = sx;
+            gridManager.gameData.player2GridY = sy;
+
+            // Loď P2 — druhé molo (piery jsou vždy dva vedle sebe), jinak stejné jako P1.
+            boatGridX = gridManager.gameData.boatGridX;
+            boatGridY = gridManager.gameData.boatGridY;
+            foreach (var d in around)
+                if (gridManager.GetTileType(boatGridX + d.x, boatGridY + d.y) == TileType.Pier)
+                { boatGridX += d.x; boatGridY += d.y; break; }
+
+            transform.position = new Vector3(sx, 0.5f, sy);
         }
 
         // Zobraz správně loď / panáčka.
@@ -151,7 +178,8 @@ public class PlayerController : MonoBehaviour
     // tomu jízda kopíruje natočení kamery (otoč kameru, W jede "tam kam koukáš").
     void Move(float h, float v)
     {
-        Transform cam = Camera.main != null ? Camera.main.transform : transform;
+        Transform cam = viewCamera != null ? viewCamera
+                      : (Camera.main != null ? Camera.main.transform : transform);
 
         Vector3 forward = cam.forward; forward.y = 0f;
         Vector3 right   = cam.right;   right.y   = 0f;

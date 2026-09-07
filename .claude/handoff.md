@@ -44,6 +44,45 @@ Velký vícefázový úkol:
 | `fce7557` | MP: `MultiplayerManager` rušil jen komponentu Camera z P2 klonu → URP varování "Can't remove Camera…". Teď ruší celé objekty kamer + CameraOrbit z P2. Split-screen = 3 kamery, 0 varování. |
 | `596b059` | **Volná jízda podle kamery.** `PlayerController.Move()` počítá směr z `Camera.main.forward/right` (jen vodorovně) místo pevných os W/A/S/D → otoč kameru (RMB), `W` jede tam, kam se kamera dívá. Jde i diagonálně (`W`+`D`), model se natáčí plynule (`Quaternion.Slerp`, pole `turnSpeed`). Kolize u pobřeží řeší sklouznutí po jedné ose (`TryMoveBy`) místo zaseknutí. `GridX/GridY` (a tedy generování světa, mlha, save) se aktualizují při každém přechodu na jinou dlaždici (`OnEnteredTile`), ne jen jednou za stisk klávesy. Nastupování do lodě teď funguje i z diagonální pozice (Chebyshev vzdálenost ≤1, dřív jen přesně 1 pole rovně). Ověřeno přes UnityMCP (reflexe do `Move`/`TryToggleBoatFoot`): jízda podle kamery, diagonála, plynulé otáčení, diagonální nástup — vše sedí, 0 chyb v konzoli. |
 | *(polish)* | **4 vylepšení z backlogu, na žádost uživatele.** Viz sekce níže. |
+| *(coop 1)* | **6 coop/gen úprav (2026-09-07).** Viz sekce "COOP + GENEROVÁNÍ" níže. |
+
+## COOP + GENEROVÁNÍ ostrovů (2026-09-07) — ROZDĚLANÉ
+
+Uživatel zadal 7 věcí. **6 hotových (offline compile OK, NEOTESTOVÁNO v editoru —
+Unity MCP byl odpojený), 7. rozdělaná.**
+
+Hotovo:
+1. **Nová hra = spawn pěšky na pevnině.** `GridManager.GenerateInitialWorld()`:
+   loď zaparkuje na 1. molo, hráč stojí PĚŠKY na `Harbor` políčku hned vedle
+   (`FindHarborNextTo`), `gameData.isOnFoot = true`. Platí i pro sólo hru.
+   `PlayerController.Start()` P2 větev: P2 startuje vedle P1 ve stejném režimu
+   (pěšky/loď), loď P2 na druhé molo.
+2. **Hráč 2 červené tričko.** `MultiplayerManager.Setup()` — na klonu P2 najde
+   `headDot/Body` renderer a přes `MaterialPropertyBlock` nastaví `_BaseColor`
+   načerveno (0.75, 0.16, 0.13). P1 zůstává modrý (`PlayerCoat.mat`).
+3. **Coop kamera.** Myš = jen P1 (jeho `CameraOrbit` beze změny). P2 si točí
+   kameru `Numpad + / -` (i horní `+`/`-`) — `MultiplayerManager` má vlastní
+   `p2Yaw/p2Pitch/p2Distance`, kameru P2 staví `PositionP2Camera()` (přestala
+   kopírovat rotaci P1). `PlayerController` má nové pole `viewCamera` —
+   `Move()` počítá směr z něj (P2 dostane svou kameru, P1 = `Camera.main`).
+4. **Maják na mapě ~2× větší** — `GridManager.InstantiateTile`, `tower.localScale *= 1.6f` → `*= 3.2f`.
+5. **Minimální ostrov 4×4** — `StampOrganicLand` jádro `Random.Range(3,6)` → `Random.Range(4,7)`. `GenerateIsland` guard `< 9` → `< 16`.
+6. **Maják nikdy hned vedle mola** — `PlaceLighthouse` filtruje 2×2 bloky přes
+   nový `Any2x2TileTouchesPier(x,y)` (4-směrní sousedé nesmí být `Pier`).
+
+**7. ROZDĚLANÉ — coop maják jako pochozí interiér navíc:**
+Uživatel vybral (AskUserQuestion): v coopu má P1 vejít do OPRAVDOVÉHO pochozího
+interiéru majáku (additivně načtená scéna `LighthouseInterior` VEDLE `SampleScene`),
+zatímco P2 hraje dál na své půlce. Zbývá naimplementovat:
+- `LighthouseManager.Enter()`: v coopu `SceneManager.LoadScene(Additive)` místo Single.
+- Offset interiéru daleko od oceánu (root objekty +X). Interiér má vlastní
+  "Main Camera" (řádek ~773 scény) → v coopu ji použít jako kameru P1 (levá půlka),
+  potlačit P1 `SampleScene` kameru; P2 kamera + P2 hráč + GridManager běží dál.
+- Vstupní brány jsou GLOBÁLNÍ (`UpgradeShopManager.AnyShopOpen`, `IsOpen`,
+  `PlayerController.shopOpen`) → v coopu by zmrazily i P2. Udělat per-hráč
+  (`IsOpenFor(idx)`), aby P2 nezamrzl když P1 nakupuje / je v majáku.
+- Návrat: unload additivní scény, obnovit P1 kameru.
+- Pozn.: sólo maják zůstává beze změny (plné přepnutí scény).
 
 ## POLISH: zvuk, voda, kompas, post-processing (2026-09-04)
 

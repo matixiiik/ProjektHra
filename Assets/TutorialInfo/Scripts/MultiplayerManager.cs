@@ -29,6 +29,14 @@ public class MultiplayerManager : MonoBehaviour
     private HUDCounter        p2HUD;
     private MinimapUIRenderer p2Minimap;
 
+    // Kamera hráče 2: myš patří P1 (jeho orbitální kamera), P2 si ji otáčí
+    // klávesami Numpad + / - (nebo horními + / -).
+    public  float p2TurnSpeed   = 90f; // stupňů za sekundu
+    private float p2Yaw;
+    private float p2Pitch       = 52f;
+    private float p2Distance    = 14f;
+    private float p2PivotHeight = 0.8f;
+
     void Awake() { instance = this; }
 
     // ── Veřejné API (volá se odjinud) ─────────────────────────────────────────
@@ -75,6 +83,22 @@ public class MultiplayerManager : MonoBehaviour
         foreach (var c in p2Go.GetComponentsInChildren<MainMenuManager>())   Destroy(c);
         foreach (var c in p2Go.GetComponentsInChildren<AudioListener>())     Destroy(c);
 
+        // Hráč 2 má červené tričko místo modrého (ať se hráči na první pohled rozliší).
+        if (p2Player.headDot != null)
+        {
+            Transform body = p2Player.headDot.transform.Find("Body");
+            Renderer  br   = body != null ? body.GetComponent<Renderer>() : null;
+            if (br != null)
+            {
+                Color red = new Color(0.75f, 0.16f, 0.13f);
+                var mpb = new MaterialPropertyBlock();
+                br.GetPropertyBlock(mpb);
+                mpb.SetColor("_BaseColor", red);
+                mpb.SetColor("_Color", red);
+                br.SetPropertyBlock(mpb);
+            }
+        }
+
         // Vlastní HUD pro P2 (sám si při Start() postaví canvas).
         GameObject p2HudGo = new GameObject("P2HUD");
         p2HUD = p2HudGo.AddComponent<HUDCounter>();
@@ -93,10 +117,34 @@ public class MultiplayerManager : MonoBehaviour
         p2Camera.tag   = "Untagged";           // "MainCamera" smí být jen P1
         p2Camera.depth = p1Camera.depth + 1;
 
-        // Postav P2 kameru na stejný odstup od P2 hráče, jaký má P1 kamera od P1 hráče.
-        Vector3 camOffset = p1Camera.transform.position - p1Player.transform.position;
-        p2CamGo.transform.position = p2Player.transform.position + camOffset;
-        p2CamGo.transform.rotation = p1Camera.transform.rotation;
+        // Převezmi úhel/odstup z orbitální kamery P1, ať P2 začíná stejně natočená
+        // (dál už si ji točí sama klávesami).
+        CameraOrbit p1Orbit = p1Camera.GetComponent<CameraOrbit>();
+        if (p1Orbit != null)
+        {
+            p2Pitch       = p1Orbit.pitch;
+            p2Distance    = p1Orbit.distance;
+            p2PivotHeight = p1Orbit.pivotHeight;
+            p2Yaw         = p1Orbit.yaw;
+        }
+
+        // Hráč 2 se hýbe podle SVÉ kamery, ne podle kamery hráče 1.
+        p2Player.viewCamera = p2CamGo.transform;
+
+        PositionP2Camera(); // hned ji postav, ať první snímek nebliká z počátku
+    }
+
+    // Postaví kameru hráče 2 za hráče 2 podle p2Yaw / p2Pitch / p2Distance.
+    // (Stejná matematika jako CameraOrbit, jen ve světových souřadnicích —
+    //  kamera P2 není potomkem hráče.)
+    void PositionP2Camera()
+    {
+        if (p2Camera == null || p2Player == null) return;
+
+        Quaternion rot = Quaternion.Euler(p2Pitch, p2Yaw, 0f);
+        Vector3 pivot  = p2Player.transform.position + Vector3.up * p2PivotHeight;
+        p2Camera.transform.position = pivot + rot * new Vector3(0f, 0f, -p2Distance);
+        p2Camera.transform.rotation = rot;
     }
 
     // ── Vypnutí split screenu (návrat do hlavního menu) ───────────────────────
@@ -122,14 +170,21 @@ public class MultiplayerManager : MonoBehaviour
         p2Minimap = null;
     }
 
-    // ── Každý snímek: drž P2 kameru za P2 hráčem se stejným odstupem jako P1 ───
+    // ── Každý snímek: drž P2 kameru za P2 hráčem; P2 si ji otáčí klávesami +/- ──
     void LateUpdate()
     {
         if (!IsMultiplayer) return;
-        if (p1Camera == null || p2Camera == null || p1Player == null || p2Player == null) return;
+        if (p2Camera == null || p2Player == null) return;
 
-        Vector3 camOffset = p1Camera.transform.position - p1Player.transform.position;
-        p2Camera.transform.position = p2Player.transform.position + camOffset;
-        p2Camera.transform.rotation = p1Camera.transform.rotation;
+        // Myš patří hráči 1. Hráč 2 točí kameru: Numpad + (i horní +) doprava,
+        // Numpad - (i horní -) doleva.
+        bool uiBlocking = MainMenuManager.IsVisible || GameConsole.IsOpen || UpgradeShopManager.AnyShopOpen;
+        if (!uiBlocking)
+        {
+            if (Input.GetKey(KeyCode.KeypadPlus)  || Input.GetKey(KeyCode.Equals)) p2Yaw += p2TurnSpeed * Time.deltaTime;
+            if (Input.GetKey(KeyCode.KeypadMinus) || Input.GetKey(KeyCode.Minus))  p2Yaw -= p2TurnSpeed * Time.deltaTime;
+        }
+
+        PositionP2Camera();
     }
 }

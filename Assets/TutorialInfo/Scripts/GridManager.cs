@@ -396,7 +396,9 @@ public class GridManager : MonoBehaviour
                 && IsHarborTile(p.x, p.y) && IsHarborTile(p.x + 1, p.y)
                 && IsHarborTile(p.x, p.y + 1) && IsHarborTile(p.x + 1, p.y + 1)
                 // maják nesmí stát hned vedle mola — ať si hráč nesplete cestu na molo se vstupem do majáku
-                && !Any2x2TileTouchesPier(p.x, p.y))
+                && !Any2x2TileTouchesPier(p.x, p.y)
+                // maják nesmí ostrov rozdělit — hráč se musí pořád dostat na molo
+                && LighthouseKeepsIslandWalkable(p, set))
                 spots.Add(p);
         }
         if (spots.Count == 0) return;
@@ -405,6 +407,43 @@ public class GridManager : MonoBehaviour
         for (int ix = 0; ix < 2; ix++)
             for (int iy = 0; iy < 2; iy++)
                 gameData.tileData[GridKey(a.x + ix, a.y + iy)] = new TileStatus((int)TileType.Lighthouse);
+    }
+
+    // Ověří, že po položení majáku (2×2 od p) zůstane celá zbylá pevnina jedním
+    // souvislým kusem — hráč se pořád dostane odkudkoli na molo (maják neroztne ostrov).
+    private bool LighthouseKeepsIslandWalkable((int x, int y) p, HashSet<(int, int)> land)
+    {
+        var block = new HashSet<(int, int)>
+        {
+            (p.x, p.y), (p.x + 1, p.y), (p.x, p.y + 1), (p.x + 1, p.y + 1)
+        };
+
+        (int, int)? start = null;
+        foreach (var t in land) if (!block.Contains(t)) { start = t; break; }
+        if (start == null) return false;
+
+        var seen  = new HashSet<(int, int)>();
+        var stack = new Stack<(int, int)>();
+        stack.Push(start.Value);
+        seen.Add(start.Value);
+        var dirs = new (int dx, int dy)[] { (1, 0), (-1, 0), (0, 1), (0, -1) };
+
+        while (stack.Count > 0)
+        {
+            var c = stack.Pop();
+            foreach (var d in dirs)
+            {
+                var n = (c.Item1 + d.dx, c.Item2 + d.dy);
+                if (block.Contains(n) || !land.Contains(n) || seen.Contains(n)) continue;
+                seen.Add(n);
+                stack.Push(n);
+            }
+        }
+
+        // Musí projít úplně všechna políčka pevniny mimo maják.
+        foreach (var t in land)
+            if (!block.Contains(t) && !seen.Contains(t)) return false;
+        return true;
     }
 
     // True, když aspoň jedno políčko bloku 2×2 (levý dolní roh x,y) sousedí (4-směrně) s molem.

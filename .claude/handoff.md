@@ -75,6 +75,21 @@ Velký vícefázový úkol:
 Ověřeno přes MCP: sólo maják (plné přepnutí, kulatá místnost, nákup projde,
 odchod OK), coop P1 i P2 vstup/výstup, 1 AudioListener, 0 chyb.
 
+### Oprava: maják nesmí zablokovat nasednutí do lodě (2026-09-08)
+Uživatel: jednou se stalo, že maják byl moc blízko přístavu a nešlo nasednout.
+1. **Generování:** `GridManager.PlaceLighthouse` má nový filtr
+   `LighthouseKeepsIslandWalkable(p, land)` — flood-fill zbylé pevniny (bez
+   2×2 majáku), maják se položí jen když zůstane VŠE dosažitelné (ostrov se
+   neroztne). Ověřeno na 21 ostrovech: 21/21 OK.
+2. **Nasedání robustní:** `PlayerController.TryToggleBoatFoot`:
+   - Vystup z lodě: pevnina vedle mola → druhé molo → v nejhorším zůstat stát
+     na molu (`FindAdjacent(x,y,type)`). Vždycky se dá vylodit.
+   - Nastup zpět: když je loď nedosažitelná (maják v cestě), ale hráč stojí
+     na molu nebo hned vedle (`PierAtOrNextTo`), loď se k němu "připluje"
+     (přehodí `boatGridX/Y`). Ověřeno: nasedne z mola i od mola i když je
+     boatGrid daleko; nenasedne jen když fakt není žádné molo poblíž.
+   `FindAdjacentHarbor` → obecné `FindAdjacent(x,y,TileType)`.
+
 ### COOP: souřadnice per-hráč + OBA v majáku naráz (2026-09-08)
 1. **Souřadnice ve split screenu.** `HUDCounter.Start()` teď volá
    `UpdateLayout(true)`, když `IsMultiplayer` (P2 HUD vzniká až po zapnutí MP,

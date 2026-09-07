@@ -316,26 +316,44 @@ public class PlayerController : MonoBehaviour
 
         if (!isOnFoot)
         {
-            // Vystoupit z lodě jde jen z mola vedle pevniny.
+            // Vystoupit z lodě jde jen z mola.
             if (gridManager.GetTileType(px, py) != TileType.Pier) return;
-            Vector2Int? exit = FindAdjacentHarbor(px, py);
-            if (exit == null) return;
 
             isOnFoot = true;
             if (playerIndex == 0) gridManager.gameData.isOnFoot = true;
             ShowBoatOrFoot();
 
-            GridX = exit.Value.x;
-            GridY = exit.Value.y;
-            MoveToGrid(exit.Value.x, exit.Value.y);
+            // Kam vystoupit: nejradši na pevninu vedle mola, jinak na druhé molo,
+            // a v nejhorším zůstaň stát na molu (nasednout zpět jde pak vždycky).
+            Vector2Int exit = FindAdjacent(px, py, TileType.Harbor)
+                           ?? FindAdjacent(px, py, TileType.Pier)
+                           ?? new Vector2Int(px, py);
+
+            GridX = exit.x;
+            GridY = exit.y;
+            MoveToGrid(exit.x, exit.y);
         }
         else
         {
-            // Nastoupit zpět jde jen když hráč stojí těsně vedle své lodě
-            // (i diagonálně — volná jízda nedrží přesnou mřížku) a loď je na molu.
+            // Normální případ: hráč stojí těsně u své zakotvené lodě (i diagonálně,
+            // volná jízda nedrží přesnou mřížku) a loď je na molu.
             int dist = Mathf.Max(Mathf.Abs(px - boatGridX), Mathf.Abs(py - boatGridY));
-            if (dist > 1) return;
-            if (gridManager.GetTileType(boatGridX, boatGridY) != TileType.Pier) return;
+            bool boatReachable = dist <= 1 && gridManager.GetTileType(boatGridX, boatGridY) == TileType.Pier;
+
+            if (!boatReachable)
+            {
+                // Loď je nedosažitelná (třeba maják v cestě) — "připluj" s ní k hráči,
+                // pokud stojí na molu nebo hned vedle něj. Jinak fakt není kam nasednout.
+                Vector2Int? pier = PierAtOrNextTo(px, py);
+                if (pier == null) return;
+                boatGridX = pier.Value.x;
+                boatGridY = pier.Value.y;
+                if (playerIndex == 0)
+                {
+                    gridManager.gameData.boatGridX = boatGridX;
+                    gridManager.gameData.boatGridY = boatGridY;
+                }
+            }
 
             isOnFoot = false;
             if (playerIndex == 0) gridManager.gameData.isOnFoot = false;
@@ -370,17 +388,21 @@ public class PlayerController : MonoBehaviour
         }
     }
 
-    // Najde políčko pevniny (Harbor) sousedící s [x,y]. Vrací null, když žádné není.
-    Vector2Int? FindAdjacentHarbor(int x, int y)
+    // Najde sousední (4-směr) políčko daného typu. Vrací null, když žádné není.
+    Vector2Int? FindAdjacent(int x, int y, TileType type)
     {
         Vector2Int[] dirs = { Vector2Int.right, Vector2Int.left, Vector2Int.up, Vector2Int.down };
         foreach (var d in dirs)
-        {
-            int nx = x + d.x, ny = y + d.y;
-            if (gridManager.GetTileType(nx, ny) == TileType.Harbor)
-                return new Vector2Int(nx, ny);
-        }
+            if (gridManager.GetTileType(x + d.x, y + d.y) == type)
+                return new Vector2Int(x + d.x, y + d.y);
         return null;
+    }
+
+    // Políčko mola přímo na [x,y], nebo hned vedle. Null, když žádné není.
+    Vector2Int? PierAtOrNextTo(int x, int y)
+    {
+        if (gridManager.GetTileType(x, y) == TileType.Pier) return new Vector2Int(x, y);
+        return FindAdjacent(x, y, TileType.Pier);
     }
 
     // ── Rybaření / těžba / kopání ─────────────────────────────────────────

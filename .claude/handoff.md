@@ -75,6 +75,18 @@ Velký vícefázový úkol:
 Ověřeno přes MCP: sólo maják (plné přepnutí, kulatá místnost, nákup projde,
 odchod OK), coop P1 i P2 vstup/výstup, 1 AudioListener, 0 chyb.
 
+### PLNÝ COOP PRŮCHOD OTESTOVÁN (2026-09-08)
+Nová MP hra → oba pěšky na pevnině vedle sebe (P2 červený) → oba nasednou na
+loď (každý své molo) → plavba → P1 rybaří / P2 těží vrak (oddělené ekonomiky,
+cross-check 0) → oba zakotví → P1 vejde do majáku (levá půlka, kulatý interiér),
+koupí upgrade + quest, vyjde (P2 se celou dobu hýbe) → P2 vejde do majáku
+(pravá půlka), koupí quest, vyjde (P1 se hýbe) → P2 otevře bednu → P2 mega
+quest (per-hráč, P1 nemá) → P2 doplује + vykope → P2 vyplatí v majáku
+(+1261 mincí, +trvalý sellBonus jen P2) → převod peněz v pauze (P1→P2 300 OK)
+→ konzole (get money/fish/boat, upgrade, tp OK) → P2 kamera Numpad +/- OK →
+teardown (Stop() → 1 hráč, 2 kamery, full-screen). **0 chyb/varování, split
+screen screenshot potvrzuje P1 v majáku vlevo + P2 na ostrově vpravo.**
+
 ## VRAK / SKRÝVÁNÍ P1 / PER-HRÁČ OBCHOD (2026-09-08) — HOTOVO, OTESTOVÁNO přes MCP
 
 1. **Treasure políčko na moři = VRAK LODĚ** místo malé truhly. `TreasurePrefab`

@@ -73,8 +73,13 @@ public class MultiplayerManager : MonoBehaviour
             if (p1Orbit != null) p1Orbit.enabled = false;
         }
 
-        // Zmraž hráče 1 v herní scéně (uvnitř majáku za něj chodí InteriorPlayer).
-        if (p1Player != null) p1Player.enabled = false;
+        // Zmraž hráče 1 v herní scéně (uvnitř majáku za něj chodí InteriorPlayer)
+        // a schovej jeho model — ať nestojí jako duch na ostrově na obrazovce hráče 2.
+        if (p1Player != null)
+        {
+            p1Player.enabled = false;
+            p1Player.SetVisualHidden(true);
+        }
     }
 
     void DoEndLighthouseSplit()
@@ -84,7 +89,11 @@ public class MultiplayerManager : MonoBehaviour
             p1Camera.enabled = true;
             if (p1Orbit != null) p1Orbit.enabled = true;
         }
-        if (p1Player != null) p1Player.enabled = true;
+        if (p1Player != null)
+        {
+            p1Player.enabled = true;
+            p1Player.SetVisualHidden(false); // zase ukaž model hráče 1
+        }
     }
 
     // ── Zapnutí split screenu ─────────────────────────────────────────────────

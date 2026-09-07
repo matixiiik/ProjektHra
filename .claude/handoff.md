@@ -45,6 +45,32 @@ Velký vícefázový úkol:
 | `596b059` | **Volná jízda podle kamery.** `PlayerController.Move()` počítá směr z `Camera.main.forward/right` (jen vodorovně) místo pevných os W/A/S/D → otoč kameru (RMB), `W` jede tam, kam se kamera dívá. Jde i diagonálně (`W`+`D`), model se natáčí plynule (`Quaternion.Slerp`, pole `turnSpeed`). Kolize u pobřeží řeší sklouznutí po jedné ose (`TryMoveBy`) místo zaseknutí. `GridX/GridY` (a tedy generování světa, mlha, save) se aktualizují při každém přechodu na jinou dlaždici (`OnEnteredTile`), ne jen jednou za stisk klávesy. Nastupování do lodě teď funguje i z diagonální pozice (Chebyshev vzdálenost ≤1, dřív jen přesně 1 pole rovně). Ověřeno přes UnityMCP (reflexe do `Move`/`TryToggleBoatFoot`): jízda podle kamery, diagonála, plynulé otáčení, diagonální nástup — vše sedí, 0 chyb v konzoli. |
 | *(polish)* | **4 vylepšení z backlogu, na žádost uživatele.** Viz sekce níže. |
 | *(coop 1)* | **6 coop/gen úprav (2026-09-07).** Viz sekce "COOP + GENEROVÁNÍ" níže. |
+| *(coop 2)* | **Coop maják = pochozí interiér navíc + 3 další (2026-09-07/08).** |
+| *(coop 3)* | **Vrak místo truhly na moři + P1 se schová v majáku + per-hráč obchod (2026-09-08).** Viz níže. |
+
+## VRAK / SKRÝVÁNÍ P1 / PER-HRÁČ OBCHOD (2026-09-08) — HOTOVO, OTESTOVÁNO přes MCP
+
+1. **Treasure políčko na moři = VRAK LODĚ** místo malé truhly. `TreasurePrefab`
+   přestavěn (přes `PrefabUtility.SaveAsPrefabAsset`, GUID zachován): Kenney
+   `ship-wreck.fbx` (scale 0.24, localPos y -1.0, nahnutý ~Euler(10,34,22)) =
+   napůl potopený nahnutý vrak, + malá `chest.fbx` na palubě. Materiál
+   `PirateColormap.mat`. Těžba (`MineRoutine`) beze změny (jen mění tile na Water).
+2. **Ve split screenu se P1 schová, když je v majáku.** `PlayerController.SetVisualHidden(bool)`
+   (schová headDot i boatModel; `false` → `ShowBoatOrFoot()`). Volá
+   `MultiplayerManager.DoBeginLighthouseSplit` (hidden) / `DoEndLighthouseSplit`
+   (zpět). Takže P2 nevidí ducha P1 stát na ostrově.
+3. **Per-hráč obchod ve split screenu.** `UpgradeShopManager`/`QuestShopManager`
+   mají `IsOpenForBuyer(int playerIndex)` = `isOpen && buyerIndex == playerIndex`.
+   `PlayerController.Update` gate teď kouká na `IsOpenForBuyer(playerIndex)` místo
+   `IsOpen` → obchod jednoho hráče nemrazí druhého. (Sólo: stejné chování.)
+   Bod 3 zadání ("sjednotit klávesy P2") = uživatel vybral "nechat numpad, jen
+   sjednotit" — audit ukázal, že E/Space/Esc↔Numpad1/Numpad0/NumpadEnter už
+   všechno mají protějšek; jediná reálná mezera byl ten shop-freeze, teď opravený.
+   Pozn.: P2 do majáku v coopu nemůže (design — 1 kamera / additivní scéna).
+
+Ověřeno přes MCP: vrak vypadá jako vrak (screenshoty), P1 headDot+boat se
+schová/vrátí při vstup/výstup z majáku, P2 se hýbe i když má P1 otevřený
+interiérový obchod. 0 chyb/varování.
 
 ## COOP + GENEROVÁNÍ ostrovů (2026-09-07) — ROZDĚLANÉ
 

@@ -144,10 +144,11 @@ public class PlayerController : MonoBehaviour
 
     void Update()
     {
-        // Když je otevřený obchod / konzole / menu, hráč se neovládá.
-        bool shopOpen = (upgradeShopManager != null && upgradeShopManager.IsOpen)
-                     || (questShopManager   != null && questShopManager.IsOpen);
-        if (isMoving || isWorking || shopOpen || GameConsole.IsOpen || MainMenuManager.IsVisible) return;
+        // Když je otevřený MŮJ obchod / konzole / menu, hráč se neovládá.
+        // (Ve split screenu obchod druhého hráče tohohle hráče nemrazí.)
+        bool myShopOpen = (upgradeShopManager != null && upgradeShopManager.IsOpenForBuyer(playerIndex))
+                       || (questShopManager   != null && questShopManager.IsOpenForBuyer(playerIndex));
+        if (isMoving || isWorking || myShopOpen || GameConsole.IsOpen || MainMenuManager.IsVisible) return;
 
         // E / Numpad1 → nastup/vystup z lodě, nebo vejdi do sousední budovy (maják).
         if (KeyDown(KeyCode.E, KeyCode.Keypad1))
@@ -351,6 +352,22 @@ public class PlayerController : MonoBehaviour
     {
         if (boatModel != null) boatModel.gameObject.SetActive(!isOnFoot);
         if (headDot   != null) headDot.SetActive(isOnFoot);
+    }
+
+    /// <summary>Úplně schová / zase ukáže model hráče (loď i panáčka). Používá se,
+    /// když je hráč 1 v majáku — ať jeho panáček nestrašidelně nestojí na ostrově
+    /// na obrazovce hráče 2.</summary>
+    public void SetVisualHidden(bool hidden)
+    {
+        if (hidden)
+        {
+            if (boatModel != null) boatModel.gameObject.SetActive(false);
+            if (headDot   != null) headDot.SetActive(false);
+        }
+        else
+        {
+            ShowBoatOrFoot();
+        }
     }
 
     // Najde políčko pevniny (Harbor) sousedící s [x,y]. Vrací null, když žádné není.

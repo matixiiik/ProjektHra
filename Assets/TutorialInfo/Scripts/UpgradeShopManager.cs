@@ -29,6 +29,10 @@ public class UpgradeShopManager : MonoBehaviour
 
     public bool IsOpen => isOpen;
 
+    /// <summary>Je obchod otevřený a nakupuje v něm zrovna TENHLE hráč? (ve split screenu
+    /// obchod jednoho hráče nemá mrazit druhého)</summary>
+    public bool IsOpenForBuyer(int playerIndex) => isOpen && buyerIndex == playerIndex;
+
     // Data hry — vždy přes GameSession (funguje i ve scéně majáku bez GridManageru).
     private GameData Data => GameSession.Instance.Data;
 

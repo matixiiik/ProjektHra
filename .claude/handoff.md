@@ -70,8 +70,15 @@ Hotovo:
 6. **Maják nikdy hned vedle mola** — `PlaceLighthouse` filtruje 2×2 bloky přes
    nový `Any2x2TileTouchesPier(x,y)` (4-směrní sousedé nesmí být `Pier`).
 
-**7. HOTOVO (offline compile OK, ale NEOVĚŘENO za běhu — editor přes MCP netikal
-snímky, když nebylo okno v popředí) — coop maják jako pochozí interiér navíc:**
+**7. HOTOVO A OTESTOVÁNO přes UnityMCP (Run In Background zapnuté) — coop maják
+jako pochozí interiér navíc:**
+Ověřeno: nová coop hra → oba pěšky na pevnině vedle sebe, P2 červené tričko,
+3 kamery. Maják: interiér aditivně (+5000 offset), P1 kamera vypnutá, interiér
+na levé půlce, P1 zmrazený; P2 se celou dobu hýbe (i s otevřeným obchodem P1).
+Interiérový obchod se otevře (ne ten herní), na půlce obrazovky. Návrat odečte
+scénu, obnoví P1 kameru/CameraOrbit/ovládání. 2× za sebou, 1 AudioListener,
+0 chyb/varování. Ostrovy dál od startu 8–9 políček, maják nikdy u mola.
+Zbývá jen VIZUÁLNÍ kontrola člověkem (jak to vypadá, klávesy naživo).
 V coopu P1 vejde do OPRAVDOVÉHO pochozího interiéru (scéna `LighthouseInterior`
 načtená ADITIVNĚ vedle `SampleScene`), P2 hraje dál na své půlce.
 - `LighthouseManager.Enter()`: sólo = `LoadScene` (beze změny). Coop =

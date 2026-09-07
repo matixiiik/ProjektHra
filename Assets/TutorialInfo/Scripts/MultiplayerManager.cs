@@ -57,14 +57,18 @@ public class MultiplayerManager : MonoBehaviour
         {
             interiorCam.rect  = new Rect(0f, 0f, 0.5f, 1f);           // levá půlka = hráč 1
             interiorCam.depth = (p1Camera != null ? p1Camera.depth : 0);
+
+            // Interiér má vlastní AudioListener — vypni ho, ať jich není ve scéně víc
+            // (o poslech se dál stará listener v herní scéně; zvuky jsou stejně 2D).
+            AudioListener ial = interiorCam.GetComponent<AudioListener>();
+            if (ial != null) ial.enabled = false;
         }
 
         // Vypni kameru hráče 1 v herní scéně (ať se nekreslí přes interiér).
+        // AudioListener P1 kamery NEsaháme — mohl být vypnutý kvůli minimapě.
         if (p1Camera != null)
         {
             p1Camera.enabled = false;
-            AudioListener al = p1Camera.GetComponent<AudioListener>();
-            if (al != null) al.enabled = false; // poslouchá teď kamera interiéru
             p1Orbit = p1Camera.GetComponent<CameraOrbit>();
             if (p1Orbit != null) p1Orbit.enabled = false;
         }
@@ -78,8 +82,6 @@ public class MultiplayerManager : MonoBehaviour
         if (p1Camera != null)
         {
             p1Camera.enabled = true;
-            AudioListener al = p1Camera.GetComponent<AudioListener>();
-            if (al != null) al.enabled = true;
             if (p1Orbit != null) p1Orbit.enabled = true;
         }
         if (p1Player != null) p1Player.enabled = true;

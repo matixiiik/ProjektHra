@@ -42,6 +42,11 @@ public class HUDCounter : MonoBehaviour
         }
 
         BuildHUD();
+
+        // Ve split screenu rovnou přesuň prvky na svoji půlku (P2 HUD vzniká až
+        // po zapnutí multiplayeru, tak si to musí udělat sám při Startu).
+        if (MultiplayerManager.IsMultiplayer) UpdateLayout(true);
+
         grid.OnWorldChanged += Refresh; // překresli při každé změně
         Refresh();
     }

@@ -38,7 +38,7 @@ public class InteriorInteractable : MonoBehaviour
                 break;
 
             case InteriorAction.Exit:
-                LighthouseInterior.ExitToIsland();
+                LighthouseInterior.ExitToIsland(playerIndex);
                 break;
         }
     }

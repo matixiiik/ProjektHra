@@ -1,4 +1,5 @@
 using System.Collections;
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
@@ -12,10 +13,11 @@ using UnityEngine.SceneManagement;
 //
 //  SÓLO: `E` u majáku uloží hru a přepne na scénu LighthouseInterior (celá
 //        obrazovka). Návrat řeší LighthouseInterior.ExitToIsland().
-//  COOP: nejde přepnout celou scénu (vzalo by to i druhého hráče). Scéna majáku
-//        se proto načte ADITIVNĚ vedle herní. Půlka toho hráče, co vešel, ukáže
-//        interiér, druhý hráč hraje dál na své půlce. Návrat = odečtení té
-//        scény (ExitCoop). Naráz může být uvnitř jen jeden hráč.
+//  COOP: nejde přepnout celou scénu (vzalo by to i druhého hráče). Každý hráč,
+//        co vejde, dostane VLASTNÍ kopii scény majáku načtenou ADITIVNĚ
+//        (posunutou daleko od oceánu i od sebe navzájem). Můžou být v majáku
+//        oba naráz — každý na své půlce obrazovky. Návrat = odečtení té
+//        jeho kopie (ExitCoop).
 // ─────────────────────────────────────────────────────────────────────────────
 
 public class LighthouseManager : MonoBehaviour
@@ -23,18 +25,31 @@ public class LighthouseManager : MonoBehaviour
     /// <summary>Jediná instance ve scéně (PlayerController si ji přes ni volá).</summary>
     public static LighthouseManager Instance { get; private set; }
 
-    /// <summary>Který hráč je zrovna "v majáku" (-1 = nikdo).</summary>
-    public static int InsidePlayerIndex { get; private set; } = -1;
-
     /// <summary>Který hráč zrovna vchází (čte LighthouseInterior při Awake additivní scény).</summary>
     public static int PendingPlayerIndex { get; private set; } = -1;
 
+    // Kdo je zrovna uvnitř majáku (index 0 = P1, 1 = P2).
+    private static readonly bool[] inside = new bool[2];
+
+    /// <summary>Je tenhle hráč zrovna v majáku?</summary>
+    public static bool IsInside(int playerIndex)
+        => playerIndex >= 0 && playerIndex < 2 && inside[playerIndex];
+
+    /// <summary>První hráč, co je uvnitř (-1 = nikdo). Kvůli zpětné kompatibilitě.</summary>
+    public static int InsidePlayerIndex => inside[0] ? 0 : (inside[1] ? 1 : -1);
+
     private const string InteriorScene = "LighthouseInterior";
-    private bool switching; // právě probíhá načítání / odečítání scény
+    private bool loading; // právě probíhá načítání / odečítání scény (jen jedno naráz)
+
+    // Coop: kopie scény majáku patřící jednotlivým hráčům.
+    private readonly Dictionary<int, Scene> playerScenes = new Dictionary<int, Scene>();
 
     void Awake()
     {
         Instance = this;
+        inside[0] = false;
+        inside[1] = false;
+        PendingPlayerIndex = -1;
     }
 
     void OnDestroy()
@@ -45,59 +60,68 @@ public class LighthouseManager : MonoBehaviour
     /// <summary>Hráč vešel do majáku.</summary>
     public void Enter(int playerIndex)
     {
-        if (switching) return;
-        if (InsidePlayerIndex >= 0) return; // někdo už uvnitř je (zatím jen jeden naráz)
-
-        InsidePlayerIndex   = playerIndex;
-        PendingPlayerIndex  = playerIndex;
+        if (loading) return;
+        if (playerIndex >= 0 && playerIndex < 2 && inside[playerIndex]) return; // ten hráč už uvnitř je
 
         var grid = FindFirstObjectByType<GridManager>();
         if (grid != null && grid.gameData != null)
         {
-            // po návratu ať ten hráč stojí pěšky u majáku
+            // po návratu ať ten hráč stojí pěšky u majáku (jen P1 – P2 nemá isOnFoot v save)
             if (playerIndex == 0) grid.gameData.isOnFoot = true;
             grid.Save();
         }
 
         if (MultiplayerManager.IsMultiplayer)
-            StartCoroutine(EnterCoop());   // scéna navíc, druhý hráč hraje dál
+        {
+            inside[playerIndex]  = true;
+            PendingPlayerIndex   = playerIndex;
+            StartCoroutine(EnterCoop(playerIndex));
+        }
         else
+        {
+            inside[0]           = true;
+            PendingPlayerIndex  = 0;
             SceneManager.LoadScene(InteriorScene); // sólo = plné přepnutí
+        }
     }
 
-    // Coop: načti scénu majáku aditivně. Rozdělení kamer a zmražení toho hráče,
-    // co vešel, si po Awake udělá LighthouseInterior (přes MultiplayerManager).
-    private IEnumerator EnterCoop()
+    // Coop: načti VLASTNÍ kopii scény majáku pro tohohle hráče. Posunutí,
+    // rozdělení kamer a zmražení hráče si po Awake udělá LighthouseInterior.
+    private IEnumerator EnterCoop(int playerIndex)
     {
-        switching = true;
+        loading = true;
         yield return SceneManager.LoadSceneAsync(InteriorScene, LoadSceneMode.Additive);
-        switching = false;
+        playerScenes[playerIndex] = SceneManager.GetSceneAt(SceneManager.sceneCount - 1);
+        loading = false;
     }
 
-    /// <summary>SÓLO: hráč vyšel z majáku (jen vynuluje příznak, scénu přepíná ExitToIsland).</summary>
+    /// <summary>SÓLO: hráč vyšel z majáku (jen vynuluje příznaky, scénu přepíná ExitToIsland).</summary>
     public void Exit()
     {
-        InsidePlayerIndex  = -1;
+        inside[0] = false;
+        inside[1] = false;
         PendingPlayerIndex = -1;
     }
 
-    /// <summary>COOP: hráč vyšel z majáku — odečti scénu majáku a vrať mu normální ovládání.</summary>
-    public void ExitCoop()
+    /// <summary>COOP: hráč vyšel z majáku — odečti jeho kopii scény a vrať mu ovládání.</summary>
+    public void ExitCoop(int playerIndex)
     {
-        if (switching) return;
-        StartCoroutine(ExitCoopRoutine());
+        if (loading) return;
+        StartCoroutine(ExitCoopRoutine(playerIndex));
     }
 
-    private IEnumerator ExitCoopRoutine()
+    private IEnumerator ExitCoopRoutine(int playerIndex)
     {
-        switching = true;
-        InsidePlayerIndex  = -1;
-        PendingPlayerIndex = -1;
-        MultiplayerManager.EndLighthouseSplit();
+        loading = true;
+        if (playerIndex >= 0 && playerIndex < 2) inside[playerIndex] = false;
+        MultiplayerManager.EndLighthouseSplit(playerIndex);
 
-        if (SceneManager.GetSceneByName(InteriorScene).isLoaded)
-            yield return SceneManager.UnloadSceneAsync(InteriorScene);
-
-        switching = false;
+        if (playerScenes.TryGetValue(playerIndex, out Scene sc))
+        {
+            playerScenes.Remove(playerIndex);
+            if (sc.IsValid() && sc.isLoaded)
+                yield return SceneManager.UnloadSceneAsync(sc);
+        }
+        loading = false;
     }
 }

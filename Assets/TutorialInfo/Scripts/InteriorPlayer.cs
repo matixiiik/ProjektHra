@@ -10,8 +10,9 @@ using UnityEngine;
 //    ownerPlayerIndex 1 = hráč 2 (jen split screen) → šipky, Numpad1
 //  Šipky NIKDY neovládají hráče 1.
 //
-//  Když je otevřený obchod (UpgradeShopManager.AnyShopOpen), ovládání se
-//  vypne, ať se hráč nehýbe pod menu.
+//  Když je otevřený obchod TÉHLE kopie majáku, ovládání se vypne, ať se hráč
+//  nehýbe pod menu. (V coopu má každý hráč vlastní kopii scény majáku, tak se
+//  kouká na obchod ve své scéně, ne na globální příznak.)
 // ─────────────────────────────────────────────────────────────────────────────
 
 public class InteriorPlayer : MonoBehaviour
@@ -32,6 +33,24 @@ public class InteriorPlayer : MonoBehaviour
     private InteriorInteractable nearest; // co je zrovna v dosahu (kvůli nápovědě)
     private GUIStyle promptStyle;
 
+    // Obchody v TÉHLE kopii scény majáku (kvůli coopu — každý hráč má svou kopii).
+    private UpgradeShopManager myUpgradeShop;
+    private QuestShopManager   myQuestShop;
+
+    // Je otevřený obchod v mojí scéně? (Obchod druhého hráče mě nezajímá.)
+    private bool MyShopOpen()
+    {
+        if (myUpgradeShop == null)
+            foreach (var u in FindObjectsByType<UpgradeShopManager>(FindObjectsSortMode.None))
+                if (u.gameObject.scene == gameObject.scene) { myUpgradeShop = u; break; }
+        if (myQuestShop == null)
+            foreach (var q in FindObjectsByType<QuestShopManager>(FindObjectsSortMode.None))
+                if (q.gameObject.scene == gameObject.scene) { myQuestShop = q; break; }
+
+        return (myUpgradeShop != null && myUpgradeShop.IsOpen)
+            || (myQuestShop   != null && myQuestShop.IsOpen);
+    }
+
     // Jsem hráč 1 (nebo sólo)?
     private bool IsP1 => ownerPlayerIndex == 0;
 
@@ -41,7 +60,7 @@ public class InteriorPlayer : MonoBehaviour
 
     void Update()
     {
-        if (UpgradeShopManager.AnyShopOpen || GameConsole.IsOpen) return;
+        if (MyShopOpen() || GameConsole.IsOpen) return;
 
         // Pohyb po rovině (X = doprava, Z = dopředu). Hráč 1 = WASD, hráč 2 = šipky.
         float h = 0f, v = 0f;
@@ -82,6 +101,7 @@ public class InteriorPlayer : MonoBehaviour
 
         foreach (var it in FindObjectsByType<InteriorInteractable>(FindObjectsSortMode.None))
         {
+            if (it.gameObject.scene != gameObject.scene) continue; // jen z mojí kopie majáku
             float d = Vector3.Distance(transform.position, it.transform.position);
             if (d <= it.range && d < bestDist) { best = it; bestDist = d; }
         }
@@ -90,7 +110,7 @@ public class InteriorPlayer : MonoBehaviour
 
     void OnGUI()
     {
-        if (nearest == null || UpgradeShopManager.AnyShopOpen) return;
+        if (nearest == null || MyShopOpen()) return;
 
         if (promptStyle == null)
             promptStyle = new GUIStyle(GUI.skin.label)

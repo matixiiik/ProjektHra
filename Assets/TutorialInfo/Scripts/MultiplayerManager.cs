@@ -43,20 +43,19 @@ public class MultiplayerManager : MonoBehaviour
     public static void StartMultiplayer() { instance?.Setup(); }
     public static void Stop()             { instance?.Teardown(); }
 
-    // Coop: hráč (playerIndex) vešel do majáku (additivní scéna). Jeho půlka
-    // ukáže interiér, druhý hráč hraje dál. Volá LighthouseInterior po Awake.
+    // Coop: hráč (playerIndex) vešel do majáku (vlastní additivní kopie scény).
+    // Jeho půlka ukáže interiér. Můžou být uvnitř oba naráz.
     public static void BeginLighthouseSplit(Camera interiorCam, int playerIndex)
         => instance?.DoBeginLighthouseSplit(interiorCam, playerIndex);
-    // Coop: hráč vyšel z majáku — vrať jeho půlce normální kameru a ovládání.
-    public static void EndLighthouseSplit() => instance?.DoEndLighthouseSplit();
+    // Coop: daný hráč vyšel z majáku — vrať jeho půlce normální kameru a ovládání.
+    public static void EndLighthouseSplit(int playerIndex)
+        => instance?.DoEndLighthouseSplit(playerIndex);
 
-    private CameraOrbit insideOrbit; // orbitální kamera hráče, co je v majáku (kvůli vypnutí)
-    private int         insideIdx = -1;
+    // Orbitální kamera každého hráče (kvůli vypnutí, když je zrovna v majáku).
+    private readonly CameraOrbit[] insideOrbit = new CameraOrbit[2];
 
     void DoBeginLighthouseSplit(Camera interiorCam, int playerIndex)
     {
-        insideIdx = playerIndex;
-
         Camera           gameCam = playerIndex == 0 ? p1Camera : p2Camera;
         PlayerController gamePc  = playerIndex == 0 ? p1Player : p2Player;
 
@@ -66,6 +65,7 @@ public class MultiplayerManager : MonoBehaviour
             float x0 = playerIndex == 0 ? 0f : 0.5f;
             interiorCam.rect  = new Rect(x0, 0f, 0.5f, 1f);
             interiorCam.depth = (gameCam != null ? gameCam.depth : 0) + 2;
+            interiorCam.tag   = "Untagged"; // ať Camera.main nezmatkuje (můžou být 2 interiéry)
 
             // Interiér má vlastní AudioListener — vypni ho, ať jich není ve scéně víc
             // (o poslech se dál stará listener v herní scéně; zvuky jsou stejně 2D).
@@ -78,8 +78,8 @@ public class MultiplayerManager : MonoBehaviour
         if (gameCam != null)
         {
             gameCam.enabled = false;
-            insideOrbit = gameCam.GetComponent<CameraOrbit>();
-            if (insideOrbit != null) insideOrbit.enabled = false;
+            insideOrbit[playerIndex] = gameCam.GetComponent<CameraOrbit>();
+            if (insideOrbit[playerIndex] != null) insideOrbit[playerIndex].enabled = false;
         }
 
         // Zmraž toho hráče v herní scéně (uvnitř majáku za něj chodí InteriorPlayer)
@@ -91,15 +91,15 @@ public class MultiplayerManager : MonoBehaviour
         }
     }
 
-    void DoEndLighthouseSplit()
+    void DoEndLighthouseSplit(int playerIndex)
     {
-        Camera           gameCam = insideIdx == 0 ? p1Camera : p2Camera;
-        PlayerController gamePc  = insideIdx == 0 ? p1Player : p2Player;
+        Camera           gameCam = playerIndex == 0 ? p1Camera : p2Camera;
+        PlayerController gamePc  = playerIndex == 0 ? p1Player : p2Player;
 
         if (gameCam != null)
         {
             gameCam.enabled = true;
-            if (insideOrbit != null) insideOrbit.enabled = true;
+            if (insideOrbit[playerIndex] != null) insideOrbit[playerIndex].enabled = true;
         }
         if (gamePc != null)
         {
@@ -107,8 +107,7 @@ public class MultiplayerManager : MonoBehaviour
             gamePc.SetVisualHidden(false);
         }
 
-        insideIdx   = -1;
-        insideOrbit = null;
+        insideOrbit[playerIndex] = null;
     }
 
     // ── Zapnutí split screenu ─────────────────────────────────────────────────

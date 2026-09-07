@@ -75,6 +75,28 @@ Velký vícefázový úkol:
 Ověřeno přes MCP: sólo maják (plné přepnutí, kulatá místnost, nákup projde,
 odchod OK), coop P1 i P2 vstup/výstup, 1 AudioListener, 0 chyb.
 
+### COOP: souřadnice per-hráč + OBA v majáku naráz (2026-09-08)
+1. **Souřadnice ve split screenu.** `HUDCounter.Start()` teď volá
+   `UpdateLayout(true)`, když `IsMultiplayer` (P2 HUD vzniká až po zapnutí MP,
+   tak si to musí udělat sám). Dřív P2 souřadnice zůstaly vlevo nahoře přes P1.
+   Teď P1 = levý horní roh levé půlky, P2 = levý horní roh pravé půlky.
+2. **Do majáku můžou oba hráči NARÁZ.** Každý hráč, co vejde, dostane VLASTNÍ
+   kopii scény `LighthouseInterior` (additivně, `LoadSceneAsync` 2×), posunutou
+   na +5000 (P1) / +10000 (P2). `LighthouseManager` drží `inside[2]` +
+   `Dictionary<int,Scene> playerScenes`. `Enter()` už neblokuje druhého (jen
+   `if (inside[playerIndex]) return`). `ExitCoop(playerIndex)` odečte JEN tu
+   jeho kopii. `MultiplayerManager.BeginLighthouseSplit(cam, idx)` /
+   `EndLighthouseSplit(idx)` — per-hráč (pole `insideOrbit[2]`), interiér
+   kamera → levá (idx 0) / pravá (idx 1) půlka, tag "Untagged".
+   `LighthouseInterior` má `who`, `OffsetFor(idx)`, `ExitToIsland(int)`.
+   `InteriorInteractable.Trigger(idx)` → Exit předá idx.
+   `InteriorPlayer.MyShopOpen()` — kouká na obchod ve SVÉ kopii scény (ne
+   globální `AnyShopOpen`), takže P1 nakupující nemrazí P2 uvnitř.
+   Ověřeno přes MCP: oba vejdou (2× LighthouseInterior scéna, 2 interiér kamery
+   L+R, oba PC frozen+hidden, 1 AudioListener), P1 otevře svůj obchod → P2
+   uvnitr se dál hýbe, P1 vyjde (jeho kopie se odečte, P2 kopie zůstává), P2
+   vyjde (zpět 1 scéna, 3 kamery). 0 chyb.
+
 ### PLNÝ COOP PRŮCHOD OTESTOVÁN (2026-09-08)
 Nová MP hra → oba pěšky na pevnině vedle sebe (P2 červený) → oba nasednou na
 loď (každý své molo) → plavba → P1 rybaří / P2 těží vrak (oddělené ekonomiky,

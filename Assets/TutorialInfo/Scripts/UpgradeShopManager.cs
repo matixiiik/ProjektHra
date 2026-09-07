@@ -115,13 +115,21 @@ public class UpgradeShopManager : MonoBehaviour
         if (!isOpen) return;
         InitStyles();
 
+        // V coopu kresli obchod jen na půlku obrazovky toho hráče (ať druhému nezakryje hru).
+        float sx = 0f, sw = Screen.width;
+        if (MultiplayerManager.IsMultiplayer)
+        {
+            sw = Screen.width * 0.5f;
+            sx = buyerIndex == 1 ? Screen.width * 0.5f : 0f;
+        }
+
         // Tmavý overlay.
         GUI.color = new Color(0, 0, 0, 0.75f);
-        GUI.DrawTexture(new Rect(0, 0, Screen.width, Screen.height), Texture2D.whiteTexture);
+        GUI.DrawTexture(new Rect(sx, 0, sw, Screen.height), Texture2D.whiteTexture);
         GUI.color = Color.white;
 
         float w = 560, h = 460;
-        float px = (Screen.width  - w) / 2f;
+        float px = sx + (sw - w) / 2f;
         float py = (Screen.height - h) / 2f;
 
         // Panel + modrý proužek.

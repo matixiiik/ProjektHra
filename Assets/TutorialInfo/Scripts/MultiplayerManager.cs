@@ -43,9 +43,53 @@ public class MultiplayerManager : MonoBehaviour
     public static void StartMultiplayer() { instance?.Setup(); }
     public static void Stop()             { instance?.Teardown(); }
 
+    // Coop: hráč 1 vešel do majáku (additivní scéna). Jeho půlka ukáže interiér,
+    // hráč 2 hraje dál. Volá LighthouseInterior po načtení scény.
+    public static void BeginLighthouseSplit(Camera interiorCam) => instance?.DoBeginLighthouseSplit(interiorCam);
+    // Coop: hráč 1 vyšel z majáku — vrať jeho půlce normální kameru a ovládání.
+    public static void EndLighthouseSplit() => instance?.DoEndLighthouseSplit();
+
+    private CameraOrbit p1Orbit; // orbitální kamera hráče 1 (kvůli vypnutí, když je v majáku)
+
+    void DoBeginLighthouseSplit(Camera interiorCam)
+    {
+        if (interiorCam != null)
+        {
+            interiorCam.rect  = new Rect(0f, 0f, 0.5f, 1f);           // levá půlka = hráč 1
+            interiorCam.depth = (p1Camera != null ? p1Camera.depth : 0);
+        }
+
+        // Vypni kameru hráče 1 v herní scéně (ať se nekreslí přes interiér).
+        if (p1Camera != null)
+        {
+            p1Camera.enabled = false;
+            AudioListener al = p1Camera.GetComponent<AudioListener>();
+            if (al != null) al.enabled = false; // poslouchá teď kamera interiéru
+            p1Orbit = p1Camera.GetComponent<CameraOrbit>();
+            if (p1Orbit != null) p1Orbit.enabled = false;
+        }
+
+        // Zmraž hráče 1 v herní scéně (uvnitř majáku za něj chodí InteriorPlayer).
+        if (p1Player != null) p1Player.enabled = false;
+    }
+
+    void DoEndLighthouseSplit()
+    {
+        if (p1Camera != null)
+        {
+            p1Camera.enabled = true;
+            AudioListener al = p1Camera.GetComponent<AudioListener>();
+            if (al != null) al.enabled = true;
+            if (p1Orbit != null) p1Orbit.enabled = true;
+        }
+        if (p1Player != null) p1Player.enabled = true;
+    }
+
     // ── Zapnutí split screenu ─────────────────────────────────────────────────
     void Setup()
     {
+        if (IsMultiplayer) return; // pojistka proti dvojímu zapnutí (jinak by vzniklo víc kopií P2)
+
         p1Camera = Camera.main;
         p1Player = FindFirstObjectByType<PlayerController>();
         p1HUD    = FindFirstObjectByType<HUDCounter>();
@@ -177,8 +221,8 @@ public class MultiplayerManager : MonoBehaviour
         if (p2Camera == null || p2Player == null) return;
 
         // Myš patří hráči 1. Hráč 2 točí kameru: Numpad + (i horní +) doprava,
-        // Numpad - (i horní -) doleva.
-        bool uiBlocking = MainMenuManager.IsVisible || GameConsole.IsOpen || UpgradeShopManager.AnyShopOpen;
+        // Numpad - (i horní -) doleva. (Obchod hráče 1 / maják hráči 2 kameru neblokuje.)
+        bool uiBlocking = MainMenuManager.IsVisible || GameConsole.IsOpen;
         if (!uiBlocking)
         {
             if (Input.GetKey(KeyCode.KeypadPlus)  || Input.GetKey(KeyCode.Equals)) p2Yaw += p2TurnSpeed * Time.deltaTime;

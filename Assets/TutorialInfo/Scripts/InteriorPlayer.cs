@@ -14,8 +14,13 @@ public class InteriorPlayer : MonoBehaviour
 {
     public float moveSpeed = 3.5f;
 
-    [Tooltip("Meze podlahy (kolem počátku), aby hráč nevyšel skrz zeď.")]
+    [Tooltip("Meze podlahy (kolem středu), aby hráč nevyšel skrz zeď.")]
     public Vector2 areaHalfSize = new Vector2(3.2f, 3.2f);
+
+    // Střed pochozí plochy. Sólo = počátek (0,0). V coopu je interiér posunutý
+    // daleko od oceánu, tak LighthouseInterior nastaví střed na ten posun.
+    private Vector3 areaCenter = Vector3.zero;
+    public void SetAreaCenter(Vector3 c) => areaCenter = c;
 
     private InteriorInteractable nearest; // co je zrovna v dosahu (kvůli nápovědě)
     private GUIStyle promptStyle;
@@ -35,8 +40,8 @@ public class InteriorPlayer : MonoBehaviour
         if (dir.sqrMagnitude > 1f) dir.Normalize();
 
         Vector3 pos = transform.position + dir * moveSpeed * Time.deltaTime;
-        pos.x = Mathf.Clamp(pos.x, -areaHalfSize.x, areaHalfSize.x);
-        pos.z = Mathf.Clamp(pos.z, -areaHalfSize.y, areaHalfSize.y);
+        pos.x = Mathf.Clamp(pos.x, areaCenter.x - areaHalfSize.x, areaCenter.x + areaHalfSize.x);
+        pos.z = Mathf.Clamp(pos.z, areaCenter.z - areaHalfSize.y, areaCenter.z + areaHalfSize.y);
         transform.position = pos;
 
         if (dir.sqrMagnitude > 0.01f)
@@ -76,7 +81,9 @@ public class InteriorPlayer : MonoBehaviour
                 normal = { textColor = Color.white }
             };
 
-        var r = new Rect(Screen.width / 2f - 200f, Screen.height - 70f, 400f, 30f);
+        // V coopu je interiér na levé půlce obrazovky (hráč 1) — nápovědu tam vycentruj.
+        float cx = MultiplayerManager.IsMultiplayer ? Screen.width * 0.25f : Screen.width * 0.5f;
+        var r = new Rect(cx - 200f, Screen.height - 70f, 400f, 30f);
         GUI.color = new Color(0f, 0f, 0f, 0.55f);
         GUI.DrawTexture(r, Texture2D.whiteTexture);
         GUI.color = Color.white;

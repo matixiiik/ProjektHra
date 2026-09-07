@@ -28,12 +28,12 @@ public class InteriorInteractable : MonoBehaviour
         switch (action)
         {
             case InteriorAction.UpgradeShop:
-                var us = FindFirstObjectByType<UpgradeShopManager>();
+                var us = FindInMyScene<UpgradeShopManager>();
                 if (us != null) us.Open(0);
                 break;
 
             case InteriorAction.QuestShop:
-                var qs = FindFirstObjectByType<QuestShopManager>();
+                var qs = FindInMyScene<QuestShopManager>();
                 if (qs != null) qs.Open(0);
                 break;
 
@@ -41,5 +41,14 @@ public class InteriorInteractable : MonoBehaviour
                 LighthouseInterior.ExitToIsland();
                 break;
         }
+    }
+
+    // Najde komponentu přednostně ve STEJNÉ scéně jako tenhle bod (kvůli coopu,
+    // kde vedle sebe běží scéna majáku i herní scéna a každá má svůj obchod).
+    private T FindInMyScene<T>() where T : MonoBehaviour
+    {
+        foreach (var m in FindObjectsByType<T>(FindObjectsSortMode.None))
+            if (m.gameObject.scene == gameObject.scene) return m;
+        return FindFirstObjectByType<T>();
     }
 }

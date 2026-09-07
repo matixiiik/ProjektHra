@@ -70,19 +70,35 @@ Hotovo:
 6. **Maják nikdy hned vedle mola** — `PlaceLighthouse` filtruje 2×2 bloky přes
    nový `Any2x2TileTouchesPier(x,y)` (4-směrní sousedé nesmí být `Pier`).
 
-**7. ROZDĚLANÉ — coop maják jako pochozí interiér navíc:**
-Uživatel vybral (AskUserQuestion): v coopu má P1 vejít do OPRAVDOVÉHO pochozího
-interiéru majáku (additivně načtená scéna `LighthouseInterior` VEDLE `SampleScene`),
-zatímco P2 hraje dál na své půlce. Zbývá naimplementovat:
-- `LighthouseManager.Enter()`: v coopu `SceneManager.LoadScene(Additive)` místo Single.
-- Offset interiéru daleko od oceánu (root objekty +X). Interiér má vlastní
-  "Main Camera" (řádek ~773 scény) → v coopu ji použít jako kameru P1 (levá půlka),
-  potlačit P1 `SampleScene` kameru; P2 kamera + P2 hráč + GridManager běží dál.
-- Vstupní brány jsou GLOBÁLNÍ (`UpgradeShopManager.AnyShopOpen`, `IsOpen`,
-  `PlayerController.shopOpen`) → v coopu by zmrazily i P2. Udělat per-hráč
-  (`IsOpenFor(idx)`), aby P2 nezamrzl když P1 nakupuje / je v majáku.
-- Návrat: unload additivní scény, obnovit P1 kameru.
-- Pozn.: sólo maják zůstává beze změny (plné přepnutí scény).
+**7. HOTOVO (offline compile OK, ale NEOVĚŘENO za běhu — editor přes MCP netikal
+snímky, když nebylo okno v popředí) — coop maják jako pochozí interiér navíc:**
+V coopu P1 vejde do OPRAVDOVÉHO pochozího interiéru (scéna `LighthouseInterior`
+načtená ADITIVNĚ vedle `SampleScene`), P2 hraje dál na své půlce.
+- `LighthouseManager.Enter()`: sólo = `LoadScene` (beze změny). Coop =
+  `LoadSceneAsync(Additive)` přes `EnterCoop()`. `ExitCoop()` scénu odečte.
+  Nový `switching` guard.
+- `LighthouseInterior.Awake()` → `SetUpCoopSplit()`: posune všechny root objekty
+  interiéru o `+ (5000,0,0)` (daleko od oceánu), `InteriorPlayer.SetAreaCenter()`
+  na ten posun (jinak by se ořezával zpět k počátku), a zavolá
+  `MultiplayerManager.BeginLighthouseSplit(interiorCam)`.
+- `MultiplayerManager.BeginLighthouseSplit`: interiér kamera → `rect (0,0,0.5,1)`
+  (levá půlka), vypne `p1Camera` (+ její AudioListener + CameraOrbit), zmrazí
+  `p1Player.enabled=false`. `EndLighthouseSplit` to vrátí.
+- `LighthouseInterior.ExitToIsland()` — coop větev volá `LighthouseManager.ExitCoop()`
+  místo `LoadScene`.
+- `InteriorInteractable.Trigger()` → `FindInMyScene<T>()` — vezme obchod ze SVÉ
+  scény (v coopu jsou 2 instance každého obchodu — herní + interiérová).
+- Obchody (`UpgradeShopManager`/`QuestShopManager`) OnGUI: v coopu kreslí jen na
+  půlku obrazovky podle `buyerIndex` (nezakryje druhému hru).
+- `MultiplayerManager.LateUpdate`: P2 kamera už NEblokuje na `AnyShopOpen`
+  (aby ji P1 v majáku / obchod P1 nemrazil).
+- **Navíc: `MultiplayerManager.Setup()` má teď guard `if (IsMultiplayer) return;`**
+  (pojistka proti dvojímu volání = víc kopií P2).
+- Pozn.: P2 v coopu se NEfreezne, když P1 nakupuje/je v majáku, protože jeho
+  `PlayerController` má referenci na HERNÍ obchod (ne interiérový), a ten zůstává
+  zavřený. Sólo maják beze změny.
+
+### CO OTESTOVAT RUČNĚ (bod 7 + celý coop) — viz seznam níže
 
 ## POLISH: zvuk, voda, kompas, post-processing (2026-09-04)
 

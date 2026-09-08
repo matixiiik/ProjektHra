@@ -8,15 +8,22 @@ sem Claude píše, kde se přestalo, aby se dalo pokračovat i z notebooku.
 
 ---
 
-## STAV 2026-09-08 pozdě večer — vše commitnuté a pushnuté, working tree čistý
+## STAV 2026-09-09 — vše commitnuté a pushnuté (`7b0adaf`), working tree čistý
+(kromě `Napady.txt`, který si edituje uživatel — necommitovat za něj)
 
-Poslední práce: **moře — jedna velká voda + průhlednost + dno + obloha**
-(`d10fc2d`, jiná session), pak **dno mělčí + vraky na dně + tmavší hladina + pěna
-za lodí** (`96c79a4`), pak **vraky sedí na přírodní mělčině v meshi dna (ne kupka)
-+ loď víc do vody** (viz sekce "MOŘE — DNO A VRAKY" níže).
-
-Pak (poslední): **veslice jako startovní loď + rychlostní progrese lodí,
-příběhové NPC "děda" na základní ostrov (náčrt), níž molo** (`e9826a9`).
+Poslední práce (nejnovější nahoře):
+- **Soubojový systém** (`7b0adaf`): střelba z lodě (LMB / Numpad *), munice
+  v obchodě + HUD, nepřátelské ostrovy (~20 %) s dělem, piráti (malá/střední/velká
+  loď) s boss health barem, odměny, potopení lodě → obnova na 30. Viz sekce
+  "SOUBOJOVÝ SYSTÉM" níže.
+- **Veslice na hladinu** (`ROW_EXTRA_SINK 0.08`), **health bary přesunuty do
+  MinimapUIRenderer** (děti minimapy → vycentrované nad ní), **mola = výběžky
+  do vody** (`83d4e3b`).
+- **Molo: lodí se nevjede + loď zůstane plavat + oprava lodě + health bary**
+  (`97500f2`).
+- **Veslice jako startovní loď + progrese lodí + NPC děda (náčrt)** (`e9826a9`).
+- **Moře**: jedna velká voda + dno + obloha (`d10fc2d`), dno mělčí + vraky na
+  přírodní mělčině + tmavší hladina + pěna za lodí (`96c79a4`, `d79a9b4`).
 
 Předtím: série coop/maják úprav — vrak místo truhly, kulatý maják, oba hráči
 v jedné místnosti majáku (modrý+červený), per-hráč obchody, souřadnice per-hráč,
@@ -99,18 +106,47 @@ Uživatel po kouskách. Hotovo (`<hash tohoto commitu>`):
    (+ player2). Obchod: řádek "Munice do děla" (opakovaný nákup, `ammoPackCost`
    60 / `ammoPackSize` 10). Perk texty zmiňují dělo.
 
-### ZBÝVÁ (další chunk) — SOUBOJOVÝ SYSTÉM
-Uživatel zadal, ale je to velký kus na vlastní průchod:
-- **Střelba z lodě** LMB → dělová koule (spotřebuje 1 munici, jen když
-  `BoatStats.HasCannon`). Nová `CannonBall.cs` (bez fyziky — pohyb + dosah, styl
-  hry). Cooldown.
-- **Nepřátelské ostrovy** (~20 %) — `GameData` seznam klíčů; ostrov má dělo, co
-  na hráče střílí, když je na dostřel; hráč ho může sestřelit → odměna.
-- **Piráti** — lodě small/large se objevují v otevřené vodě, těžší podle
-  velikosti; přiblížení → boss health bar uprostřed; potopit (náraz/střelba)
-  = odměna, nebo utéct (po čase nechají být). Dělo pirátů poškozuje loď.
-- **Potopení lodě** (0 HP) → respawn u nejbližšího mola, boatHealth ~40.
-- Souboj promítnout do popisů lodí v obchodě (už tam částečně je).
+## SOUBOJOVÝ SYSTÉM (2026-09-09) — HOTOVO, OTESTOVÁNO přes MCP (`7b0adaf`)
+
+Modely jsou zatím z primitivů (koule/kvádry) — funkční, ne hezké. Kenney
+`cannon.fbx` / `cannon-ball.fbx` existují, dají se doplnit.
+
+- **`CannonBall.cs`** — dělová koule bez fyziky (posun + kontrola vzdálenosti
+  k cílům, `HIT_RADIUS 1`). `Side.Player` zasahuje piráty + ostrovní děla,
+  `Side.Enemy` zasahuje loď kteréhokoli plujícího hráče. Život 2.4 s.
+- **Střelba z lodě** — `PlayerController.TryShoot()`: LMB (P1) / Numpad `*` (P2),
+  `SHOOT_COOLDOWN 0.55`. Jen když `BoatStats.HasCannon(shipLevel)` (veslice ne)
+  a `PAmmo > 0`. Munice: `GameData.ammo` (+ player2), kupuje se v `UpgradeShopManager`
+  (řádek "Munice do děla", `ammoPackCost 60` / `ammoPackSize 10`), zobrazená
+  jako 4. řádek v `HUDCounter` ("Naboje: N").
+- **`HostileIslandCannon.cs`** — ~20 % ostrovů (`GameData.hostileIslands`, klíč =
+  bod, kolem kterého ostrov vznikl, přidává `GridManager.GenerateIsland`).
+  `CombatDirector` na aktivním nepřátelském ostrově poblíž hráče spawne dělo
+  (`GridManager.TryGetHostileCannonSpot` — Harbor dlaždice u vody). Střílí na loď
+  hráče na dostřel `RANGE 9.5` každých `RELOAD 2.6` za `DAMAGE 7`. `MAX_HP 3`
+  poškození → zničeno → `+60` minci, klíč do `GameData.clearedIslands` (natrvalo).
+- **`PirateShip.cs`** — `size` 0/1/2 (malá/střední/velká), HP 2.5/5/9. Spawnuje
+  `CombatDirector` v otevřené vodě 14–20 políček od PLUJÍCÍHO hráče (jinak ne),
+  `MAX_PIRATES 2`, interval 22–42 s. Chování: daleko bloumá (`Wander`), po
+  přiblížení (`AGGRO_RANGE 11`, po prvním souboji +4) pronásleduje na `KEEP_DIST 3.2`,
+  střílí (`RELOAD 2.9`, dmg 5/8/12) a naráží (`RAM_RANGE 1.4`, á 1.5 s, dmg 6/10/16).
+  Po útěku za `GIVEUP_RANGE 20` na `GIVEUP_TIME 12` s → zmizí. Potopení =
+  `+30/80/180` minci (`GameData.pirateKills++`). `Dt` = `Min(deltaTime, 0.05)` —
+  ochrana proti škubání editoru mimo fokus.
+- **`CombatDirector.cs`** — sám se vytvoří (`Ensure()` z `GridManager.Awake`).
+  Drží listy pirátů + děl, spawnuje, uklízí (děla ostrovů dál než 40 od hráče).
+  `OnGUI`: boss health bar prvního útočícího piráta nahoře uprostřed (červený,
+  s popiskem velikosti) + krátké „toast" hlášky dole. `NearestSailingPlayer`,
+  `AwayFromNearestThreat`.
+- **Potopení lodě** (`PlayerController.DamageBoat`, HP ≤ 0): obnova na 30,
+  panáček −20 (min. 1 — **žádné game-over**, maturita), `damageGraceUntil`
+  3.5 s nezranitelnost, „odplavání" 9 políček od nejbližší hrozby.
+- **`PlayerController.IsSailing`** = `!isOnFoot && enabled && aktivní` — cíl pro
+  soubojový systém.
+
+**Co ještě může chtít doladit:** hezčí modely (Kenney cannon/ship-pirate fbx),
+vyvážení HP/dmg/odměn, zvuk výstřelu (teď jen splash placeholder), munice/piráti
+pro P2 víc otestovat v reálném split screenu.
 
 ## LODĚ + PŘÍBĚHOVÉ NPC + MOLO (2026-09-08 pozdě večer) — HOTOVO, OTESTOVÁNO přes MCP
 

@@ -73,6 +73,45 @@ Velký vícefázový úkol:
 | *(coop 3)* | **Vrak místo truhly na moři + P1 se schová v majáku + per-hráč obchod (2026-09-08).** Viz níže. |
 | *(coop 4)* | **Coop maják pro OBA hráče + kulatá místnost + šipky nikdy P1 (2026-09-08).** Viz níže. |
 
+## MOLO + LOĎ ZŮSTÁVÁ + HEALTH + OPRAVA (2026-09-09) — HOTOVO, OTESTOVÁNO přes MCP
+
+Uživatel po kouskách. Hotovo (`<hash tohoto commitu>`):
+1. **Veslice níž** — `ShipModelSwitcher.ROW_EXTRA_SINK 0.15` (model ~-0.58 místo -0.43).
+   `Apply()` teď posazuje model do hladiny VŽDY (i schovaný) a volá se z
+   `ShowBoatOrFoot()` → nasednutí má loď hned správně.
+2. **NPC dialog fix** — `StoryNpc.reopenAllowedAt` (0.35 s po `EndTalk`): tentýž
+   stisk E po dokončení monologu už dialog hned neotevře znovu (šlo se zaseknout).
+3. **Molo — lodí se NEvjede.** `PlayerController.CanEnter` v lodi = jen voda
+   (`IsBoatWater`), ne Pier/Harbor. Vystoupit jde jen když loď plave HNED VEDLE
+   mola → panáček přeskočí na molo. Nasednout: hráč na molu / vedle + loď vedle
+   (jinak "připluje" `WaterNextToPierNear`). `GenerateInitialWorld` parkuje loď
+   do vody vedle mola (`FindWaterNextTo`), ne na molo.
+4. **Loď po vystoupení zůstane plavat** — `parkedBoatGO` = kopie modelu lodě na
+   místě vystoupení (`SpawnParkedBoat`/`DespawnParkedBoat`), `SyncParkedBoat()`
+   v Update to drží (i po loadu save). Zničí se při nasednutí + `OnDestroy`.
+5. **Health bary** — `GameData.boatHealth/playerHealth` (+ player2), max 100
+   (`BoatStats.MaxHealth`). `HUDCounter` kreslí 2 pruhy HNED NAD minimapou
+   (P1 vlevo, P2 vpravo), pod 30 zčervenají.
+6. **Oprava lodě v přístavu** — pěšky u svého člunu na molu → `R` (P1) /
+   `Numpad /` (P2), 2 mince/bod (`REPAIR_COST_PER_HP`). Nápověda přes `OnGUI`.
+7. **Příprava na souboje** (zatím nevyužité): `BoatStats.CannonDamage`
+   (veslice 0, malá 0.5, střední 1, velká 2) + `HasCannon`. `GameData.ammo`
+   (+ player2). Obchod: řádek "Munice do děla" (opakovaný nákup, `ammoPackCost`
+   60 / `ammoPackSize` 10). Perk texty zmiňují dělo.
+
+### ZBÝVÁ (další chunk) — SOUBOJOVÝ SYSTÉM
+Uživatel zadal, ale je to velký kus na vlastní průchod:
+- **Střelba z lodě** LMB → dělová koule (spotřebuje 1 munici, jen když
+  `BoatStats.HasCannon`). Nová `CannonBall.cs` (bez fyziky — pohyb + dosah, styl
+  hry). Cooldown.
+- **Nepřátelské ostrovy** (~20 %) — `GameData` seznam klíčů; ostrov má dělo, co
+  na hráče střílí, když je na dostřel; hráč ho může sestřelit → odměna.
+- **Piráti** — lodě small/large se objevují v otevřené vodě, těžší podle
+  velikosti; přiblížení → boss health bar uprostřed; potopit (náraz/střelba)
+  = odměna, nebo utéct (po čase nechají být). Dělo pirátů poškozuje loď.
+- **Potopení lodě** (0 HP) → respawn u nejbližšího mola, boatHealth ~40.
+- Souboj promítnout do popisů lodí v obchodě (už tam částečně je).
+
 ## LODĚ + PŘÍBĚHOVÉ NPC + MOLO (2026-09-08 pozdě večer) — HOTOVO, OTESTOVÁNO přes MCP
 
 Uživatel po kouskách: loď o kousek víc z vody + níž molo; NPC "děda" na základní

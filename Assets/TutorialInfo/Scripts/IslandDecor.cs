@@ -1,15 +1,19 @@
+using System.Collections.Generic;
 using UnityEngine;
 
 // ─────────────────────────────────────────────────────────────────────────────
 //  IslandDecor.cs
-//  Malá "ozdoba" ostrovní dlaždice (písek). V Awake náhodně zapne jednu
-//  z podřízených dekorací (palma / kámen / nic) a náhodně ji pootočí,
-//  aby ostrovy nevypadaly jako mřížka stejných čtverců.
+//  Ozdoba jedné ostrovní dlaždice (písek). V Awake náhodně vybere jednu (občas
+//  dvě) dekorace a pootočí je, aby ostrovy nevypadaly jako mřížka stejných
+//  čtverců.
 //
-//  Dekorace jsou pod objektem jako vypnuté děti pojmenované "Decor_*".
-//  Skript je čistě vizuální — nemá žádný vliv na hratelnost (chození,
-//  kolize, generování). Kdyby na dlaždici stálo molo/obchod, GridManager
-//  na ni tenhle prefab vůbec nedá.
+//  Základní dekorace jsou pod objektem jako vypnuté děti "Decor_*" (palma,
+//  kámen, tráva — nastavené v HarborPrefabu). Navíc se ZA BĚHU přidávají další
+//  Kenney modely z Assets/TutorialInfo/Resources/IslandDecor/ (kameny, trsy
+//  trávy, ohnutá palma, záplaty s křovím), aby byly ostrovy pestřejší. Materiál
+//  se jim vezme z existující "Decor_*" dlaždice (Kenney fbx žádný nemá).
+//
+//  Skript je čistě vizuální — nemá vliv na hratelnost.
 // ─────────────────────────────────────────────────────────────────────────────
 
 public class IslandDecor : MonoBehaviour
@@ -19,59 +23,112 @@ public class IslandDecor : MonoBehaviour
     public float decorChance = 0.5f;
 
     [Tooltip("Šance, že se přidá i druhá (menší) dekorace navrch.")]
-    public float secondDecorChance = 0.25f;
+    public float secondDecorChance = 0.3f;
 
     // Palmy jsou dost malé — zvětšíme je, ať jsou vůči majáku a panáčkovi
     // věrohodnější (cca půl majáku).
     private const float PALM_SCALE = 2.1f;
 
+    // ── Extra Kenney modely (načtou se jednou pro celou hru) ────────────────
+    private struct ExtraDecor { public GameObject prefab; public float scale; public bool isPalm; }
+    private static List<ExtraDecor> extras;
+    private static bool             extrasLoaded;
+
+    private static void LoadExtras()
+    {
+        extrasLoaded = true;
+        extras = new List<ExtraDecor>();
+
+        // (jméno souboru v Resources/IslandDecor, měřítko, je to palma)
+        AddExtra("rocks-a",             0.5f,  false);
+        AddExtra("rocks-b",             0.5f,  false);
+        AddExtra("rocks-c",             0.5f,  false);
+        AddExtra("rocks-sand-b",        0.5f,  false);
+        AddExtra("rocks-sand-c",        0.5f,  false);
+        AddExtra("grass",               0.6f,  false);
+        AddExtra("grass-plant",         0.6f,  false);
+        AddExtra("palm-bend",           PALM_SCALE, true);
+        AddExtra("patch-grass-foliage", 0.9f,  false);
+        AddExtra("patch-sand-foliage",  0.9f,  false);
+    }
+
+    private static void AddExtra(string name, float scale, bool isPalm)
+    {
+        var go = Resources.Load<GameObject>("IslandDecor/" + name);
+        if (go != null) extras.Add(new ExtraDecor { prefab = go, scale = scale, isPalm = isPalm });
+    }
+
     void Awake()
     {
-        // Posbírej děti pojmenované "Decor_..." a všechny je pro jistotu vypni.
-        var decors = new System.Collections.Generic.List<Transform>();
+        if (!extrasLoaded) LoadExtras();
+
+        // Posbírej vestavěné děti "Decor_..." a všechny vypni.
+        var builtin = new List<Transform>();
+        Material decorMat = null;
         foreach (Transform child in transform)
             if (child.name.StartsWith("Decor_"))
             {
                 child.gameObject.SetActive(false);
-                decors.Add(child);
+                builtin.Add(child);
+                if (decorMat == null)
+                {
+                    var mr = child.GetComponentInChildren<MeshRenderer>(true);
+                    if (mr != null) decorMat = mr.sharedMaterial; // PirateColormap
+                }
             }
 
-        if (decors.Count == 0) return;
-
-        // Náhodné pootočení celé dlaždice kolem svislé osy (0/90/180/270),
-        // ať se opakující se textury písku tolik neprozradí.
+        // Náhodné pootočení celé dlaždice (0/90/180/270), ať se textura písku
+        // tolik neprozradí.
         transform.rotation = Quaternion.Euler(0f, Random.Range(0, 4) * 90f, 0f);
 
         if (Random.value > decorChance) return; // dlaždice zůstane holá
 
-        // Zapni jednu náhodnou dekoraci a dej jí vlastní náhodné natočení.
-        ShowDecor(decors[Random.Range(0, decors.Count)], center: true);
-
-        // Občas přidej i druhou dekoraci (menší, trochu odsazenou), ať jsou
-        // ostrovy hustší a živější.
-        if (decors.Count > 1 && Random.value < secondDecorChance)
-        {
-            Transform second = decors[Random.Range(0, decors.Count)];
-            if (!second.gameObject.activeSelf) ShowDecor(second, center: false);
-        }
+        PlaceOne(builtin, decorMat, center: true);
+        if (Random.value < secondDecorChance)
+            PlaceOne(builtin, decorMat, center: false);
     }
 
-    private void ShowDecor(Transform pick, bool center)
+    // Vybere náhodně z vestavěných + extra modelů a jednu dekoraci na dlaždici položí.
+    private void PlaceOne(List<Transform> builtin, Material decorMat, bool center)
     {
-        pick.gameObject.SetActive(true);
-        pick.localRotation = Quaternion.Euler(0f, Random.Range(0f, 360f), 0f);
+        int total = builtin.Count + (extras != null ? extras.Count : 0);
+        if (total == 0) return;
 
-        // Palma se zvětší; ostatní dekorace lehce zvariují velikost.
-        bool isPalm = pick.name.Contains("Palm");
-        float baseScale = isPalm ? PALM_SCALE : Random.Range(0.85f, 1.25f);
-        pick.localScale = Vector3.Scale(pick.localScale, new Vector3(baseScale, baseScale, baseScale));
+        int pick = Random.Range(0, total);
+        Vector3 offset = center
+            ? Vector3.zero
+            : new Vector3(Random.Range(-0.32f, 0.32f), 0f, Random.Range(-0.32f, 0.32f));
 
-        // Druhá dekorace se odsadí ke kraji dlaždice, ať nestojí přesně na první.
-        if (!center)
+        if (pick < builtin.Count)
         {
-            Vector3 off = new Vector3(Random.Range(-0.3f, 0.3f), 0f, Random.Range(-0.3f, 0.3f));
-            pick.localPosition += off;
-            if (!isPalm) pick.localScale *= 0.7f; // menší
+            var t = builtin[pick];
+            if (t.gameObject.activeSelf) return; // už je použitá (druhá dekorace)
+            t.gameObject.SetActive(true);
+            t.localRotation = Quaternion.Euler(0f, Random.Range(0f, 360f), 0f);
+            t.localPosition += offset;
+
+            bool isPalm = t.name.Contains("Palm");
+            float sc = isPalm ? PALM_SCALE : Random.Range(0.85f, 1.25f);
+            if (!center && !isPalm) sc *= 0.7f;
+            t.localScale = Vector3.Scale(t.localScale, new Vector3(sc, sc, sc));
+        }
+        else
+        {
+            var ex = extras[pick - builtin.Count];
+            var go = Instantiate(ex.prefab, transform);
+            go.name = "DecorExtra";
+            go.transform.localPosition = new Vector3(offset.x, 0.02f, offset.z);
+            go.transform.localRotation = Quaternion.Euler(0f, Random.Range(0f, 360f), 0f);
+
+            float sc = ex.scale * (ex.isPalm ? 1f : Random.Range(0.85f, 1.2f));
+            if (!center && !ex.isPalm) sc *= 0.7f;
+            go.transform.localScale = new Vector3(sc, sc, sc);
+
+            // Kenney fbx nemá materiál → dej mu ten z vestavěné dekorace.
+            if (decorMat != null)
+                foreach (var mr in go.GetComponentsInChildren<MeshRenderer>(true))
+                    mr.sharedMaterial = decorMat;
+            foreach (var col in go.GetComponentsInChildren<Collider>(true)) Destroy(col);
         }
     }
 }

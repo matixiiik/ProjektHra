@@ -100,6 +100,19 @@ public class PlayerController : MonoBehaviour
         set { int v = Mathf.Clamp(value, 0, BoatStats.MaxHealth);
               if (playerIndex == 0) gridManager.gameData.playerHealth = v; else gridManager.gameData.player2PlayerHealth = v; }
     }
+    int PAmmo
+    {
+        get => playerIndex == 0 ? gridManager.gameData.ammo : gridManager.gameData.player2Ammo;
+        set { int v = Mathf.Max(0, value);
+              if (playerIndex == 0) gridManager.gameData.ammo = v; else gridManager.gameData.player2Ammo = v; }
+    }
+
+    /// <summary>Je hráč zrovna v lodi na vodě? (pro soubojový systém)</summary>
+    public bool IsSailing => !isOnFoot && enabled && gameObject.activeInHierarchy;
+
+    private float nextShotTime;
+    private const float SHOOT_COOLDOWN = 0.55f;
+    private float damageGraceUntil; // krátká nezranitelnost po "potopení" lodě
     ActiveQuest PQuest     => playerIndex == 0 ? gridManager.gameData.activeQuest      : gridManager.gameData.player2ActiveQuest;
 
     // ── Pomocníci na klávesy (P1 dostane k1, P2 dostane k2) ─────────────────
@@ -205,6 +218,77 @@ public class PlayerController : MonoBehaviour
 
         // R / Numpad-děleno → oprava lodě, když pěšky stojíš u svého člunu na molu.
         if (isOnFoot && CanRepairHere() && KeyDown(KeyCode.R, KeyCode.KeypadDivide)) TryRepairBoat();
+
+        // Levé tlačítko myši (P1) / Numpad * (P2) → výstřel z lodního děla.
+        bool shoot = P1 ? Input.GetMouseButtonDown(0) : Input.GetKeyDown(KeyCode.KeypadMultiply);
+        if (shoot && !isOnFoot) TryShoot();
+    }
+
+    // ── Střelba z lodního děla ─────────────────────────────────────────────
+    void TryShoot()
+    {
+        if (!BoatStats.HasCannon(PShipLevel)) return; // veslice dělo nemá
+        if (PAmmo <= 0) return;
+        if (Time.time < nextShotTime) return;
+        nextShotTime = Time.time + SHOOT_COOLDOWN;
+
+        PAmmo -= 1;
+
+        Vector3 dir  = boatModel != null ? boatModel.forward : transform.forward;
+        Vector3 from = transform.position;
+        CombatDirector.Ensure();
+        CannonBall.Fire(from, dir, BoatStats.CannonDamage(PShipLevel), CannonBall.Side.Player);
+
+        SoundManager.PlaySplash();
+        gridManager.NotifyWorldChanged(); // překresli munici v HUD
+    }
+
+    /// <summary>Ubere lodi zdraví (volá soubojový systém). Při 0 se loď "potopí" a obnoví na 30.</summary>
+    public void DamageBoat(int dmg)
+    {
+        if (isOnFoot || dmg <= 0) return;
+        if (Time.time < damageGraceUntil) return; // chvíli po "potopení" nic nebere
+
+        PBoatHealth -= dmg;
+        SoundManager.PlaySplash();
+        gridManager.NotifyWorldChanged();
+
+        if (PBoatHealth <= 0)
+        {
+            PBoatHealth      = 30;
+            PPlayerHealth    = Mathf.Max(1, PPlayerHealth - 20);
+            damageGraceUntil = Time.time + 3.5f;
+
+            // "Odplav" kus od nejbližšího nebezpečí, ať to není smyčka smrti.
+            if (CombatDirector.Instance != null)
+            {
+                Vector3 away = CombatDirector.Instance.AwayFromNearestThreat(transform.position);
+                Vector3 escape = transform.position + away * 9f;
+                int ex = Mathf.RoundToInt(escape.x), ey = Mathf.RoundToInt(escape.z);
+                if (IsBoatWater(gridManager.GetTileType(ex, ey))) TeleportTo(ex, ey);
+                CombatDirector.Instance.Toast("Lod se skoro potopila! Zbyva 30 zdravi.");
+            }
+
+            gridManager.Save();
+            gridManager.NotifyWorldChanged();
+        }
+    }
+
+    /// <summary>Ubere hráči (panáčkovi) zdraví.</summary>
+    public void DamagePlayer(int dmg)
+    {
+        if (dmg <= 0) return;
+        PPlayerHealth = Mathf.Max(1, PPlayerHealth - dmg); // panáček zatím neumírá (maturita – bez game-over)
+        gridManager.NotifyWorldChanged();
+    }
+
+    /// <summary>Přidá hráči mince (odměna za potopení piráta / zničení děla).</summary>
+    public void RewardCoins(int amount)
+    {
+        if (amount <= 0) return;
+        PCoins += amount;
+        gridManager.Save();
+        gridManager.NotifyWorldChanged();
     }
 
     // Loď (plovoucí kopie) má existovat právě když je hráč pěšky.

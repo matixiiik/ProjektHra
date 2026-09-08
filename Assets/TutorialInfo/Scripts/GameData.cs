@@ -92,7 +92,10 @@ public class GameData
     public int  ammo;              // náboje do děla na lodi (kupují se v obchodě)
     public ActiveQuest activeQuest = new ActiveQuest();
     public MegaQuest   megaQuest   = new MegaQuest();
-    public List<string> openedChests = new List<string>(); // klíče "x,y" už otevřených beden
+    public List<string> openedChests   = new List<string>(); // klíče "x,y" už otevřených beden
+    public List<string> hostileIslands = new List<string>(); // klíče "x,y" (kotva majáku) nepřátelských ostrovů
+    public List<string> clearedIslands = new List<string>(); // nepřátelské ostrovy, kterým hráč zničil dělo
+    public int          pirateKills;                          // kolik pirátů hráč potopil (jen statistika)
 
     // ── Hráč 2 — oddělená ekonomika (jen multiplayer) ─────────────────────────
     public int  player2GridX;

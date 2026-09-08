@@ -2,21 +2,25 @@ using UnityEngine;
 
 // ─────────────────────────────────────────────────────────────────────────────
 //  ShipModelSwitcher.cs
-//  Podle úrovně lodě (shipLevel 0/1/2) zapne správný 3D model lodě a zbylé dva
+//  Podle úrovně lodě (shipLevel 0/1/2/3) zapne správný 3D model lodě a ostatní
 //  vypne. Když je hráč pěšky na ostrově, nechá vypnuté všechny.
 //  Je na stejném objektu jako PlayerController (u P2 na jeho kopii).
+//
+//  Úrovně: 0 = veslice, 1 = malá plachetnice, 2 = střední loď, 3 = velká loď.
+//  Co která úroveň umí (rychlost, rybaření, těžba) je v BoatStats.
 // ─────────────────────────────────────────────────────────────────────────────
 
 public class ShipModelSwitcher : MonoBehaviour
 {
-    public GameObject shipSmall;  // model pro úroveň 0
-    public GameObject shipMedium; // model pro úroveň 1
-    public GameObject shipLarge;  // model pro úroveň 2
+    public GameObject shipRow;    // model pro úroveň 0 (veslice — startovní loď)
+    public GameObject shipSmall;  // model pro úroveň 1 (malá plachetnice)
+    public GameObject shipMedium; // model pro úroveň 2 (střední loď)
+    public GameObject shipLarge;  // model pro úroveň 3 (velká loď)
 
     // O kolik posadit model lodě níž (pod objekt hráče), aby kus trupu byl POD
     // hladinou a loď působila, že fakt pluje (ne že jen leží na vodě).
-    // (Objekt hráče je ve výšce 0.5, hladina cca −0.22 → loď skončí kolem −0.55.)
-    private const float BOAT_SINK = 1.05f;
+    // (Objekt hráče je ve výšce 0.5, hladina cca −0.22 → loď skončí kolem −0.43.)
+    private const float BOAT_SINK = 0.93f;
 
     private GridManager      grid;
     private PlayerController player;
@@ -40,14 +44,18 @@ public class ShipModelSwitcher : MonoBehaviour
         bool onFoot = player != null ? player.IsOnFoot : grid.gameData.isOnFoot;
 
         // Nejdřív vypni všechny lodě.
+        if (shipRow)    shipRow.SetActive(false);
         if (shipSmall)  shipSmall.SetActive(false);
         if (shipMedium) shipMedium.SetActive(false);
         if (shipLarge)  shipLarge.SetActive(false);
 
         // Vyber model podle úrovně a zapni ho (jen když hráč není pěšky na ostrově).
-        GameObject selected = level == 0 ? shipSmall
-                            : level == 1 ? shipMedium
+        GameObject selected = level <= 0 ? shipRow
+                            : level == 1 ? shipSmall
+                            : level == 2 ? shipMedium
                             :              shipLarge;
+        // Pojistka pro staré savy / nezapojený model: spadni na malou plachetnici.
+        if (selected == null) selected = shipSmall;
         if (selected != null && !onFoot)
         {
             selected.SetActive(true);

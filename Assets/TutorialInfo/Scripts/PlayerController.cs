@@ -20,6 +20,7 @@ public class PlayerController : MonoBehaviour
     private GridManager        gridManager;
     private UpgradeShopManager upgradeShopManager;
     private QuestShopManager   questShopManager;
+    private StoryNpc           storyNpc; // příběhové NPC (děda) na startovním ostrově, může být null
 
     public GameObject headDot;          // tečka nad hlavou, když je hráč pěšky
     public Transform  boatModel;        // 3D model lodě (přepíná ShipModelSwitcher)
@@ -79,6 +80,7 @@ public class PlayerController : MonoBehaviour
     bool PHasRodUpgrade    => playerIndex == 0 ? gridManager.gameData.hasRodUpgrade    : gridManager.gameData.player2HasRodUpgrade;
     bool PHasMiningUpgrade => playerIndex == 0 ? gridManager.gameData.hasMiningUpgrade : gridManager.gameData.player2HasMiningUpgrade;
     bool PHasSpeedUpgrade  => playerIndex == 0 ? gridManager.gameData.hasSpeedUpgrade  : gridManager.gameData.player2HasSpeedUpgrade;
+    int  PShipLevel        => playerIndex == 0 ? gridManager.gameData.shipLevel        : gridManager.gameData.player2ShipLevel;
     ActiveQuest PQuest     => playerIndex == 0 ? gridManager.gameData.activeQuest      : gridManager.gameData.player2ActiveQuest;
 
     // ── Pomocníci na klávesy (P1 dostane k1, P2 dostane k2) ─────────────────
@@ -93,6 +95,7 @@ public class PlayerController : MonoBehaviour
         gridManager        = FindFirstObjectByType<GridManager>();
         upgradeShopManager = FindFirstObjectByType<UpgradeShopManager>();
         questShopManager   = FindFirstObjectByType<QuestShopManager>();
+        storyNpc           = FindFirstObjectByType<StoryNpc>();
 
         if (playerIndex == 0)
         {
@@ -152,7 +155,8 @@ public class PlayerController : MonoBehaviour
         // (Ve split screenu obchod druhého hráče tohohle hráče nemrazí.)
         bool myShopOpen = (upgradeShopManager != null && upgradeShopManager.IsOpenForBuyer(playerIndex))
                        || (questShopManager   != null && questShopManager.IsOpenForBuyer(playerIndex));
-        if (isMoving || isWorking || myShopOpen || GameConsole.IsOpen || MainMenuManager.IsVisible) return;
+        bool myTalkOpen = storyNpc != null && storyNpc.IsTalkingWith(playerIndex);
+        if (isMoving || isWorking || myShopOpen || myTalkOpen || GameConsole.IsOpen || MainMenuManager.IsVisible) return;
 
         // E / Numpad1 → nastup/vystup z lodě, nebo vejdi do sousední budovy (maják).
         if (KeyDown(KeyCode.E, KeyCode.Keypad1))
@@ -195,8 +199,14 @@ public class PlayerController : MonoBehaviour
         if (dir.sqrMagnitude < 0.0001f) return;
         dir.Normalize();
 
-        // S rychlostním upgradem (jen na lodi) je jízda 2× rychlejší.
-        float speed = moveSpeed * ((!isOnFoot && PHasSpeedUpgrade) ? 2f : 1f);
+        // Rychlost: pěšky pořád stejně, na lodi ji škáluje úroveň lodě
+        // (veslice pomalá … velká loď nejrychlejší) a navrch rychlostní upgrade (2×).
+        float speed = moveSpeed;
+        if (!isOnFoot)
+        {
+            speed *= BoatStats.SpeedMultiplier(PShipLevel);
+            if (PHasSpeedUpgrade) speed *= 2f;
+        }
 
         TryMoveBy(dir * speed * Time.deltaTime);
         RotateTowards(dir);
@@ -469,6 +479,11 @@ public class PlayerController : MonoBehaviour
             int tx = px + d.x, ty = py + d.y;
             TileType t = gridManager.GetTileType(tx, ty);
 
+            if (storyNpc != null && storyNpc.IsAt(tx, ty))
+            {
+                storyNpc.StartTalk(playerIndex);
+                return true;
+            }
             if (t == TileType.Lighthouse && LighthouseManager.Instance != null)
             {
                 LighthouseManager.Instance.Enter(playerIndex);
@@ -504,8 +519,9 @@ public class PlayerController : MonoBehaviour
 
         SoundManager.PlaySplash();
 
-        // S lepším prutem hráč dostane 2 ryby, jinak 1. Z políčka ubyde 1 "hejno".
-        int catchAmount = PHasRodUpgrade ? 2 : 1;
+        // S lepším prutem hráč dostane 2 ryby, jinak 1; velká loď přidá ještě +1.
+        // Z políčka ubyde 1 "hejno".
+        int catchAmount = (PHasRodUpgrade ? 2 : 1) + BoatStats.FishBonus(PShipLevel);
         tile.fishRemaining -= 1;
         PFishCount += catchAmount;
 
@@ -528,8 +544,9 @@ public class PlayerController : MonoBehaviour
         isWorking = true;
         WorkProgress = 0f;
 
-        // S upgradem těžby je práce 2× rychlejší.
+        // S upgradem těžby je práce 2× rychlejší; střední a větší loď navíc zrychlí o 20 %.
         float duration = PHasMiningUpgrade ? miningDuration * 0.5f : miningDuration;
+        duration *= BoatStats.MiningMultiplier(PShipLevel);
         float elapsed = 0f;
         while (elapsed < duration)
         {

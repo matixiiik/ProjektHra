@@ -42,6 +42,7 @@ public class GridManager : MonoBehaviour
     // nebo se topily, dolaď tady o pár setin.
     private const float FISH_TILE_Y     = -0.45f; // rybí dlaždice — kousek pod hladinou, přes průhlednou vodu prosvítá jako mělčina
     private const float TREASURE_TILE_Y = -1.9f;  // dlaždice pokladu hluboko → trup vraku sedí v mělčině (SeaFloor tam zvedne dno), nad hladinu kouká jen stěžeň
+    private const float PIER_TILE_Y     = -0.25f; // molo posazené níž — dřevěná plošina těsně nad hladinou (cca ve výšce paluby lodě), ať nasedání nevypadá jako skok z výšky
 
     // Veškerý stav hry. Fyzicky ho drží GameSession (přežívá i přechod do
     // scény majáku), GridManager k němu jen přistupuje přes tuhle zkratku.
@@ -546,6 +547,9 @@ public class GridManager : MonoBehaviour
         // Zvlášť se nehoupe (WaterWave dole zrušíme).
         if ((TileType)status.type == TileType.Water_Fish) pos.y = FISH_TILE_Y;
 
+        // Molo posaď níž k hladině (dřevěná plošina jen kousek nad vodou).
+        if ((TileType)status.type == TileType.Pier) pos.y = PIER_TILE_Y;
+
         // Poklad: celou dlaždici (i s vrakem) posaď hluboko pod hladinu, ať vrak
         // vypadá jako potopená troska — kouká jen kus trupu a stěžeň. Kolem je
         // jen velká voda ve stejné barvě, žádná tmavší dlaždice.
@@ -783,6 +787,51 @@ public class GridManager : MonoBehaviour
 
     /// <summary>Ručně vyvolá OnWorldChanged (překreslí HUD a minimapu).</summary>
     public void NotifyWorldChanged() => OnWorldChanged?.Invoke();
+
+    /// <summary>
+    /// Políčka pevniny (Harbor) startovního ostrova — toho u počátku [0,0].
+    /// Používá příběhové NPC (děda), aby se objevilo jen na základním ostrově.
+    /// Vrací prázdný seznam, když ještě žádná pevnina není.
+    /// </summary>
+    public List<Vector2Int> GetStartIslandHarborTiles()
+    {
+        // 1) Najdi pevninové políčko nejblíž počátku (to je startovní ostrov).
+        Vector2Int seed = default;
+        bool found = false;
+        long best = long.MaxValue;
+        foreach (var kv in gameData.tileData)
+        {
+            if (!IsMeshLandTile((TileType)kv.Value.type)) continue;
+            var (x, y) = ParseGridKey(kv.Key);
+            long d = (long)x * x + (long)y * y;
+            if (d < best) { best = d; seed = new Vector2Int(x, y); found = true; }
+        }
+
+        var result = new List<Vector2Int>();
+        if (!found) return result;
+
+        // 2) Flood-fill spojité pevniny z tohoto políčka, seber jen Harbor dlaždice.
+        var seen  = new HashSet<Vector2Int>();
+        var stack = new Stack<Vector2Int>();
+        stack.Push(seed);
+        seen.Add(seed);
+        var dirs = new Vector2Int[] { Vector2Int.right, Vector2Int.left, Vector2Int.up, Vector2Int.down };
+
+        while (stack.Count > 0)
+        {
+            var c = stack.Pop();
+            if (!IsMeshLandTile(GetTileType(c.x, c.y))) continue;
+
+            if (GetTileType(c.x, c.y) == TileType.Harbor) result.Add(c);
+
+            foreach (var d in dirs)
+            {
+                var n = c + d;
+                if (seen.Add(n)) stack.Push(n);
+            }
+        }
+        return result;
+    }
 
     // ── Startovní ostrov (úplně nová hra) ──────────────────────────────────
     private void GenerateInitialWorld()

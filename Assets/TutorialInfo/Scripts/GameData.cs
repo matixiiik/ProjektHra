@@ -85,7 +85,7 @@ public class GameData
     public bool isOnFoot;          // true = hráč je pěšky na ostrově, ne v lodi
     public int  boatGridX;         // kde nechal zakotvenou loď (X)
     public int  boatGridY;         // kde nechal zakotvenou loď (Y)
-    public int  shipLevel;         // úroveň/vzhled lodě: 0=malá, 1=střední, 2=velká
+    public int  shipLevel;         // loď: 0=veslice (start), 1=malá plachetnice, 2=střední, 3=velká (viz BoatStats)
     public bool sellBonus;         // trvalý bonus k výkupním cenám (odměna za mega quest)
     public ActiveQuest activeQuest = new ActiveQuest();
     public MegaQuest   megaQuest   = new MegaQuest();

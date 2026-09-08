@@ -117,7 +117,7 @@ public class GameConsole : MonoBehaviour
                 Log("<color=#ffff88>get money</color> <castka>           přidá mince");
                 Log("<color=#ffff88>get fish</color> <pocet>             přidá ryby");
                 Log("<color=#ffff88>get treasure</color> <pocet>         přidá poklady");
-                Log("<color=#ffff88>get boat</color> small/medium/large   změní loď");
+                Log("<color=#ffff88>get boat</color> row/small/medium/large   změní loď");
                 Log("<color=#ffff88>upgrade</color> speed/rod/mining      odemkne upgrade");
                 Log("<color=#ffff88>tp</color> <x> <y>                   teleport");
                 Log("<color=#ffff88>explore</color> [radius]             odhalí mapu");
@@ -165,9 +165,9 @@ public class GameConsole : MonoBehaviour
                 break;
 
             case "boat":
-                if (p.Length < 3) { Log("Použití: get boat <small/medium/large>"); return; }
-                int level = p[2] == "small" ? 0 : p[2] == "medium" ? 1 : p[2] == "large" ? 2 : -1;
-                if (level < 0) { Log("Neznámá loď — použij: small, medium, large"); return; }
+                if (p.Length < 3) { Log("Použití: get boat <row/small/medium/large>"); return; }
+                int level = p[2] == "row" ? 0 : p[2] == "small" ? 1 : p[2] == "medium" ? 2 : p[2] == "large" ? 3 : -1;
+                if (level < 0) { Log("Neznámá loď — použij: row, small, medium, large"); return; }
                 grid.gameData.shipLevel = level;
                 shipSwitcher?.Apply();
                 Log($"Loď změněna na: <color=#44ff44>{p[2]}</color>");

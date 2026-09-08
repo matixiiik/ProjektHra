@@ -20,8 +20,9 @@ public class UpgradeShopManager : MonoBehaviour
     public int speedUpgradeCost  = 150;
     public int rodUpgradeCost    = 100;
     public int miningUpgradeCost = 120;
-    public int shipMediumCost    = 300;
-    public int shipLargeCost     = 800;
+    public int shipSmallCost     = 200;  // veslice → malá plachetnice
+    public int shipMediumCost    = 300;  // malá → střední loď
+    public int shipLargeCost     = 800;  // střední → velká loď
 
     private GridManager gridManager;   // v SampleScene; ve scéně majáku je null
 
@@ -155,7 +156,7 @@ public class UpgradeShopManager : MonoBehaviour
         GUI.DrawTexture(new Rect(sx, 0, sw, Screen.height), Texture2D.whiteTexture);
         GUI.color = Color.white;
 
-        float w = 560, h = 460;
+        float w = 560, h = 505;
         float px = sx + (sw - w) / 2f;
         float py = (Screen.height - h) / 2f;
 
@@ -181,9 +182,11 @@ public class UpgradeShopManager : MonoBehaviour
         GUILayout.Space(8);
         DrawRow("Rychlost tezby  —  tezba 2x rychleji", miningUpgradeCost, GetUpgrade(2), () => TryBuyUpgrade(2, miningUpgradeCost));
         GUILayout.Space(8);
-        DrawShipRow("Lod stredni  —  lepsi vzhled",  shipMediumCost, 1);
+        DrawShipRow("Lod mala  —  " + BoatStats.Perk(1),    shipSmallCost,  1);
         GUILayout.Space(8);
-        DrawShipRow("Lod velka  —  nejlepsi vzhled", shipLargeCost,  2);
+        DrawShipRow("Lod stredni  —  " + BoatStats.Perk(2), shipMediumCost, 2);
+        GUILayout.Space(8);
+        DrawShipRow("Lod velka  —  " + BoatStats.Perk(3),   shipLargeCost,  3);
 
         GUILayout.Space(18);
         GUILayout.Label($"Mince: {Coins()}", coinsStyle);

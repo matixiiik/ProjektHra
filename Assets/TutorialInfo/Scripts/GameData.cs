@@ -87,8 +87,9 @@ public class GameData
     public int  boatGridY;         // kde nechal zakotvenou loď (Y)
     public int  shipLevel;         // loď: 0=veslice (start), 1=malá plachetnice, 2=střední, 3=velká (viz BoatStats)
     public bool sellBonus;         // trvalý bonus k výkupním cenám (odměna za mega quest)
-    public int  boatHealth   = 100;// zdraví lodě (0–100); opravuje se v přístavu
+    public int  boatHealth   = 100;// zdraví lodě (0–100); opravuje se v přístavu / obchodě
     public int  playerHealth = 100;// zdraví hráče (0–100); 0 = smrt (respawn / menu)
+    public bool boatWrecked;       // loď je rozbitá → hráč plave ve vodě, dokud ji neopraví v obchodě
     public int  ammo;              // náboje do děla na lodi (kupují se v obchodě)
     public bool hasMap;            // koupená mapa → na minimapě šipka k nejbližšímu ostrovu
     public ActiveQuest activeQuest = new ActiveQuest();
@@ -114,6 +115,7 @@ public class GameData
     public bool player2SellBonus;
     public int  player2BoatHealth   = 100;
     public int  player2PlayerHealth = 100;
+    public bool player2BoatWrecked;
     public int  player2Ammo;
     public bool player2HasMap;
     public ActiveQuest player2ActiveQuest = new ActiveQuest();

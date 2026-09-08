@@ -893,7 +893,12 @@ public class GridManager : MonoBehaviour
 
     // ── Mapa (šipka k nejbližšímu ostrovu) + respawn po smrti ──────────────
     /// <summary>Nejbližší dlaždice pevniny (Harbor) k bodu — pro šipku "mapy" na minimapě.</summary>
-    public Vector2Int? NearestHarborTile(int fromX, int fromY)
+    public Vector2Int? NearestHarborTile(int fromX, int fromY) => NearestTileOfType(fromX, fromY, TileType.Harbor);
+
+    /// <summary>Nejbližší molo (Pier) k bodu — pro přemístění lodě po opravě.</summary>
+    public Vector2Int? NearestPierTile(int fromX, int fromY) => NearestTileOfType(fromX, fromY, TileType.Pier);
+
+    private Vector2Int? NearestTileOfType(int fromX, int fromY, TileType type)
     {
         Vector2Int best = default;
         bool found = false;
@@ -901,7 +906,7 @@ public class GridManager : MonoBehaviour
 
         foreach (var kv in gameData.tileData)
         {
-            if (kv.Value.type != (int)TileType.Harbor) continue;
+            if (kv.Value.type != (int)type) continue;
             var (x, y) = ParseGridKey(kv.Key);
             long sq = (long)(x - fromX) * (x - fromX) + (long)(y - fromY) * (y - fromY);
             if (sq < bestSq) { bestSq = sq; best = new Vector2Int(x, y); found = true; }
@@ -952,7 +957,7 @@ public class GridManager : MonoBehaviour
             d.hasMap = false; d.sellBonus = false;
             d.shipLevel = 0;
             d.activeQuest.Reset();
-            d.boatHealth = 100; d.playerHealth = 100;
+            d.boatHealth = 100; d.playerHealth = 100; d.boatWrecked = false;
             d.isOnFoot   = true;
             d.playerGridX = spot.x; d.playerGridY = spot.y;
             d.boatGridX   = boatAt.x; d.boatGridY = boatAt.y;
@@ -964,7 +969,7 @@ public class GridManager : MonoBehaviour
             d.player2HasMap = false; d.player2SellBonus = false;
             d.player2ShipLevel = 0;
             d.player2ActiveQuest.Reset();
-            d.player2BoatHealth = 100; d.player2PlayerHealth = 100;
+            d.player2BoatHealth = 100; d.player2PlayerHealth = 100; d.player2BoatWrecked = false;
             d.player2GridX = spot.x; d.player2GridY = spot.y;
         }
 

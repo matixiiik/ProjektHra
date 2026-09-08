@@ -19,6 +19,13 @@ public static class BoatStats
 {
     public const int MaxHealth = 100; // strop zdraví lodě i hráče
 
+    // Když se loď rozbije, panáček plave — hodně pomalu (o dost míň než veslice
+    // na 0.75). Násobí se s moveSpeed jako u lodí.
+    public const float SwimSpeedMultiplier = 0.28f;
+
+    // Zásah z děla do lodě má tuhle šanci trefit i panáčka (ne jen trup).
+    public const float CannonSplashChance = 0.25f;
+
     /// <summary>Poškození jednoho výstřelu z děla dané lodě. 0 = loď dělo nemá (veslice).</summary>
     public static float CannonDamage(int level)
     {

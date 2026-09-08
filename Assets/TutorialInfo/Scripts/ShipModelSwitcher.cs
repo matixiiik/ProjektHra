@@ -44,9 +44,11 @@ public class ShipModelSwitcher : MonoBehaviour
         if (grid == null) return;
 
         // Který hráč jsme (P1 nebo P2) — každý má vlastní úroveň lodě a stav "pěšky".
-        bool isP2   = player != null && player.playerIndex == 1;
-        int  level  = isP2 ? grid.gameData.player2ShipLevel : grid.gameData.shipLevel;
-        bool onFoot = player != null ? player.IsOnFoot : grid.gameData.isOnFoot;
+        bool isP2    = player != null && player.playerIndex == 1;
+        int  level   = isP2 ? grid.gameData.player2ShipLevel  : grid.gameData.shipLevel;
+        bool onFoot  = player != null ? player.IsOnFoot : grid.gameData.isOnFoot;
+        bool wrecked = isP2 ? grid.gameData.player2BoatWrecked : grid.gameData.boatWrecked;
+        bool hideBoat = onFoot || wrecked; // rozbitá loď se nezobrazuje (panáček plave)
 
         // Nejdřív vypni všechny lodě.
         if (shipRow)    shipRow.SetActive(false);
@@ -71,8 +73,8 @@ public class ShipModelSwitcher : MonoBehaviour
             Vector3 lp = selected.transform.localPosition;
             selected.transform.localPosition = new Vector3(lp.x, -sink, lp.z);
 
-            // Model lodě je vidět jen když hráč není pěšky na ostrově.
-            selected.SetActive(!onFoot);
+            // Model lodě je vidět jen když hráč pluje (ne pěšky, ne rozbitá loď).
+            selected.SetActive(!hideBoat);
         }
 
         // Řekni PlayerControlleru, který objekt je teď jeho loď (kvůli otáčení).

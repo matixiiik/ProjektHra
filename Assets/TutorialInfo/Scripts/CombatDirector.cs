@@ -76,14 +76,15 @@ public class CombatDirector : MonoBehaviour
         }
     }
 
-    // ── Nejbližší hráč, který zrovna pluje (piráti i děla míří na něj) ──────
+    // ── Nejbližší hráč na vodě — pluje NEBO plave (rozbitá loď). Piráti i děla
+    //    míří na něj a klidně ho dorazí, i když už nemá loď. ──────────────────
     public PlayerController NearestSailingPlayer(Vector3 from)
     {
         PlayerController best = null;
         float bestSq = float.MaxValue;
         foreach (var pc in FindObjectsByType<PlayerController>(FindObjectsSortMode.None))
         {
-            if (!pc.IsSailing) continue;
+            if (!pc.IsSailing && !pc.IsSwimming) continue;
             float sq = (pc.transform.position - from).sqrMagnitude;
             if (sq < bestSq) { bestSq = sq; best = pc; }
         }
@@ -133,8 +134,12 @@ public class CombatDirector : MonoBehaviour
     {
         if (pirates.Count >= MAX_PIRATES) return;
 
-        var player = NearestSailingPlayer(Vector3.zero);
-        if (player == null) return; // piráti se objevují jen když někdo pluje
+        // Noví piráti se objevují jen když někdo PLUJE V LODI (ne když plave —
+        // to už je dost bezmocný a nechceme smyčku smrti).
+        PlayerController player = null;
+        foreach (var pc in FindObjectsByType<PlayerController>(FindObjectsSortMode.None))
+            if (pc.IsSailing) { player = pc; break; }
+        if (player == null) return;
 
         Vector3 pp = player.transform.position;
         for (int attempt = 0; attempt < 8; attempt++)

@@ -42,7 +42,8 @@ public static class EconomyConfig
     public const int MegaQuestCoinsMax  = 900;
 
     // ── Oprava lodě ────────────────────────────────────────────────────────
-    public const int RepairCostPerHp = 2;
+    public const int RepairCostPerHp   = 2;   // oprava naplavané lodě (u mola nebo v obchodě)
+    public const int WreckRepairCost    = 160; // vytáhnout a spravit ROZBITOU loď (v obchodě)
 
     // ── Per-ostrov cenový násobič ──────────────────────────────────────────
     /// <summary>Násobič NÁKUPNÍCH cen podle "cenového levelu" ostrova (0–20) → 0.9× až 1.3×.</summary>

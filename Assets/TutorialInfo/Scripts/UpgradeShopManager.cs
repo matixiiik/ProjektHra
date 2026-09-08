@@ -117,6 +117,14 @@ public class UpgradeShopManager : MonoBehaviour
     bool HasMap()             => buyerIndex == 0 ? Data.hasMap : Data.player2HasMap;
     void GiveMap()            { if (buyerIndex == 0) Data.hasMap = true; else Data.player2HasMap = true; }
 
+    int  BoatHp()            => buyerIndex == 0 ? Data.boatHealth : Data.player2BoatHealth;
+    bool BoatWrecked()       => buyerIndex == 0 ? Data.boatWrecked : Data.player2BoatWrecked;
+    void FixBoat()
+    {
+        if (buyerIndex == 0) { Data.boatHealth = BoatStats.MaxHealth; Data.boatWrecked = false; }
+        else                 { Data.player2BoatHealth = BoatStats.MaxHealth; Data.player2BoatWrecked = false; }
+    }
+
     // ── Nákup vylepšení ─────────────────────────────────────────────────────
     // Podmínky: ještě to nemá + má dost mincí.
     private bool TryBuyUpgrade(int upgradeType, int cost)
@@ -160,7 +168,7 @@ public class UpgradeShopManager : MonoBehaviour
         GUI.DrawTexture(new Rect(sx, 0, sw, Screen.height), Texture2D.whiteTexture);
         GUI.color = Color.white;
 
-        float w = 560, h = 590;
+        float w = 560, h = 624;
         float px = sx + (sw - w) / 2f;
         float py = (Screen.height - h) / 2f;
 
@@ -203,10 +211,44 @@ public class UpgradeShopManager : MonoBehaviour
         DrawAmmoRow();
         GUILayout.Space(8);
         DrawMapRow();
+        GUILayout.Space(8);
+        DrawRepairRow();
 
         GUILayout.Space(14);
         GUILayout.Label($"Mince: {Coins()}", coinsStyle);
         GUILayout.EndArea();
+    }
+
+    // Oprava lodě — ukáže se, jen když je loď poškozená nebo rozbitá.
+    private void DrawRepairRow()
+    {
+        bool wrecked = BoatWrecked();
+        int  hp      = BoatHp();
+        if (!wrecked && hp >= BoatStats.MaxHealth) return; // loď je v pohodě
+
+        int cost = wrecked
+            ? EconomyConfig.WreckRepairCost
+            : Mathf.Max(1, (BoatStats.MaxHealth - hp) * EconomyConfig.RepairCostPerHp);
+
+        string label = wrecked
+            ? "Opravit ROZBITOU lod  —  vytahnout z vody"
+            : $"Opravit lod  ( {hp}/100 )";
+
+        GUILayout.BeginHorizontal();
+        GUILayout.Label(label, rowStyle, GUILayout.ExpandWidth(true));
+        GUILayout.Label($"{cost} minci", rowStyle, GUILayout.Width(90));
+        GUI.enabled = Coins() >= cost;
+        if (SoundManager.Click(GUILayout.Button("Opravit", buyStyle, GUILayout.Width(90), GUILayout.Height(28))))
+        {
+            if (Coins() >= cost)
+            {
+                SetCoins(Coins() - cost);
+                FixBoat();
+                Persist();
+            }
+        }
+        GUI.enabled = true;
+        GUILayout.EndHorizontal();
     }
 
     // Munice do děla — dá se kupovat opakovaně (žádné "Zakoupeno").

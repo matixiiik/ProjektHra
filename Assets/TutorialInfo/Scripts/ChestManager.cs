@@ -64,7 +64,7 @@ public class ChestManager : MonoBehaviour
         opened.Add(key);
 
         // Pár mincí rovnou z bedny.
-        int loot = Random.Range(60, 160);
+        int loot = Random.Range(EconomyConfig.ChestCoinsMin, EconomyConfig.ChestCoinsMax + 1);
         AddCoins(playerIndex, loot);
         string msg = "Bedna otevřena!  +" + loot + " mincí.";
 
@@ -98,7 +98,7 @@ public class ChestManager : MonoBehaviour
         mq.targetY     = fromY + Mathf.RoundToInt(Mathf.Sin(ang) * dist);
         mq.active      = true;
         mq.dug         = false;
-        mq.rewardCoins = Random.Range(800, 1600);
+        mq.rewardCoins = Random.Range(EconomyConfig.MegaQuestCoinsMin, EconomyConfig.MegaQuestCoinsMax + 1);
     }
 
     private void AddCoins(int playerIndex, int amount)

@@ -15,8 +15,7 @@ using UnityEngine;
 [DefaultExecutionOrder(100)]
 public class QuestShopManager : MonoBehaviour
 {
-    public int fishSellPrice     = 10; // cena za 1 rybu
-    public int treasureSellPrice = 30; // cena za 1 poklad
+    // Výkupní ceny jsou v EconomyConfig (všechny ostrovy stejně).
 
     private GridManager gridManager;
 
@@ -58,14 +57,16 @@ public class QuestShopManager : MonoBehaviour
 
     // Šablony questů: (typ, min cíl, max cíl, min cena, max cena, násobič odměny).
     // Z každé se náhodně "vylosuje" konkrétní cíl a cena v daném rozsahu.
+    //  Přizpůsobené nízkému výkupu (1 ryba = 1 mince): odměna questu (cost*mult)
+    //  je hlavní zdroj větších peněz. Velké questy dají ~1000 → cesta k velké lodi.
     private static readonly (int type, int tMin, int tMax, int cMin, int cMax, int mult)[] Templates =
     {
-        (0,  5, 10,  20,  40, 2),
-        (0, 20, 35,  60,  90, 4),
-        (0, 50, 80, 100, 150, 7),
-        (1,  3,  6,  30,  50, 3),
-        (1,  8, 15,  70, 100, 5),
-        (1, 18, 25, 120, 180, 8),
+        (0,  6, 12,  15,  30,  3),
+        (0, 25, 40,  50,  80,  5),
+        (0, 60, 90, 110, 160,  9),
+        (1,  4,  8,  25,  45,  4),
+        (1, 10, 18,  70, 110,  6),
+        (1, 20, 30, 130, 200, 11),
     };
 
     void Start() { gridManager = FindFirstObjectByType<GridManager>(); }
@@ -93,9 +94,9 @@ public class QuestShopManager : MonoBehaviour
     bool        HasSellBonus()     => buyerIndex == 0 ? Data.sellBonus      : Data.player2SellBonus;
     void        GiveSellBonus()    { if (buyerIndex == 0) Data.sellBonus = true; else Data.player2SellBonus = true; }
 
-    // Výkupní ceny — po splnění mega questu trvale +5 za kus.
-    int FishPrice()     => fishSellPrice     + (HasSellBonus() ? 5 : 0);
-    int TreasurePrice() => treasureSellPrice + (HasSellBonus() ? 5 : 0);
+    // Výkupní ceny — po splnění mega questu trvale bonus za kus.
+    int FishPrice()     => EconomyConfig.FishPrice     + (HasSellBonus() ? EconomyConfig.SellBonusPerItem : 0);
+    int TreasurePrice() => EconomyConfig.TreasurePrice + (HasSellBonus() ? EconomyConfig.SellBonusPerItem : 0);
 
     /// <summary>Vyplacení mega questu (poklad z mapy). Mince + trvalý bonus na výkup.</summary>
     void ClaimMega()
@@ -221,6 +222,9 @@ public class QuestShopManager : MonoBehaviour
         GUI.color = new Color(1f, 0.6f, 0.1f, 1f);
         GUI.DrawTexture(new Rect(px, py, w, 3), Texture2D.whiteTexture);
         GUI.color = Color.white;
+
+        // Zavírací křížek vpravo nahoře.
+        if (ShopUI.CloseButton(px, py, w)) { openFor[who] = false; return; }
 
         GUILayout.BeginArea(new Rect(px + 25, py + 20, w - 50, h - 40));
 

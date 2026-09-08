@@ -32,6 +32,13 @@ public class GameSession : MonoBehaviour
     /// </summary>
     public static bool ReturningFromLighthouse;
 
+    /// <summary>
+    /// "Cenový level" (0–20) ostrova, jehož obchod je zrovna otevřený. Nastavuje
+    /// se při vstupu do majáku / otevření obchodu, obchody podle něj škálují
+    /// nákupní ceny (viz EconomyConfig). Nepersistuje se.
+    /// </summary>
+    public static int ShopPriceLevel;
+
     void Awake()
     {
         if (Instance != null && Instance != this) { Destroy(gameObject); return; }

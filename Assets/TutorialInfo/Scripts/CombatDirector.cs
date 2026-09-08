@@ -157,7 +157,9 @@ public class CombatDirector : MonoBehaviour
     // ── Odměny / hlášky ──────────────────────────────────────────────────
     public void OnPirateSunk(PirateShip p)
     {
-        int reward = p.size == 0 ? 30 : p.size == 1 ? 80 : 180;
+        int reward = p.size == 0 ? EconomyConfig.PirateRewardSmall
+                   : p.size == 1 ? EconomyConfig.PirateRewardMedium
+                   :               EconomyConfig.PirateRewardLarge;
         var pc = NearestAnyPlayer();
         if (pc != null) pc.RewardCoins(reward);
         if (grid != null) { grid.gameData.pirateKills++; grid.Save(); }
@@ -169,9 +171,9 @@ public class CombatDirector : MonoBehaviour
     {
         if (grid != null) { grid.MarkIslandCleared(key); grid.Save(); }
         var pc = NearestAnyPlayer();
-        if (pc != null) pc.RewardCoins(60);
+        if (pc != null) pc.RewardCoins(EconomyConfig.IslandCannonReward);
         SoundManager.PlayCoin();
-        Toast("Ostrovni delo zniceno!  +60 minci");
+        Toast("Ostrovni delo zniceno!  +" + EconomyConfig.IslandCannonReward + " minci");
     }
 
     public void Toast(string text)

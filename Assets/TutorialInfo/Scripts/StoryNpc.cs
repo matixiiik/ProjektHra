@@ -87,29 +87,39 @@ public class StoryNpc : MonoBehaviour
         List<Vector2Int> harbor = gridManager.GetStartIslandHarborTiles();
         if (harbor.Count == 0) return;
 
-        // Vyber políčko: nejradši takové, co sousedí s molem (tam hráč začíná a
-        // hned dědu uvidí), ale NE těsně u majáku (ať se to neplete). Jinak to
-        // nejblíž hráčově startovní pozici a taky ne u majáku.
+        // Děda musí SEDĚT NA OSTROVĚ — jen políčko, které má kolem sebe (4-směrně)
+        // samou pevninu (ne kraj / molo / vodu), aby nekoukal z ničeho. Vynech
+        // taky políčka těsně u majáku. Z vyhovujících vezmi to nejblíž startu hráče.
         Vector2Int spawn = new Vector2Int(gridManager.gameData.playerGridX, gridManager.gameData.playerGridY);
-        Vector2Int bestPier = default; bool hasPier = false;
-        Vector2Int bestNear = harbor[0]; float bestDist = float.MaxValue;
+        Vector2Int best = default; float bestDist = float.MaxValue; bool has = false;
 
         foreach (var t in harbor)
         {
-            if (NextToLighthouse(t)) continue; // vynech políčka u majáku
-
-            if (!hasPier && NextToPier(t)) { bestPier = t; hasPier = true; }
+            if (!SurroundedByLand(t)) continue;
+            if (NextToLighthouse(t))  continue;
             float d = (t - spawn).sqrMagnitude;
-            if (d < bestDist) { bestDist = d; bestNear = t; }
+            if (d < bestDist) { bestDist = d; best = t; has = true; }
         }
 
-        tilePos = hasPier ? bestPier : bestNear;
+        // Nouzovka: kdyby žádné plně obklopené nebylo (mrňavý ostrov), vezmi
+        // aspoň políčko se 3 pevninovými sousedy dál od kraje.
+        if (!has)
+        {
+            foreach (var t in harbor)
+            {
+                if (LandNeighbourCount(t) < 3 || NextToLighthouse(t)) continue;
+                float d = (t - spawn).sqrMagnitude;
+                if (d < bestDist) { bestDist = d; best = t; has = true; }
+            }
+        }
+        if (!has) return; // zkusíme příští snímek
+
+        tilePos = best;
         placed  = true;
 
         BuildFigure();
     }
 
-    private bool NextToPier(Vector2Int t) => HasNeighbour(t, TileType.Pier);
     private bool NextToLighthouse(Vector2Int t) => HasNeighbour(t, TileType.Lighthouse);
 
     private bool HasNeighbour(Vector2Int t, TileType type)
@@ -118,6 +128,25 @@ public class StoryNpc : MonoBehaviour
             || gridManager.GetTileType(t.x - 1, t.y) == type
             || gridManager.GetTileType(t.x, t.y + 1) == type
             || gridManager.GetTileType(t.x, t.y - 1) == type;
+    }
+
+    private static bool IsLand(TileType t)
+        => t == TileType.Harbor || t == TileType.Lighthouse || t == TileType.Chest;
+
+    private bool SurroundedByLand(Vector2Int t)
+        => IsLand(gridManager.GetTileType(t.x + 1, t.y))
+        && IsLand(gridManager.GetTileType(t.x - 1, t.y))
+        && IsLand(gridManager.GetTileType(t.x, t.y + 1))
+        && IsLand(gridManager.GetTileType(t.x, t.y - 1));
+
+    private int LandNeighbourCount(Vector2Int t)
+    {
+        int n = 0;
+        if (IsLand(gridManager.GetTileType(t.x + 1, t.y))) n++;
+        if (IsLand(gridManager.GetTileType(t.x - 1, t.y))) n++;
+        if (IsLand(gridManager.GetTileType(t.x, t.y + 1))) n++;
+        if (IsLand(gridManager.GetTileType(t.x, t.y - 1))) n++;
+        return n;
     }
 
     // ── Panáček (stejné díly jako hráč, jen sedí a je starý) ─────────────────

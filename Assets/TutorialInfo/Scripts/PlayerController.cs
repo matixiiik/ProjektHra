@@ -29,7 +29,7 @@ public class PlayerController : MonoBehaviour
     // Když hráč vystoupí na ostrov, loď nezmizí — nechá se plavat na svém místě
     // jako tenhle samostatný objekt (kopie modelu lodě). Zase se zničí při nasednutí.
     private GameObject parkedBoatGO;
-    private const int  REPAIR_COST_PER_HP = 2; // kolik mincí stojí oprava 1 bodu zdraví lodě
+    private const int  REPAIR_COST_PER_HP = EconomyConfig.RepairCostPerHp; // mince za opravu 1 bodu zdraví lodě
 
     // Kamera, podle které se tenhle hráč hýbe (W = "kam kouká kamera").
     // P1 = hlavní kamera (necháme null → Camera.main), P2 ji dostane od MultiplayerManageru.
@@ -193,7 +193,7 @@ public class PlayerController : MonoBehaviour
         bool myShopOpen = (upgradeShopManager != null && upgradeShopManager.IsOpenForBuyer(playerIndex))
                        || (questShopManager   != null && questShopManager.IsOpenForBuyer(playerIndex));
         bool myTalkOpen = storyNpc != null && storyNpc.IsTalkingWith(playerIndex);
-        if (isMoving || isWorking || myShopOpen || myTalkOpen || GameConsole.IsOpen || MainMenuManager.IsVisible) return;
+        if (isMoving || isWorking || myShopOpen || myTalkOpen || GameConsole.IsOpen || MainMenuManager.IsVisible || DeathScreen.IsOpen) return;
 
         // E / Numpad1 → nastup/vystup z lodě, nebo vejdi do sousední budovy (maják).
         if (KeyDown(KeyCode.E, KeyCode.Keypad1))
@@ -243,10 +243,11 @@ public class PlayerController : MonoBehaviour
         gridManager.NotifyWorldChanged(); // překresli munici v HUD
     }
 
-    /// <summary>Ubere lodi zdraví (volá soubojový systém). Při 0 se loď "potopí" a obnoví na 30.</summary>
+    /// <summary>Ubere lodi zdraví (volá soubojový systém). Při 0 se loď "potopí":
+    /// obnoví se na 30, ale panáček ztratí kus zdraví — a když padne na 0, konec.</summary>
     public void DamageBoat(int dmg)
     {
-        if (isOnFoot || dmg <= 0) return;
+        if (isOnFoot || dmg <= 0 || DeathScreen.IsOpen) return;
         if (Time.time < damageGraceUntil) return; // chvíli po "potopení" nic nebere
 
         PBoatHealth -= dmg;
@@ -255,8 +256,10 @@ public class PlayerController : MonoBehaviour
 
         if (PBoatHealth <= 0)
         {
+            PPlayerHealth -= 25;
+            if (PPlayerHealth <= 0) { PPlayerHealth = 0; gridManager.Save(); DeathScreen.Show(playerIndex); return; }
+
             PBoatHealth      = 30;
-            PPlayerHealth    = Mathf.Max(1, PPlayerHealth - 20);
             damageGraceUntil = Time.time + 3.5f;
 
             // "Odplav" kus od nejbližšího nebezpečí, ať to není smyčka smrti.
@@ -266,7 +269,7 @@ public class PlayerController : MonoBehaviour
                 Vector3 escape = transform.position + away * 9f;
                 int ex = Mathf.RoundToInt(escape.x), ey = Mathf.RoundToInt(escape.z);
                 if (IsBoatWater(gridManager.GetTileType(ex, ey))) TeleportTo(ex, ey);
-                CombatDirector.Instance.Toast("Lod se skoro potopila! Zbyva 30 zdravi.");
+                CombatDirector.Instance.Toast("Lod se skoro potopila! Zdravi panacka: " + PPlayerHealth);
             }
 
             gridManager.Save();
@@ -274,12 +277,13 @@ public class PlayerController : MonoBehaviour
         }
     }
 
-    /// <summary>Ubere hráči (panáčkovi) zdraví.</summary>
+    /// <summary>Ubere hráči (panáčkovi) zdraví přímo. Při 0 → obrazovka smrti.</summary>
     public void DamagePlayer(int dmg)
     {
-        if (dmg <= 0) return;
-        PPlayerHealth = Mathf.Max(1, PPlayerHealth - dmg); // panáček zatím neumírá (maturita – bez game-over)
+        if (dmg <= 0 || DeathScreen.IsOpen) return;
+        PPlayerHealth -= dmg;
         gridManager.NotifyWorldChanged();
+        if (PPlayerHealth <= 0) { PPlayerHealth = 0; gridManager.Save(); DeathScreen.Show(playerIndex); }
     }
 
     /// <summary>Přidá hráči mince (odměna za potopení piráta / zničení děla).</summary>
@@ -697,6 +701,8 @@ public class PlayerController : MonoBehaviour
             }
             if (t == TileType.Lighthouse && LighthouseManager.Instance != null)
             {
+                // Cenová hladina obchodů = podle pozice majáku toho ostrova.
+                GameSession.ShopPriceLevel = EconomyConfig.IslandPriceLevel(tx, ty);
                 LighthouseManager.Instance.Enter(playerIndex);
                 return true;
             }
@@ -704,8 +710,16 @@ public class PlayerController : MonoBehaviour
             {
                 return ChestManager.Instance.TryOpen(tx, ty, playerIndex);
             }
-            if (t == TileType.UpgradeShop && upgradeShopManager != null) { upgradeShopManager.Open(playerIndex); return true; }
-            if (t == TileType.QuestShop   && questShopManager   != null) { questShopManager.Open(playerIndex);   return true; }
+            if (t == TileType.UpgradeShop && upgradeShopManager != null)
+            {
+                GameSession.ShopPriceLevel = EconomyConfig.IslandPriceLevel(tx, ty);
+                upgradeShopManager.Open(playerIndex); return true;
+            }
+            if (t == TileType.QuestShop && questShopManager != null)
+            {
+                GameSession.ShopPriceLevel = EconomyConfig.IslandPriceLevel(tx, ty);
+                questShopManager.Open(playerIndex); return true;
+            }
         }
         return false;
     }

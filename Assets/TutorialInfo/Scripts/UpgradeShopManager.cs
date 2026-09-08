@@ -16,17 +16,13 @@ using UnityEngine;
 [DefaultExecutionOrder(100)]
 public class UpgradeShopManager : MonoBehaviour
 {
-    // Ceny (jdou přenastavit v inspektoru).
-    public int speedUpgradeCost  = 150;
-    public int rodUpgradeCost    = 100;
-    public int miningUpgradeCost = 120;
-    public int shipSmallCost     = 200;  // veslice → malá plachetnice
-    public int shipMediumCost    = 300;  // malá → střední loď
-    public int shipLargeCost     = 800;  // střední → velká loď
-    public int ammoPackCost      = 60;   // cena jednoho balíčku munice
-    public int ammoPackSize      = 10;   // kolik nábojů je v balíčku
+    // Základní ceny jsou v EconomyConfig; každý ostrov je násobí svým cenovým
+    // levelem (GameSession.ShopPriceLevel) → někde levněji, jinde dráž.
 
     private GridManager gridManager;   // v SampleScene; ve scéně majáku je null
+
+    // Zaokrouhlená cena pro ostrov, jehož obchod je zrovna otevřený.
+    private int PriceOf(int baseCost) => EconomyConfig.Price(baseCost, GameSession.ShopPriceLevel);
 
     // Obchod může být otevřený zvlášť pro hráče 1 i hráče 2 naráz (jsou spolu
     // v jednom majáku). buyerIndex říká, čí panel se zrovna kreslí / kdo nakupuje.
@@ -118,6 +114,9 @@ public class UpgradeShopManager : MonoBehaviour
     int  Ammo()              => buyerIndex == 0 ? Data.ammo : Data.player2Ammo;
     void AddAmmo(int n)       { if (buyerIndex == 0) Data.ammo += n; else Data.player2Ammo += n; }
 
+    bool HasMap()             => buyerIndex == 0 ? Data.hasMap : Data.player2HasMap;
+    void GiveMap()            { if (buyerIndex == 0) Data.hasMap = true; else Data.player2HasMap = true; }
+
     // ── Nákup vylepšení ─────────────────────────────────────────────────────
     // Podmínky: ještě to nemá + má dost mincí.
     private bool TryBuyUpgrade(int upgradeType, int cost)
@@ -161,7 +160,7 @@ public class UpgradeShopManager : MonoBehaviour
         GUI.DrawTexture(new Rect(sx, 0, sw, Screen.height), Texture2D.whiteTexture);
         GUI.color = Color.white;
 
-        float w = 560, h = 548;
+        float w = 560, h = 590;
         float px = sx + (sw - w) / 2f;
         float py = (Screen.height - h) / 2f;
 
@@ -172,6 +171,9 @@ public class UpgradeShopManager : MonoBehaviour
         GUI.DrawTexture(new Rect(px, py, w, 3), Texture2D.whiteTexture);
         GUI.color = Color.white;
 
+        // Zavírací křížek vpravo nahoře.
+        if (ShopUI.CloseButton(px, py, w)) { openFor[who] = false; return; }
+
         GUILayout.BeginArea(new Rect(px + 25, py + 20, w - 50, h - 40));
 
         // V multiplayeru napiš do nadpisu, kdo nakupuje.
@@ -179,23 +181,30 @@ public class UpgradeShopManager : MonoBehaviour
             ? (buyerIndex == 0 ? "  —  HRÁČ 1" : "  —  HRÁČ 2")
             : "";
         GUILayout.Label($"OBCHOD S VYLEPSENIMI{playerLabel}", titleStyle);
-        GUILayout.Space(15);
 
-        DrawRow("Rychlost lodi  —  pohyb 2x rychleji",  speedUpgradeCost,  GetUpgrade(0), () => TryBuyUpgrade(0, speedUpgradeCost));
+        // Cenová hladina tohoto ostrova (jen pro nákup).
+        int pct = Mathf.RoundToInt((EconomyConfig.PriceMultiplier(GameSession.ShopPriceLevel) - 1f) * 100f);
+        string priceTag = pct == 0 ? "ceny jako jinde" : pct > 0 ? $"ceny +{pct}%" : $"ceny {pct}%";
+        GUILayout.Label($"( {priceTag} na tomhle ostrove )", rowStyle);
+        GUILayout.Space(10);
+
+        DrawRow("Rychlost lodi  —  pohyb 2x rychleji",  PriceOf(EconomyConfig.SpeedUpgrade),  GetUpgrade(0), () => TryBuyUpgrade(0, PriceOf(EconomyConfig.SpeedUpgrade)));
         GUILayout.Space(8);
-        DrawRow("Lepsi prud  —  chyta 2 ryby najednou",  rodUpgradeCost,   GetUpgrade(1), () => TryBuyUpgrade(1, rodUpgradeCost));
+        DrawRow("Lepsi prud  —  chyta 2 ryby najednou",  PriceOf(EconomyConfig.RodUpgrade),   GetUpgrade(1), () => TryBuyUpgrade(1, PriceOf(EconomyConfig.RodUpgrade)));
         GUILayout.Space(8);
-        DrawRow("Rychlost tezby  —  tezba 2x rychleji", miningUpgradeCost, GetUpgrade(2), () => TryBuyUpgrade(2, miningUpgradeCost));
+        DrawRow("Rychlost tezby  —  tezba 2x rychleji", PriceOf(EconomyConfig.MiningUpgrade), GetUpgrade(2), () => TryBuyUpgrade(2, PriceOf(EconomyConfig.MiningUpgrade)));
         GUILayout.Space(8);
-        DrawShipRow("Lod mala  —  " + BoatStats.Perk(1),    shipSmallCost,  1);
+        DrawShipRow("Lod mala  —  " + BoatStats.Perk(1),    PriceOf(EconomyConfig.ShipSmall),  1);
         GUILayout.Space(8);
-        DrawShipRow("Lod stredni  —  " + BoatStats.Perk(2), shipMediumCost, 2);
+        DrawShipRow("Lod stredni  —  " + BoatStats.Perk(2), PriceOf(EconomyConfig.ShipMedium), 2);
         GUILayout.Space(8);
-        DrawShipRow("Lod velka  —  " + BoatStats.Perk(3),   shipLargeCost,  3);
+        DrawShipRow("Lod velka  —  " + BoatStats.Perk(3),   PriceOf(EconomyConfig.ShipLarge),  3);
         GUILayout.Space(8);
         DrawAmmoRow();
+        GUILayout.Space(8);
+        DrawMapRow();
 
-        GUILayout.Space(16);
+        GUILayout.Space(14);
         GUILayout.Label($"Mince: {Coins()}", coinsStyle);
         GUILayout.EndArea();
     }
@@ -203,23 +212,38 @@ public class UpgradeShopManager : MonoBehaviour
     // Munice do děla — dá se kupovat opakovaně (žádné "Zakoupeno").
     private void DrawAmmoRow()
     {
+        int cost = PriceOf(EconomyConfig.AmmoPack);
         GUILayout.BeginHorizontal();
-        GUILayout.Label($"Munice do dela  —  balicek {ammoPackSize} naboju  (mas {Ammo()})",
+        GUILayout.Label($"Munice do dela  —  balicek {EconomyConfig.AmmoPackSize} naboju  (mas {Ammo()})",
             rowStyle, GUILayout.ExpandWidth(true));
-        GUILayout.Label($"{ammoPackCost} minci", rowStyle, GUILayout.Width(90));
+        GUILayout.Label($"{cost} minci", rowStyle, GUILayout.Width(90));
 
-        GUI.enabled = Coins() >= ammoPackCost;
+        GUI.enabled = Coins() >= cost;
         if (SoundManager.Click(GUILayout.Button("Koupit", buyStyle, GUILayout.Width(90), GUILayout.Height(28))))
         {
-            if (Coins() >= ammoPackCost)
+            if (Coins() >= cost)
             {
-                SetCoins(Coins() - ammoPackCost);
-                AddAmmo(ammoPackSize);
+                SetCoins(Coins() - cost);
+                AddAmmo(EconomyConfig.AmmoPackSize);
                 Persist();
             }
         }
         GUI.enabled = true;
         GUILayout.EndHorizontal();
+    }
+
+    // Mapa — jednorázový nákup, na minimapě pak ukazuje šipku k nejbližšímu ostrovu.
+    private void DrawMapRow()
+    {
+        DrawRow("Mapa  —  na minimape sipka k nejblizsimu ostrovu",
+            PriceOf(EconomyConfig.MapItem), HasMap(), () =>
+            {
+                int cost = PriceOf(EconomyConfig.MapItem);
+                if (HasMap() || Coins() < cost) return;
+                SetCoins(Coins() - cost);
+                GiveMap();
+                Persist();
+            });
     }
 
     // Řádek nákupu vzhledu lodě. Koupit jde jen když má hráč přesně předchozí úroveň.

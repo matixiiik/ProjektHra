@@ -46,7 +46,9 @@ public class MinimapUIRenderer : MonoBehaviour
     private Texture2D   tex;  // samotná textura minimapy
     private int         size; // šířka i výška textury v pixelech
 
-    private RectTransform compassRT; // šipka ukazující směr k cíli mega questu
+    private RectTransform compassRT;    // zlatá šipka — směr k cíli mega questu
+    private RectTransform islandArrowRT; // azurová šipka — směr k nejbližšímu ostrovu (koupená mapa)
+    private static readonly Color IslandArrowColor = new Color(0.3f, 0.9f, 0.9f, 1f);
 
     // Health bary (loď + panáček) — děti minimapy, sedí přesně nad ní a jsou
     // stejně široké (takže se centrují na minimapu bez ohledu na škálování canvasu).
@@ -82,6 +84,7 @@ public class MinimapUIRenderer : MonoBehaviour
         minimapImage.uvRect  = new Rect(0, 0, 1, 1);
 
         CreateCompass();
+        CreateIslandArrow();
         CreateHealthBars();
 
         // Překresli minimapu při každé změně světa.
@@ -228,6 +231,46 @@ public class MinimapUIRenderer : MonoBehaviour
         arrowGO.SetActive(false);
     }
 
+    // Azurová šipka k nejbližšímu ostrovu — ukáže se, jen když má hráč koupenou mapu.
+    void CreateIslandArrow()
+    {
+        var go = new GameObject("IslandMapArrow");
+        go.transform.SetParent(minimapImage.transform, false);
+
+        islandArrowRT = go.AddComponent<RectTransform>();
+        islandArrowRT.sizeDelta   = new Vector2(15f, 15f);
+        islandArrowRT.anchorMin   = islandArrowRT.anchorMax = new Vector2(0.5f, 0.5f);
+        islandArrowRT.pivot       = new Vector2(0.5f, 0.5f);
+        islandArrowRT.anchoredPosition = Vector2.zero;
+
+        var img = go.AddComponent<Image>();
+        img.sprite        = MakeArrowSprite();
+        img.color         = IslandArrowColor;
+        img.raycastTarget = false;
+
+        go.SetActive(false);
+    }
+
+    // Natočí a umístí azurovou šipku podle směru k nejbližšímu ostrovu.
+    void UpdateIslandArrow(bool hasMap, int cx, int cy)
+    {
+        if (islandArrowRT == null) return;
+
+        Vector2Int? target = hasMap ? grid.NearestHarborTile(cx, cy) : null;
+        bool show = target != null && (target.Value.x != cx || target.Value.y != cy);
+        islandArrowRT.gameObject.SetActive(show);
+        if (!show) return;
+
+        int dx = target.Value.x - cx;
+        int dy = target.Value.y - cy;
+        float bearing = Mathf.Atan2(dx, dy) * Mathf.Rad2Deg;
+        islandArrowRT.localEulerAngles = new Vector3(0f, 0f, -bearing);
+
+        float radius = minimapImage.rectTransform.rect.width * 0.5f - 22f; // o kousek blíž středu než kompas
+        Vector2 dir = new Vector2(dx, dy).normalized;
+        islandArrowRT.anchoredPosition = dir * radius;
+    }
+
     // Vytvoří jednoduchou trojúhelníkovou šipku (mířící nahoru) jako sprite.
     Sprite MakeArrowSprite()
     {
@@ -283,6 +326,7 @@ public class MinimapUIRenderer : MonoBehaviour
         int cy = playerIndex == 0 ? d.playerGridY : d.player2GridY;
 
         UpdateCompass(playerIndex == 0 ? d.megaQuest : d.player2MegaQuest, cx, cy);
+        UpdateIslandArrow(playerIndex == 0 ? d.hasMap : d.player2HasMap, cx, cy);
         RefreshHealthBars();
 
         // Projdi všechny pixely a obarvi je podle políčka, které leží pod nimi.

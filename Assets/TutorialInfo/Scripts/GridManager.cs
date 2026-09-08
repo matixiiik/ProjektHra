@@ -64,10 +64,10 @@ public class GridManager : MonoBehaviour
 
     // Parametry generování ostrovů.
     private const int ISLAND_SIZE         = 10; // "jmenovitá" velikost (kompatibilita se starým kódem)
-    private const int ISLAND_CANVAS       = 14; // max rozměr organického ostrova (plátno, do kterého se vejde)
+    private const int ISLAND_CANVAS       = 16; // max rozměr organického ostrova (plátno, do kterého se vejde)
     private const int ISLAND_PADDING      = 1;  // volné pole kolem ostrova při kontrole místa
-    private const int MIN_ISLAND_DISTANCE = 50; // minimální rozestup mezi ostrovy
-    private const int CLEANUP_LIMIT       = 100;// políčka dál než tohle se ze save mažou
+    private const int MIN_ISLAND_DISTANCE = 200;// minimální rozestup mezi ostrovy (dřív 50 — ostrovy jsou teď vzácnější)
+    private const int CLEANUP_LIMIT       = 120;// políčka dál než tohle se ze save mažou
 
     void Awake()
     {
@@ -247,10 +247,11 @@ public class GridManager : MonoBehaviour
     // Rozhodne, co na daném (zatím prázdném) políčku vznikne: ostrov nebo moře.
     private void CheckAndGenerateArea(int x, int y)
     {
-        // Ostrovy vznikají jen na mřížce každých 20 políček, s 10% pravděpodobností,
-        // a jen když je kolem dost místa. Ostrov je organický a nemusí přesně
-        // pokrýt spouštěcí políčko [x,y] — pokud ne, doplní se dole moře.
-        if (x % 20 == 0 && y % 20 == 0 && UnityEngine.Random.value < 0.1f && CanPlaceIsland(x, y))
+        // Ostrovy vznikají jen na mřížce každých 40 políček, s 30% pravděpodobností,
+        // a jen když je kolem dost místa (min. rozestup 200 — viz CanPlaceIsland).
+        // Ostrov je organický a nemusí přesně pokrýt spouštěcí políčko [x,y] —
+        // pokud ne, doplní se dole moře.
+        if (x % 40 == 0 && y % 40 == 0 && UnityEngine.Random.value < 0.3f && CanPlaceIsland(x, y))
             GenerateIsland(x, y);
 
         // Jinak obyčejné mořské políčko (většinou voda, občas ryby / poklad).
@@ -323,10 +324,10 @@ public class GridManager : MonoBehaviour
 
         var land = new HashSet<(int, int)>();
 
-        // 1) Pevné jádro — náhodný obdélník 4..6 × 4..6 uprostřed (splňuje "min. 4×4",
-        //    ať se na ostrov vejde molo, maják 2×2 i bedna a nedrhne to o sebe).
-        int cw = UnityEngine.Random.Range(4, 7);
-        int ch = UnityEngine.Random.Range(4, 7);
+        // 1) Pevné jádro — náhodný obdélník 5..7 × 5..7 uprostřed (min. 5×5),
+        //    ať se na ostrov vejde maják 2×2, bedna, dekorace a nedrhne to o sebe.
+        int cw = UnityEngine.Random.Range(5, 8);
+        int ch = UnityEngine.Random.Range(5, 8);
         for (int x = cx - cw / 2; x <= cx - cw / 2 + cw - 1; x++)
             for (int y = cy - ch / 2; y <= cy - ch / 2 + ch - 1; y++)
                 land.Add((x, y));
@@ -380,7 +381,7 @@ public class GridManager : MonoBehaviour
     private void GenerateIsland(int startX, int startY)
     {
         var land = StampOrganicLand(startX, startY, explored: false);
-        if (land.Count < 16) return; // pojistka (jádro je min. 4×4)
+        if (land.Count < 25) return; // pojistka (jádro je min. 5×5)
 
         PlaceEdgePier(land);
         PlaceLighthouse(land);
@@ -580,13 +581,13 @@ public class GridManager : MonoBehaviour
             && gameData.tileData[key].type == (int)TileType.Harbor;
     }
 
-    // Náhodný typ mořského políčka: 0,15 % poklad, 0,35 % ryby, zbytek voda.
-    // Poklad je vzácnější než ryby; obojí zředěné oproti dřívějším 0,5 % / 0,5 %.
+    // Náhodný typ mořského políčka: 0,06 % vrak s pokladem, 0,35 % ryby, zbytek voda.
+    // Vraky jsou vzácné schválně — má se za nimi "lovit", ne je potkávat na potkání.
     private TileType GenerateRandomSeaType()
     {
         float roll = UnityEngine.Random.value * 100f;
-        if (roll < 0.15f) return TileType.Treasure;
-        if (roll < 0.50f) return TileType.Water_Fish;
+        if (roll < 0.06f) return TileType.Treasure;
+        if (roll < 0.41f) return TileType.Water_Fish;
         return TileType.Water;
     }
 
@@ -890,6 +891,89 @@ public class GridManager : MonoBehaviour
         return found;
     }
 
+    // ── Mapa (šipka k nejbližšímu ostrovu) + respawn po smrti ──────────────
+    /// <summary>Nejbližší dlaždice pevniny (Harbor) k bodu — pro šipku "mapy" na minimapě.</summary>
+    public Vector2Int? NearestHarborTile(int fromX, int fromY)
+    {
+        Vector2Int best = default;
+        bool found = false;
+        long bestSq = long.MaxValue;
+
+        foreach (var kv in gameData.tileData)
+        {
+            if (kv.Value.type != (int)TileType.Harbor) continue;
+            var (x, y) = ParseGridKey(kv.Key);
+            long sq = (long)(x - fromX) * (x - fromX) + (long)(y - fromY) * (y - fromY);
+            if (sq < bestSq) { bestSq = sq; best = new Vector2Int(x, y); found = true; }
+        }
+        return found ? best : (Vector2Int?)null;
+    }
+
+    // Vynutí vznik ostrova poblíž bodu (ignoruje náhodu) — pro respawn po smrti,
+    // kdyby v okolí žádný ostrov nebyl.
+    private void ForceIslandNear(int cx, int cy)
+    {
+        int bx = Mathf.RoundToInt(cx / 40f) * 40;
+        int by = Mathf.RoundToInt(cy / 40f) * 40;
+
+        for (int ring = 0; ring <= 12; ring++)
+            for (int dx = -ring; dx <= ring; dx++)
+                for (int dy = -ring; dy <= ring; dy++)
+                {
+                    if (Mathf.Max(Mathf.Abs(dx), Mathf.Abs(dy)) != ring) continue;
+                    int gx = bx + dx * 40, gy = by + dy * 40;
+                    if (CanPlaceIsland(gx, gy)) { GenerateIsland(gx, gy); return; }
+                }
+    }
+
+    /// <summary>
+    /// Respawn po smrti: přesune hráče PĚŠKY na nejbližší ostrov (loď = veslice
+    /// zaparkovaná ve vodě u mola), obnoví zdraví. Kořist (ryby, poklady, náboje,
+    /// vylepšení, mapa) se ZTRATÍ, mince a rozdělaný mega quest zůstanou.
+    /// </summary>
+    public void RespawnPlayerAtNearestIsland(int playerIndex)
+    {
+        var d = gameData;
+        int fromX = playerIndex == 0 ? d.playerGridX : d.player2GridX;
+        int fromY = playerIndex == 0 ? d.playerGridY : d.player2GridY;
+
+        Vector2Int? harbor = NearestHarborTile(fromX, fromY);
+        if (harbor == null) { ForceIslandNear(fromX, fromY); harbor = NearestHarborTile(fromX, fromY); }
+
+        Vector2Int spot   = harbor ?? new Vector2Int(fromX, fromY);
+        var        water  = FindWaterNextTo(spot.x, spot.y);
+        Vector2Int boatAt = water != null ? new Vector2Int(water.Value.x, water.Value.y) : spot;
+
+        // ── Vynuluj kořist + vylepšení (mince a mega quest zůstávají) ──────
+        if (playerIndex == 0)
+        {
+            d.fishCount = 0; d.treasureCount = 0; d.ammo = 0;
+            d.hasSpeedUpgrade = d.hasRodUpgrade = d.hasMiningUpgrade = false;
+            d.hasMap = false; d.sellBonus = false;
+            d.shipLevel = 0;
+            d.activeQuest.Reset();
+            d.boatHealth = 100; d.playerHealth = 100;
+            d.isOnFoot   = true;
+            d.playerGridX = spot.x; d.playerGridY = spot.y;
+            d.boatGridX   = boatAt.x; d.boatGridY = boatAt.y;
+        }
+        else
+        {
+            d.player2FishCount = 0; d.player2TreasureCount = 0; d.player2Ammo = 0;
+            d.player2HasSpeedUpgrade = d.player2HasRodUpgrade = d.player2HasMiningUpgrade = false;
+            d.player2HasMap = false; d.player2SellBonus = false;
+            d.player2ShipLevel = 0;
+            d.player2ActiveQuest.Reset();
+            d.player2BoatHealth = 100; d.player2PlayerHealth = 100;
+            d.player2GridX = spot.x; d.player2GridY = spot.y;
+        }
+
+        GenerateWorld(spot.x, spot.y);
+        MarkAreaExplored(spot.x, spot.y, 3);
+        Save();
+        OnWorldChanged?.Invoke();
+    }
+
     /// <summary>
     /// Políčka pevniny (Harbor) startovního ostrova — toho u počátku [0,0].
     /// Používá příběhové NPC (děda), aby se objevilo jen na základním ostrově.
@@ -943,7 +1027,7 @@ public class GridManager : MonoBehaviour
         var land = StampOrganicLand(0, 0, explored: true);
         PlaceEdgePier(land);
         PlaceLighthouse(land);
-        MaybePlaceChest(land);
+        // Na startovním ostrově ZÁMĚRNĚ není bedna s mega questem (naváže se na příběh).
 
         // Loď zaparkuj do VODY hned vedle prvního mola, hráče postav PĚŠKY na
         // pevninu vedle mola. (Nová hra = probudíš se jako panáček na ostrově,

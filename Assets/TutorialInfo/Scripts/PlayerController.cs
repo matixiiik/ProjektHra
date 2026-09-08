@@ -20,10 +20,16 @@ public class PlayerController : MonoBehaviour
     private GridManager        gridManager;
     private UpgradeShopManager upgradeShopManager;
     private QuestShopManager   questShopManager;
-    private StoryNpc           storyNpc; // příběhové NPC (děda) na startovním ostrově, může být null
+    private StoryNpc           storyNpc;      // příběhové NPC (děda) na startovním ostrově, může být null
+    private ShipModelSwitcher  shipSwitcher;  // přepíná / posazuje 3D model lodě
 
     public GameObject headDot;          // tečka nad hlavou, když je hráč pěšky
     public Transform  boatModel;        // 3D model lodě (přepíná ShipModelSwitcher)
+
+    // Když hráč vystoupí na ostrov, loď nezmizí — nechá se plavat na svém místě
+    // jako tenhle samostatný objekt (kopie modelu lodě). Zase se zničí při nasednutí.
+    private GameObject parkedBoatGO;
+    private const int  REPAIR_COST_PER_HP = 2; // kolik mincí stojí oprava 1 bodu zdraví lodě
 
     // Kamera, podle které se tenhle hráč hýbe (W = "kam kouká kamera").
     // P1 = hlavní kamera (necháme null → Camera.main), P2 ji dostane od MultiplayerManageru.
@@ -81,6 +87,19 @@ public class PlayerController : MonoBehaviour
     bool PHasMiningUpgrade => playerIndex == 0 ? gridManager.gameData.hasMiningUpgrade : gridManager.gameData.player2HasMiningUpgrade;
     bool PHasSpeedUpgrade  => playerIndex == 0 ? gridManager.gameData.hasSpeedUpgrade  : gridManager.gameData.player2HasSpeedUpgrade;
     int  PShipLevel        => playerIndex == 0 ? gridManager.gameData.shipLevel        : gridManager.gameData.player2ShipLevel;
+
+    int PBoatHealth
+    {
+        get => playerIndex == 0 ? gridManager.gameData.boatHealth : gridManager.gameData.player2BoatHealth;
+        set { int v = Mathf.Clamp(value, 0, BoatStats.MaxHealth);
+              if (playerIndex == 0) gridManager.gameData.boatHealth = v; else gridManager.gameData.player2BoatHealth = v; }
+    }
+    int PPlayerHealth
+    {
+        get => playerIndex == 0 ? gridManager.gameData.playerHealth : gridManager.gameData.player2PlayerHealth;
+        set { int v = Mathf.Clamp(value, 0, BoatStats.MaxHealth);
+              if (playerIndex == 0) gridManager.gameData.playerHealth = v; else gridManager.gameData.player2PlayerHealth = v; }
+    }
     ActiveQuest PQuest     => playerIndex == 0 ? gridManager.gameData.activeQuest      : gridManager.gameData.player2ActiveQuest;
 
     // ── Pomocníci na klávesy (P1 dostane k1, P2 dostane k2) ─────────────────
@@ -96,6 +115,7 @@ public class PlayerController : MonoBehaviour
         upgradeShopManager = FindFirstObjectByType<UpgradeShopManager>();
         questShopManager   = FindFirstObjectByType<QuestShopManager>();
         storyNpc           = FindFirstObjectByType<StoryNpc>();
+        shipSwitcher       = GetComponent<ShipModelSwitcher>();
 
         if (playerIndex == 0)
         {
@@ -151,6 +171,10 @@ public class PlayerController : MonoBehaviour
 
     void Update()
     {
+        // Loď zůstává plavat na svém místě, dokud je hráč pěšky (a zase zmizí,
+        // až nasedne) — řeší i načtení save uprostřed vylodění.
+        SyncParkedBoat();
+
         // Když je otevřený MŮJ obchod / konzole / menu, hráč se neovládá.
         // (Ve split screenu obchod druhého hráče tohohle hráče nemrazí.)
         bool myShopOpen = (upgradeShopManager != null && upgradeShopManager.IsOpenForBuyer(playerIndex))
@@ -178,6 +202,53 @@ public class PlayerController : MonoBehaviour
 
         // Space / Numpad0 → rybaření / těžba na aktuálním políčku.
         if (KeyDown(KeyCode.Space, KeyCode.Keypad0)) TryInteract();
+
+        // R / Numpad-děleno → oprava lodě, když pěšky stojíš u svého člunu na molu.
+        if (isOnFoot && CanRepairHere() && KeyDown(KeyCode.R, KeyCode.KeypadDivide)) TryRepairBoat();
+    }
+
+    // Loď (plovoucí kopie) má existovat právě když je hráč pěšky.
+    void SyncParkedBoat()
+    {
+        if (isOnFoot)
+        {
+            if (parkedBoatGO == null && boatModel != null
+                && IsBoatWater(gridManager.GetTileType(boatGridX, boatGridY)))
+                SpawnParkedBoat();
+        }
+        else if (parkedBoatGO != null)
+        {
+            DespawnParkedBoat();
+        }
+    }
+
+    // ── Oprava lodě v přístavu ─────────────────────────────────────────────
+    // Jde, když hráč stojí pěšky na molu (nebo hned vedle) a jeho loď plave
+    // vedle. Platí se mincemi (REPAIR_COST_PER_HP za bod), opraví se tolik,
+    // na kolik má hráč mince.
+    bool CanRepairHere()
+    {
+        if (!isOnFoot || parkedBoatGO == null) return false;
+        if (PBoatHealth >= BoatStats.MaxHealth) return false;
+
+        int d = Mathf.Max(Mathf.Abs(GridX - boatGridX), Mathf.Abs(GridY - boatGridY));
+        bool onOrNextToPier = gridManager.GetTileType(GridX, GridY) == TileType.Pier
+                           || FindAdjacent(GridX, GridY, TileType.Pier) != null;
+        return d <= 1 && onOrNextToPier;
+    }
+
+    void TryRepairBoat()
+    {
+        int missing   = BoatStats.MaxHealth - PBoatHealth;
+        int canAfford = PCoins / REPAIR_COST_PER_HP;
+        int heal      = Mathf.Min(missing, canAfford);
+        if (heal <= 0) return;
+
+        PBoatHealth += heal;
+        PCoins      -= heal * REPAIR_COST_PER_HP;
+        SoundManager.PlayCoin();
+        gridManager.Save();
+        gridManager.NotifyWorldChanged();
     }
 
     // ── Pohyb ──────────────────────────────────────────────────────────────
@@ -237,13 +308,18 @@ public class PlayerController : MonoBehaviour
         return true;
     }
 
-    // Na co smí hráč vstoupit? V lodi = voda a molo, pěšky = pevnina a molo.
+    // Na co smí hráč vstoupit? V lodi = jen voda (na molo ani na ostrov se lodí
+    // nevjede — musíš vystoupit vedle mola), pěšky = pevnina a molo.
     bool CanEnter(TileType t)
     {
         if (!isOnFoot)
-            return t == TileType.Water || t == TileType.Water_Fish || t == TileType.Treasure || t == TileType.Pier;
+            return IsBoatWater(t);
         return t == TileType.Harbor || t == TileType.Pier;
     }
+
+    // Vodní políčko, na které smí loď (obyčejná voda, ryby i vrak pokladu).
+    static bool IsBoatWater(TileType t)
+        => t == TileType.Water || t == TileType.Water_Fish || t == TileType.Treasure;
 
     // Zavolá se, kdykoli plynulá jízda přenese hráče na jiné políčko, než na
     // kterém byl naposled — zapíše novou pozici do GameData, přegeneruje svět
@@ -323,6 +399,9 @@ public class PlayerController : MonoBehaviour
     }
 
     // ── Přesedání loď ↔ pěšky ──────────────────────────────────────────────
+    //  Lodí se na molo ani na ostrov NEvjede. Musíš dojet ve vodě až k molu,
+    //  vystoupit (E) → panáček přeskočí na molo a loď zůstane plavat, kde byla.
+    //  Nasedání: stojíš na molu (nebo vedle) a tvoje loď plave hned vedle.
     void TryToggleBoatFoot()
     {
         int px = GridX;
@@ -330,38 +409,42 @@ public class PlayerController : MonoBehaviour
 
         if (!isOnFoot)
         {
-            // Vystoupit z lodě jde jen z mola.
-            if (gridManager.GetTileType(px, py) != TileType.Pier) return;
+            // Vystoupit: loď musí plavat ve vodě HNED VEDLE mola.
+            Vector2Int? pier = FindAdjacent(px, py, TileType.Pier);
+            if (pier == null) return; // není u mola — nedá se vystoupit
+
+            // Loď zůstane plavat přesně tady.
+            boatGridX = px;
+            boatGridY = py;
+            if (playerIndex == 0)
+            {
+                gridManager.gameData.boatGridX = px;
+                gridManager.gameData.boatGridY = py;
+            }
 
             isOnFoot = true;
             if (playerIndex == 0) gridManager.gameData.isOnFoot = true;
-            ShowBoatOrFoot();
+            SpawnParkedBoat();  // necháme plavat kopii lodě na místě
+            ShowBoatOrFoot();   // a schováme loď u hráče
 
-            // Kam vystoupit: nejradši na pevninu vedle mola, jinak na druhé molo,
-            // a v nejhorším zůstaň stát na molu (nasednout zpět jde pak vždycky).
-            Vector2Int exit = FindAdjacent(px, py, TileType.Harbor)
-                           ?? FindAdjacent(px, py, TileType.Pier)
-                           ?? new Vector2Int(px, py);
-
-            GridX = exit.x;
-            GridY = exit.y;
-            MoveToGrid(exit.x, exit.y);
+            GridX = pier.Value.x;
+            GridY = pier.Value.y;
+            MoveToGrid(pier.Value.x, pier.Value.y);
         }
         else
         {
-            // Normální případ: hráč stojí těsně u své zakotvené lodě (i diagonálně,
-            // volná jízda nedrží přesnou mřížku) a loď je na molu.
+            // Nasednout: hráč stojí na molu / vedle a jeho loď plave hned vedle.
             int dist = Mathf.Max(Mathf.Abs(px - boatGridX), Mathf.Abs(py - boatGridY));
-            bool boatReachable = dist <= 1 && gridManager.GetTileType(boatGridX, boatGridY) == TileType.Pier;
+            bool boatReachable = dist <= 1 && IsBoatWater(gridManager.GetTileType(boatGridX, boatGridY));
 
             if (!boatReachable)
             {
-                // Loď je nedosažitelná (třeba maják v cestě) — "připluj" s ní k hráči,
-                // pokud stojí na molu nebo hned vedle něj. Jinak fakt není kam nasednout.
-                Vector2Int? pier = PierAtOrNextTo(px, py);
-                if (pier == null) return;
-                boatGridX = pier.Value.x;
-                boatGridY = pier.Value.y;
+                // Loď je pryč / nedosažitelná — když hráč stojí na molu (nebo vedle),
+                // "připluj" s lodí na vodní políčko hned vedle toho mola.
+                Vector2Int? spot = WaterNextToPierNear(px, py);
+                if (spot == null) return; // fakt není kam / čím nasednout
+                boatGridX = spot.Value.x;
+                boatGridY = spot.Value.y;
                 if (playerIndex == 0)
                 {
                     gridManager.gameData.boatGridX = boatGridX;
@@ -371,6 +454,7 @@ public class PlayerController : MonoBehaviour
 
             isOnFoot = false;
             if (playerIndex == 0) gridManager.gameData.isOnFoot = false;
+            DespawnParkedBoat();
             ShowBoatOrFoot();
 
             GridX = boatGridX;
@@ -379,11 +463,61 @@ public class PlayerController : MonoBehaviour
         }
     }
 
+    // Vodní políčko hned vedle mola, na kterém (nebo vedle kterého) hráč stojí.
+    Vector2Int? WaterNextToPierNear(int x, int y)
+    {
+        Vector2Int? pier = gridManager.GetTileType(x, y) == TileType.Pier
+            ? new Vector2Int(x, y)
+            : FindAdjacent(x, y, TileType.Pier);
+        if (pier == null) return null;
+
+        return FindAdjacentWater(pier.Value.x, pier.Value.y);
+    }
+
+    // První sousední (4-směr) vodní políčko. Null, když žádné není.
+    Vector2Int? FindAdjacentWater(int x, int y)
+    {
+        Vector2Int[] dirs = { Vector2Int.right, Vector2Int.left, Vector2Int.up, Vector2Int.down };
+        foreach (var d in dirs)
+            if (IsBoatWater(gridManager.GetTileType(x + d.x, y + d.y)))
+                return new Vector2Int(x + d.x, y + d.y);
+        return null;
+    }
+
+    // Postaví plovoucí kopii lodě na místo, kde hráč vystoupil.
+    void SpawnParkedBoat()
+    {
+        DespawnParkedBoat();
+        if (shipSwitcher != null) shipSwitcher.Apply(); // ať má model správnou výšku
+        if (boatModel == null) return;
+
+        // Výška hladiny lodě = lokální posazení modelu + výška objektu hráče (0.5).
+        float y = boatModel.localPosition.y + 0.5f;
+
+        parkedBoatGO = Instantiate(boatModel.gameObject);
+        parkedBoatGO.name = "ParkedBoat_P" + (playerIndex + 1);
+        parkedBoatGO.transform.SetParent(null, true);
+        parkedBoatGO.transform.position = new Vector3(boatGridX, y, boatGridY);
+        parkedBoatGO.transform.rotation = boatModel.rotation;
+        parkedBoatGO.SetActive(true);
+    }
+
+    void DespawnParkedBoat()
+    {
+        if (parkedBoatGO != null) Destroy(parkedBoatGO);
+        parkedBoatGO = null;
+    }
+
+    void OnDestroy() => DespawnParkedBoat(); // úklid při konci split-screenu / scény
+
     // Zapne loď nebo tečku nad hlavou podle toho, jestli je hráč pěšky.
     void ShowBoatOrFoot()
     {
-        if (boatModel != null) boatModel.gameObject.SetActive(!isOnFoot);
-        if (headDot   != null) headDot.SetActive(isOnFoot);
+        // ShipModelSwitcher vybere správný model, posadí ho do hladiny a zapne/vypne.
+        if (shipSwitcher != null) shipSwitcher.Apply();
+        else if (boatModel != null) boatModel.gameObject.SetActive(!isOnFoot);
+
+        if (headDot != null) headDot.SetActive(isOnFoot);
     }
 
     /// <summary>Úplně schová / zase ukáže model hráče (loď i panáčka). Používá se,
@@ -410,13 +544,6 @@ public class PlayerController : MonoBehaviour
             if (gridManager.GetTileType(x + d.x, y + d.y) == type)
                 return new Vector2Int(x + d.x, y + d.y);
         return null;
-    }
-
-    // Políčko mola přímo na [x,y], nebo hned vedle. Null, když žádné není.
-    Vector2Int? PierAtOrNextTo(int x, int y)
-    {
-        if (gridManager.GetTileType(x, y) == TileType.Pier) return new Vector2Int(x, y);
-        return FindAdjacent(x, y, TileType.Pier);
     }
 
     // ── Rybaření / těžba / kopání ─────────────────────────────────────────
@@ -597,7 +724,41 @@ public class PlayerController : MonoBehaviour
         isWorking = false;
         WorkProgress = 0f;
 
+        DespawnParkedBoat();
         ShowBoatOrFoot();
         TeleportTo(GridX, GridY);
+    }
+
+    // ── Nápověda k opravě lodě (jednoduchý text dole na své půlce) ──────────
+    private GUIStyle repairStyle;
+
+    void OnGUI()
+    {
+        if (!CanRepairHere()) return;
+
+        int missing = BoatStats.MaxHealth - PBoatHealth;
+        int cost    = missing * REPAIR_COST_PER_HP;
+        int afford  = Mathf.Min(missing, PCoins / REPAIR_COST_PER_HP);
+
+        string key = P1 ? "R" : "Numpad /";
+        string msg = afford > 0
+            ? $"[{key}]  opravit lod  ({(afford >= missing ? cost : afford * REPAIR_COST_PER_HP)} minci)"
+            : "na opravu lodě nemáš dost mincí";
+
+        if (repairStyle == null)
+            repairStyle = new GUIStyle(GUI.skin.label)
+            {
+                fontSize = 15, fontStyle = FontStyle.Bold,
+                alignment = TextAnchor.MiddleCenter,
+                normal = { textColor = new Color(1f, 0.9f, 0.5f) }
+            };
+
+        float w = Screen.width, x0 = 0f;
+        if (MultiplayerManager.IsMultiplayer)
+        {
+            w = Screen.width * 0.5f;
+            x0 = playerIndex == 1 ? w : 0f;
+        }
+        GUI.Label(new Rect(x0, Screen.height - 132f, w, 24f), msg, repairStyle);
     }
 }

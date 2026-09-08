@@ -23,6 +23,8 @@ public class UpgradeShopManager : MonoBehaviour
     public int shipSmallCost     = 200;  // veslice → malá plachetnice
     public int shipMediumCost    = 300;  // malá → střední loď
     public int shipLargeCost     = 800;  // střední → velká loď
+    public int ammoPackCost      = 60;   // cena jednoho balíčku munice
+    public int ammoPackSize      = 10;   // kolik nábojů je v balíčku
 
     private GridManager gridManager;   // v SampleScene; ve scéně majáku je null
 
@@ -113,6 +115,9 @@ public class UpgradeShopManager : MonoBehaviour
     int  ShipLevel()         => buyerIndex == 0 ? Data.shipLevel : Data.player2ShipLevel;
     void SetShipLevel(int v)  { if (buyerIndex == 0) Data.shipLevel = v; else Data.player2ShipLevel = v; }
 
+    int  Ammo()              => buyerIndex == 0 ? Data.ammo : Data.player2Ammo;
+    void AddAmmo(int n)       { if (buyerIndex == 0) Data.ammo += n; else Data.player2Ammo += n; }
+
     // ── Nákup vylepšení ─────────────────────────────────────────────────────
     // Podmínky: ještě to nemá + má dost mincí.
     private bool TryBuyUpgrade(int upgradeType, int cost)
@@ -156,7 +161,7 @@ public class UpgradeShopManager : MonoBehaviour
         GUI.DrawTexture(new Rect(sx, 0, sw, Screen.height), Texture2D.whiteTexture);
         GUI.color = Color.white;
 
-        float w = 560, h = 505;
+        float w = 560, h = 548;
         float px = sx + (sw - w) / 2f;
         float py = (Screen.height - h) / 2f;
 
@@ -187,10 +192,34 @@ public class UpgradeShopManager : MonoBehaviour
         DrawShipRow("Lod stredni  —  " + BoatStats.Perk(2), shipMediumCost, 2);
         GUILayout.Space(8);
         DrawShipRow("Lod velka  —  " + BoatStats.Perk(3),   shipLargeCost,  3);
+        GUILayout.Space(8);
+        DrawAmmoRow();
 
-        GUILayout.Space(18);
+        GUILayout.Space(16);
         GUILayout.Label($"Mince: {Coins()}", coinsStyle);
         GUILayout.EndArea();
+    }
+
+    // Munice do děla — dá se kupovat opakovaně (žádné "Zakoupeno").
+    private void DrawAmmoRow()
+    {
+        GUILayout.BeginHorizontal();
+        GUILayout.Label($"Munice do dela  —  balicek {ammoPackSize} naboju  (mas {Ammo()})",
+            rowStyle, GUILayout.ExpandWidth(true));
+        GUILayout.Label($"{ammoPackCost} minci", rowStyle, GUILayout.Width(90));
+
+        GUI.enabled = Coins() >= ammoPackCost;
+        if (SoundManager.Click(GUILayout.Button("Koupit", buyStyle, GUILayout.Width(90), GUILayout.Height(28))))
+        {
+            if (Coins() >= ammoPackCost)
+            {
+                SetCoins(Coins() - ammoPackCost);
+                AddAmmo(ammoPackSize);
+                Persist();
+            }
+        }
+        GUI.enabled = true;
+        GUILayout.EndHorizontal();
     }
 
     // Řádek nákupu vzhledu lodě. Koupit jde jen když má hráč přesně předchozí úroveň.

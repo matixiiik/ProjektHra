@@ -17,6 +17,20 @@ using UnityEngine;
 
 public static class BoatStats
 {
+    public const int MaxHealth = 100; // strop zdraví lodě i hráče
+
+    /// <summary>Poškození jednoho výstřelu z děla dané lodě. 0 = loď dělo nemá (veslice).</summary>
+    public static float CannonDamage(int level)
+    {
+        if (level <= 0) return 0f;   // veslice — bez děla
+        if (level == 1) return 0.5f; // malá loď — 1 slabé dělo
+        if (level == 2) return 1.0f; // střední loď
+        return 2.0f;                 // velká loď — pořádná děla
+    }
+
+    /// <summary>Má loď dané úrovně vůbec dělo (dá se z ní střílet)?</summary>
+    public static bool HasCannon(int level) => CannonDamage(level) > 0f;
+
     /// <summary>Násobič rychlosti plavby podle úrovně lodě (pěší chůze se netýká).</summary>
     public static float SpeedMultiplier(int level)
     {
@@ -35,9 +49,9 @@ public static class BoatStats
     /// <summary>Krátký popis výhody dané úrovně (do obchodu).</summary>
     public static string Perk(int level)
     {
-        if (level <= 0) return "veslice — pomala, zacinas s ni";
-        if (level == 1) return "plachty — normalni rychlost";
-        if (level == 2) return "+25% rychlost, rychlejsi tezba";
-        return "+50% rychlost, +1 ryba za zatah";
+        if (level <= 0) return "veslice — pomala, bez dela";
+        if (level == 1) return "+rychlost, 1 delo (0.5 posk.)";
+        if (level == 2) return "+25% rychlost, rychlejsi tezba, delo 1.0";
+        return "+50% rychlost, +1 ryba, delo 2.0";
     }
 }

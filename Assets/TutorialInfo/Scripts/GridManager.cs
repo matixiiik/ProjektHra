@@ -843,15 +843,17 @@ public class GridManager : MonoBehaviour
         PlaceLighthouse(land);
         MaybePlaceChest(land);
 
-        // Loď zaparkuj na první molo, hráče postav PĚŠKY na pevninu hned vedle něj.
-        // (Nová hra = probudíš se jako panáček na ostrově u své lodě.)
+        // Loď zaparkuj do VODY hned vedle prvního mola, hráče postav PĚŠKY na
+        // pevninu vedle mola. (Nová hra = probudíš se jako panáček na ostrově,
+        // loď se ti houpe u mola.)
         foreach (var kv in gameData.tileData)
         {
             if (kv.Value.type != (int)TileType.Pier) continue;
             var (px, py) = ParseGridKey(kv.Key);
 
-            gameData.boatGridX = px;
-            gameData.boatGridY = py;
+            var water = FindWaterNextTo(px, py);
+            gameData.boatGridX = water != null ? water.Value.x : px;
+            gameData.boatGridY = water != null ? water.Value.y : py;
 
             var foot = FindHarborNextTo(px, py);
             if (foot != null)
@@ -879,6 +881,19 @@ public class GridManager : MonoBehaviour
         foreach (var d in dirs)
             if (IsHarborTile(x + d.dx, y + d.dy))
                 return (x + d.dx, y + d.dy);
+        return null;
+    }
+
+    // Najde vodní políčko hned vedle [x,y] (pro zaparkování lodě u mola).
+    private (int x, int y)? FindWaterNextTo(int x, int y)
+    {
+        var dirs = new (int dx, int dy)[] { (1, 0), (-1, 0), (0, 1), (0, -1) };
+        foreach (var d in dirs)
+        {
+            TileType t = GetTileType(x + d.dx, y + d.dy);
+            if (t == TileType.Water || t == TileType.Water_Fish || t == TileType.Treasure)
+                return (x + d.dx, y + d.dy);
+        }
         return null;
     }
 

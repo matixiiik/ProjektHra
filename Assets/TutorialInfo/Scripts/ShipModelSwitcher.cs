@@ -22,6 +22,11 @@ public class ShipModelSwitcher : MonoBehaviour
     // (Objekt hráče je ve výšce 0.5, hladina cca −0.22 → loď skončí kolem −0.43.)
     private const float BOAT_SINK = 0.93f;
 
+    // Veslice je placatá loďka — má trup skoro celý u svého středu, takže při
+    // stejném posazení jako plachetnice "lítá" nad vodou. Posadíme ji o kus níž,
+    // ať sedí V hladině.
+    private const float ROW_EXTRA_SINK = 0.15f;
+
     private GridManager      grid;
     private PlayerController player;
 
@@ -49,20 +54,25 @@ public class ShipModelSwitcher : MonoBehaviour
         if (shipMedium) shipMedium.SetActive(false);
         if (shipLarge)  shipLarge.SetActive(false);
 
-        // Vyber model podle úrovně a zapni ho (jen když hráč není pěšky na ostrově).
+        // Vyber model podle úrovně.
         GameObject selected = level <= 0 ? shipRow
                             : level == 1 ? shipSmall
                             : level == 2 ? shipMedium
                             :              shipLarge;
         // Pojistka pro staré savy / nezapojený model: spadni na malou plachetnici.
         if (selected == null) selected = shipSmall;
-        if (selected != null && !onFoot)
-        {
-            selected.SetActive(true);
 
-            // Posaď model lodě níž k hladině (jinak "lítá" nad vodou).
+        if (selected != null)
+        {
+            // Posaď model lodě níž k hladině (jinak "lítá" nad vodou). Děláme to
+            // vždycky — i když je model zrovna schovaný — ať plovoucí kopie
+            // (ParkedBoat) i nasednutí bez volání Apply mají loď ve správné výšce.
+            float sink = BOAT_SINK + (selected == shipRow ? ROW_EXTRA_SINK : 0f);
             Vector3 lp = selected.transform.localPosition;
-            selected.transform.localPosition = new Vector3(lp.x, -BOAT_SINK, lp.z);
+            selected.transform.localPosition = new Vector3(lp.x, -sink, lp.z);
+
+            // Model lodě je vidět jen když hráč není pěšky na ostrově.
+            selected.SetActive(!onFoot);
         }
 
         // Řekni PlayerControlleru, který objekt je teď jeho loď (kvůli otáčení).

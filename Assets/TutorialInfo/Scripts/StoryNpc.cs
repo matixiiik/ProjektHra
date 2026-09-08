@@ -38,6 +38,7 @@ public class StoryNpc : MonoBehaviour
     private int         talkingWith = -1; // 0 = P1, 1 = P2, -1 = nikdo
     private int         line;
     private float       ignoreKeyUntil;  // aby E, kterým se dialog otevřel, hned nepřeskočilo první repliku
+    private float       reopenAllowedAt; // krátká pauza po konci dialogu, ať tentýž stisk E dialog hned neotevře znovu
 
     private GUIStyle nameStyle, textStyle, hintStyle;
     private bool     stylesReady;
@@ -53,6 +54,7 @@ public class StoryNpc : MonoBehaviour
     public void StartTalk(int playerIndex)
     {
         if (talkingWith != -1) return;
+        if (Time.time < reopenAllowedAt) return; // právě jsme dialog zavřeli — nech E "vyprchat"
         talkingWith    = playerIndex;
         line           = 0;
         ignoreKeyUntil = Time.time + 0.25f;
@@ -207,8 +209,9 @@ public class StoryNpc : MonoBehaviour
 
     private void EndTalk()
     {
-        talkingWith = -1;
-        line = 0;
+        talkingWith     = -1;
+        line            = 0;
+        reopenAllowedAt = Time.time + 0.35f; // ať tentýž stisk E hned neotevře dialog znovu
     }
 
     void OnGUI()

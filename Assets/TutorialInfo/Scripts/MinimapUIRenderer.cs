@@ -48,6 +48,14 @@ public class MinimapUIRenderer : MonoBehaviour
 
     private RectTransform compassRT; // šipka ukazující směr k cíli mega questu
 
+    // Health bary (loď + panáček) — děti minimapy, sedí přesně nad ní a jsou
+    // stejně široké (takže se centrují na minimapu bez ohledu na škálování canvasu).
+    private RectTransform boatHpFillRT, playerHpFillRT;
+    private Text          boatHpLabel,  playerHpLabel;
+    private static readonly Color HpBoatColor   = new Color(0.35f, 0.75f, 1f);
+    private static readonly Color HpPlayerColor = new Color(0.4f,  0.85f, 0.4f);
+    private static readonly Color HpLowColor    = new Color(0.9f,  0.3f,  0.25f);
+
     void Start()
     {
         grid = FindFirstObjectByType<GridManager>();
@@ -74,6 +82,7 @@ public class MinimapUIRenderer : MonoBehaviour
         minimapImage.uvRect  = new Rect(0, 0, 1, 1);
 
         CreateCompass();
+        CreateHealthBars();
 
         // Překresli minimapu při každé změně světa.
         grid.OnWorldChanged += Refresh;
@@ -117,6 +126,86 @@ public class MinimapUIRenderer : MonoBehaviour
         }
 
         return imgGO.AddComponent<RawImage>();
+    }
+
+    // ── Health bary nad minimapou ───────────────────────────────────────────
+    void CreateHealthBars()
+    {
+        // "Panáček" těsně nad minimapou, "Loď" nad ním.
+        playerHpFillRT = MakeHpBar("HpPanacek", 4f,  HpPlayerColor, out playerHpLabel);
+        boatHpFillRT   = MakeHpBar("HpLod",     24f, HpBoatColor,   out boatHpLabel);
+    }
+
+    // Jeden pruh: dítě minimapy, ukotvený k jejímu hornímu okraji, stejně široký.
+    RectTransform MakeHpBar(string name, float yAboveMap, Color fillColor, out Text label)
+    {
+        var go = new GameObject(name);
+        go.transform.SetParent(minimapImage.transform, false);
+        var rt = go.AddComponent<RectTransform>();
+        rt.anchorMin = new Vector2(0f, 1f);
+        rt.anchorMax = new Vector2(1f, 1f);
+        rt.pivot     = new Vector2(0.5f, 0f);
+        rt.sizeDelta = new Vector2(0f, 17f);
+        rt.anchoredPosition = new Vector2(0f, yAboveMap);
+
+        var bg = new GameObject("BG");
+        bg.transform.SetParent(go.transform, false);
+        var bgRt = bg.AddComponent<RectTransform>();
+        bgRt.anchorMin = Vector2.zero; bgRt.anchorMax = Vector2.one;
+        bgRt.offsetMin = bgRt.offsetMax = Vector2.zero;
+        var bgImg = bg.AddComponent<Image>();
+        bgImg.color = new Color(0f, 0f, 0f, 0.6f);
+        bgImg.raycastTarget = false;
+
+        var fill = new GameObject("Fill");
+        fill.transform.SetParent(go.transform, false);
+        var fillRt = fill.AddComponent<RectTransform>();
+        fillRt.anchorMin = new Vector2(0f, 0f);
+        fillRt.anchorMax = new Vector2(1f, 1f); // šířka přes anchorMax.x v Refresh
+        fillRt.offsetMin = new Vector2(2f, 2f);
+        fillRt.offsetMax = new Vector2(0f, -2f);
+        var fillImg = fill.AddComponent<Image>();
+        fillImg.color = fillColor;
+        fillImg.raycastTarget = false;
+
+        var txtGo = new GameObject("Label");
+        txtGo.transform.SetParent(go.transform, false);
+        var txtRt = txtGo.AddComponent<RectTransform>();
+        txtRt.anchorMin = Vector2.zero; txtRt.anchorMax = Vector2.one;
+        txtRt.offsetMin = new Vector2(6f, 0f);
+        txtRt.offsetMax = new Vector2(-4f, 0f);
+        label = txtGo.AddComponent<Text>();
+        label.font      = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+        label.fontSize  = 11;
+        label.fontStyle = FontStyle.Bold;
+        label.color     = Color.white;
+        label.alignment = TextAnchor.MiddleLeft;
+        label.raycastTarget = false;
+        var sh = txtGo.AddComponent<Shadow>();
+        sh.effectColor = new Color(0f, 0f, 0f, 0.9f);
+        sh.effectDistance = new Vector2(1f, -1f);
+
+        return fillRt;
+    }
+
+    void RefreshHealthBars()
+    {
+        GameData d = grid.gameData;
+        int boatHp   = playerIndex == 0 ? d.boatHealth   : d.player2BoatHealth;
+        int playerHp = playerIndex == 0 ? d.playerHealth : d.player2PlayerHealth;
+
+        SetHpBar(boatHpFillRT,   boatHpLabel,   "Lod",     boatHp,   HpBoatColor);
+        SetHpBar(playerHpFillRT, playerHpLabel, "Panacek", playerHp, HpPlayerColor);
+    }
+
+    void SetHpBar(RectTransform fillRT, Text label, string name, int hp, Color healthyColor)
+    {
+        if (fillRT == null) return;
+        hp = Mathf.Clamp(hp, 0, 100);
+        fillRT.anchorMax = new Vector2(hp / 100f, 1f);
+        var img = fillRT.GetComponent<Image>();
+        if (img != null) img.color = hp <= 30 ? HpLowColor : healthyColor;
+        if (label != null) label.text = $"{name}  {hp}";
     }
 
     // ── Kompas k mega questu (zlatá šipka na okraji minimapy) ─────────────────
@@ -194,6 +283,7 @@ public class MinimapUIRenderer : MonoBehaviour
         int cy = playerIndex == 0 ? d.playerGridY : d.player2GridY;
 
         UpdateCompass(playerIndex == 0 ? d.megaQuest : d.player2MegaQuest, cx, cy);
+        RefreshHealthBars();
 
         // Projdi všechny pixely a obarvi je podle políčka, které leží pod nimi.
         for (int px = 0; px < size; px++)

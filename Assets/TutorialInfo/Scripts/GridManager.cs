@@ -93,6 +93,8 @@ public class GridManager : MonoBehaviour
 
         SoundManager.StartWaves(); // hukot moře na pozadí
         if (GameSession.ReturningFromLighthouse) SoundManager.PlayDoor(); // vrznutí — vyšel ven z majáku
+
+        CombatDirector.Ensure(); // piráti + děla nepřátelských ostrovů
     }
 
     // Při zavření hry ulož.
@@ -383,44 +385,100 @@ public class GridManager : MonoBehaviour
         PlaceEdgePier(land);
         PlaceLighthouse(land);
         MaybePlaceChest(land);
+
+        // ~20 % ostrovů je nepřátelských — mají dělo, co po hráči střílí
+        // (klíč = bod, kolem kterého ostrov vznikl; ten je stabilní).
+        if (UnityEngine.Random.value < 0.20f)
+        {
+            string key = GridKey(startX, startY);
+            if (!gameData.hostileIslands.Contains(key)) gameData.hostileIslands.Add(key);
+        }
     }
 
     // Dvě políčka mola vedle sebe na okraji ostrova (obě mají "ven" vodu).
+    //  Molo = dvoupolíčkový výběžek DO VODY (přístaviště): vnitřní dlaždice se
+    //  dotýká pevniny, vnější má vodu na 3 strany. Loď se pak dá zaparkovat
+    //  hned za koncem mola a nasedání/vylodění je jednoznačné.
     private void PlaceEdgePier(List<(int x, int y)> land)
     {
-        var set = new HashSet<(int, int)>(land);
+        var set  = new HashSet<(int, int)>(land);
         var dirs = new (int dx, int dy)[] { (0, -1), (0, 1), (-1, 0), (1, 0) };
+        ShuffleDirs(dirs);
 
-        // Zamíchej strany, ať molo není vždy stejně.
-        for (int i = 0; i < dirs.Length; i++)
-        {
-            int j = UnityEngine.Random.Range(i, dirs.Length);
-            var t = dirs[i]; dirs[i] = dirs[j]; dirs[j] = t;
-        }
+        var lands = new List<(int x, int y)>(land);
+        ShuffleTiles(lands);
 
+        // 1. pokus: molo s vodou na 3 strany u vnější dlaždice (ideál).
+        if (TryPlaceJetty(set, lands, dirs, strict: true))  return;
+        // 2. pokus: aspoň výběžek 2 dlaždic do vody.
+        if (TryPlaceJetty(set, lands, dirs, strict: false)) return;
+
+        // 3. pojistka: dvě dlaždice na kraji ostrova vedle sebe (starý styl).
         foreach (var d in dirs)
         {
-            var perp = d.dx == 0 ? (dx: 1, dy: 0) : (dx: 0, dy: 1); // kolmo = "vedle sebe"
-
-            // Zamíchané pořadí pevniny, ať molo není vždy v rohu.
-            var shuffled = new List<(int x, int y)>(land);
-            for (int i = 0; i < shuffled.Count; i++)
+            var perp = d.dx == 0 ? (dx: 1, dy: 0) : (dx: 0, dy: 1);
+            foreach (var p in lands)
             {
-                int j = UnityEngine.Random.Range(i, shuffled.Count);
-                var t = shuffled[i]; shuffled[i] = shuffled[j]; shuffled[j] = t;
-            }
-
-            foreach (var p in shuffled)
-            {
-                if (set.Contains((p.x + d.dx, p.y + d.dy))) continue;          // p musí mít ven vodu
+                if (set.Contains((p.x + d.dx, p.y + d.dy))) continue;
                 var q = (p.x + perp.dx, p.y + perp.dy);
-                if (!set.Contains(q)) continue;                                // vedlejší musí být pevnina
-                if (set.Contains((q.Item1 + d.dx, q.Item2 + d.dy))) continue;  // a taky mít ven vodu
+                if (!set.Contains(q)) continue;
+                if (set.Contains((q.Item1 + d.dx, q.Item2 + d.dy))) continue;
 
-                gameData.tileData[GridKey(p.x, p.y)]           = new TileStatus((int)TileType.Pier);
-                gameData.tileData[GridKey(q.Item1, q.Item2)]   = new TileStatus((int)TileType.Pier);
+                gameData.tileData[GridKey(p.x, p.y)]         = new TileStatus((int)TileType.Pier);
+                gameData.tileData[GridKey(q.Item1, q.Item2)] = new TileStatus((int)TileType.Pier);
                 return;
             }
+        }
+    }
+
+    // Zkusí položit dvoupolíčkové molo trčící z pevniny do vody.
+    //  p            = pevninová dlaždice na kraji
+    //  p+d, p+2d    = vnitřní a vnější dlaždice mola (voda → Pier)
+    //  p+3d         = voda za molem (kam se dá zaparkovat loď)
+    private bool TryPlaceJetty(HashSet<(int, int)> set, List<(int x, int y)> lands,
+                               (int dx, int dy)[] dirs, bool strict)
+    {
+        foreach (var p in lands)
+            foreach (var d in dirs)
+            {
+                var i1 = (p.x + d.dx,       p.y + d.dy);
+                var i2 = (p.x + 2 * d.dx,   p.y + 2 * d.dy);
+                var i3 = (p.x + 3 * d.dx,   p.y + 3 * d.dy);
+
+                // celý výběžek + voda za ním musí být mimo pevninu
+                if (set.Contains(i1) || set.Contains(i2) || set.Contains(i3)) continue;
+
+                var pp = d.dx == 0 ? (1, 0) : (0, 1); // kolmý směr
+                // boky vnitřní dlaždice nesmí být pevnina (jinak to netrčí)
+                if (set.Contains((i1.Item1 + pp.Item1, i1.Item2 + pp.Item2)) ||
+                    set.Contains((i1.Item1 - pp.Item1, i1.Item2 - pp.Item2))) continue;
+
+                if (strict &&
+                   (set.Contains((i2.Item1 + pp.Item1, i2.Item2 + pp.Item2)) ||
+                    set.Contains((i2.Item1 - pp.Item1, i2.Item2 - pp.Item2)))) continue;
+
+                gameData.tileData[GridKey(i1.Item1, i1.Item2)] = new TileStatus((int)TileType.Pier);
+                gameData.tileData[GridKey(i2.Item1, i2.Item2)] = new TileStatus((int)TileType.Pier);
+                return true;
+            }
+        return false;
+    }
+
+    private void ShuffleDirs((int dx, int dy)[] a)
+    {
+        for (int i = 0; i < a.Length; i++)
+        {
+            int j = UnityEngine.Random.Range(i, a.Length);
+            var t = a[i]; a[i] = a[j]; a[j] = t;
+        }
+    }
+
+    private void ShuffleTiles(List<(int x, int y)> a)
+    {
+        for (int i = 0; i < a.Count; i++)
+        {
+            int j = UnityEngine.Random.Range(i, a.Count);
+            var t = a[i]; a[i] = a[j]; a[j] = t;
         }
     }
 
@@ -787,6 +845,50 @@ public class GridManager : MonoBehaviour
 
     /// <summary>Ručně vyvolá OnWorldChanged (překreslí HUD a minimapu).</summary>
     public void NotifyWorldChanged() => OnWorldChanged?.Invoke();
+
+    // ── Nepřátelské ostrovy (soubojový systém) ─────────────────────────────
+    /// <summary>Klíče nepřátelských ostrovů, kterým hráč ještě NEzničil dělo.</summary>
+    public List<string> ActiveHostileIslandKeys()
+    {
+        var result = new List<string>();
+        foreach (string k in gameData.hostileIslands)
+            if (!gameData.clearedIslands.Contains(k)) result.Add(k);
+        return result;
+    }
+
+    /// <summary>Zapamatuje si, že hráč zničil dělo tohoto nepřátelského ostrova.</summary>
+    public void MarkIslandCleared(string key)
+    {
+        if (!gameData.clearedIslands.Contains(key)) gameData.clearedIslands.Add(key);
+    }
+
+    /// <summary>"x,y" klíč rozloží na souřadnice.</summary>
+    public static Vector2Int KeyToTile(string key)
+    {
+        var p = key.Split(',');
+        return new Vector2Int(int.Parse(p[0]), int.Parse(p[1]));
+    }
+
+    /// <summary>Najde pevninovou dlaždici u vody poblíž středu ostrova (kam dát dělo).</summary>
+    public bool TryGetHostileCannonSpot(Vector2Int center, out Vector2Int spot)
+    {
+        spot = default;
+        bool found = false;
+        int  bestD = int.MaxValue;
+
+        for (int x = center.x - 12; x <= center.x + 12; x++)
+            for (int y = center.y - 12; y <= center.y + 12; y++)
+            {
+                if (GetTileType(x, y) != TileType.Harbor) continue;
+                // musí sousedit s vodou (aby dělo bylo u kraje a mělo výhled)
+                if (GetTileType(x + 1, y) != TileType.Water && GetTileType(x - 1, y) != TileType.Water
+                 && GetTileType(x, y + 1) != TileType.Water && GetTileType(x, y - 1) != TileType.Water) continue;
+
+                int d = (x - center.x) * (x - center.x) + (y - center.y) * (y - center.y);
+                if (d < bestD) { bestD = d; spot = new Vector2Int(x, y); found = true; }
+            }
+        return found;
+    }
 
     /// <summary>
     /// Políčka pevniny (Harbor) startovního ostrova — toho u počátku [0,0].

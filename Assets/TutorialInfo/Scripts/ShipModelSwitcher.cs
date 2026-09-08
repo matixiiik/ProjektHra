@@ -25,7 +25,7 @@ public class ShipModelSwitcher : MonoBehaviour
     // Veslice je placatá loďka — má trup skoro celý u svého středu, takže při
     // stejném posazení jako plachetnice "lítá" nad vodou. Posadíme ji o kus níž,
     // ať sedí V hladině.
-    private const float ROW_EXTRA_SINK = 0.15f;
+    private const float ROW_EXTRA_SINK = 0.08f;
 
     private GridManager      grid;
     private PlayerController player;

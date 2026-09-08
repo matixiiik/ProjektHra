@@ -22,15 +22,10 @@ public class HUDCounter : MonoBehaviour
     private Text        fishText;
     private Text        treasureText;
     private Text        coinsText;
+    private Text        ammoText;    // náboje do lodního děla
     private Text        coordText;   // souřadnice hráče (levý horní roh)
     private GameObject  questPanel;
     private Text        questLine;
-
-    // Health bary (loď + hráč) nad minimapou.
-    private RectTransform boatHpFillRT,  playerHpFillRT;
-    private Text          boatHpText,    playerHpText;
-    private Color         boatHpColor,   playerHpColor;
-    private static readonly Color LowHpColor = new Color(0.9f, 0.3f, 0.25f);
 
     // Odkazy na RectTransformy prvků, abychom s nimi mohli hýbat při split screenu.
     private List<RectTransform> rowRTs = new List<RectTransform>();
@@ -82,63 +77,15 @@ public class HUDCounter : MonoBehaviour
         fishText     = MakeRow(canvasGO.transform, 0, new Color(0.3f, 0.8f, 1f));
         treasureText = MakeRow(canvasGO.transform, 1, new Color(1f, 0.85f, 0.2f));
         coinsText    = MakeRow(canvasGO.transform, 2, new Color(0.9f, 0.7f, 0.1f));
+        ammoText     = MakeRow(canvasGO.transform, 3, new Color(0.85f, 0.85f, 0.9f));
 
         BuildCoordLabel(canvasGO.transform);
-        BuildHealthBars(canvasGO.transform);
 
         BuildQuestPanel(canvasGO.transform);
         questPanel.SetActive(false); // schovaný, dokud hráč nemá quest
     }
 
-    // Dva pruhy zdraví (loď nahoře, panáček dole) hned nad minimapou.
-    // P1 = levý dolní roh, P2 = pravý dolní roh (stejně jako minimapa).
-    void BuildHealthBars(Transform parent)
-    {
-        bool right = playerIndex == 1;
-        Vector2 anchor = new Vector2(right ? 1f : 0f, 0f);
-        float   xoff   = right ? -10f : 10f;
-
-        boatHpColor   = new Color(0.35f, 0.75f, 1f);
-        playerHpColor = new Color(0.4f,  0.85f, 0.4f);
-
-        boatHpFillRT   = MakeBar(parent, anchor, xoff, 214f, boatHpColor,   "Lod",     out boatHpText);
-        playerHpFillRT = MakeBar(parent, anchor, xoff, 188f, playerHpColor, "Panacek", out playerHpText);
-    }
-
-    // Jeden health bar: tmavé pozadí + barevná výplň (mění šířku) + popisek.
-    RectTransform MakeBar(Transform parent, Vector2 anchor, float xoff, float yoff, Color fillColor, string name, out Text label)
-    {
-        var go = new GameObject("HpBar_" + name);
-        go.transform.SetParent(parent, false);
-        var rt = go.AddComponent<RectTransform>();
-        rt.anchorMin = rt.anchorMax = anchor;
-        rt.pivot     = anchor;
-        rt.sizeDelta = new Vector2(170f, 22f);
-        rt.anchoredPosition = new Vector2(xoff, yoff);
-
-        var bg = new GameObject("BG");
-        bg.transform.SetParent(go.transform, false);
-        var bgRt = bg.AddComponent<RectTransform>();
-        bgRt.anchorMin = Vector2.zero; bgRt.anchorMax = Vector2.one;
-        bgRt.offsetMin = bgRt.offsetMax = Vector2.zero;
-        bg.AddComponent<Image>().color = new Color(0f, 0f, 0f, 0.55f);
-
-        var fill = new GameObject("Fill");
-        fill.transform.SetParent(go.transform, false);
-        var fillRt = fill.AddComponent<RectTransform>();
-        fillRt.anchorMin = new Vector2(0f, 0f);
-        fillRt.anchorMax = new Vector2(1f, 1f); // šířku měníme přes anchorMax.x v Refresh
-        fillRt.offsetMin = new Vector2(2f, 2f);
-        fillRt.offsetMax = new Vector2(0f, -2f);
-        fill.AddComponent<Image>().color = fillColor;
-
-        label = MakeText(go.transform,
-            new Vector2(8, 0), new Vector2(-8, 0),
-            Vector2.zero, Vector2.one,
-            15f, Color.white, FontStyle.Bold, TextAnchor.MiddleLeft);
-
-        return fillRt;
-    }
+    // (Health bary lodě a hráče kreslí MinimapUIRenderer — sedí nad minimapou.)
 
     // Souřadnice hráče v levém horním rohu ("X: 5   Y: 8").
     void BuildCoordLabel(Transform parent)
@@ -315,6 +262,7 @@ public class HUDCounter : MonoBehaviour
         int fish     = playerIndex == 0 ? d.fishCount     : d.player2FishCount;
         int treasure = playerIndex == 0 ? d.treasureCount : d.player2TreasureCount;
         int coins    = playerIndex == 0 ? d.coins         : d.player2Coins;
+        int ammo     = playerIndex == 0 ? d.ammo          : d.player2Ammo;
         ActiveQuest q = playerIndex == 0 ? d.activeQuest   : d.player2ActiveQuest;
 
         MegaQuest mq = playerIndex == 0 ? d.megaQuest : d.player2MegaQuest;
@@ -325,31 +273,9 @@ public class HUDCounter : MonoBehaviour
         fishText.text     = $"Ryby: {fish}";
         treasureText.text = $"Poklady: {treasure}";
         coinsText.text    = $"Mince: {coins}";
+        ammoText.text     = $"Naboje: {ammo}";
         coordText.text    = $"X: {gx}   Y: {gy}";
-        RefreshHealth(d);
         RefreshQuest(q, mq);
-    }
-
-    void RefreshHealth(GameData d)
-    {
-        int boatHp   = playerIndex == 0 ? d.boatHealth   : d.player2BoatHealth;
-        int playerHp = playerIndex == 0 ? d.playerHealth : d.player2PlayerHealth;
-
-        SetBar(boatHpFillRT,   boatHpText,   "Lod",     boatHp,   boatHpColor);
-        SetBar(playerHpFillRT, playerHpText, "Panacek", playerHp, playerHpColor);
-    }
-
-    // Nastaví šířku výplně a text jednoho health baru; při nízkém zdraví zčervená.
-    void SetBar(RectTransform fillRT, Text label, string name, int hp, Color healthyColor)
-    {
-        if (fillRT == null) return;
-        float f = Mathf.Clamp01(hp / 100f);
-        fillRT.anchorMax = new Vector2(f, 1f);
-
-        var img = fillRT.GetComponent<Image>();
-        if (img != null) img.color = hp <= 30 ? LowHpColor : healthyColor;
-
-        if (label != null) label.text = $"{name}  {hp}";
     }
 
     void RefreshQuest(ActiveQuest q, MegaQuest mq)

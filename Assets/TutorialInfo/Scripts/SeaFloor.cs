@@ -1,46 +1,56 @@
+using System.Collections.Generic;
 using UnityEngine;
 
 // ─────────────────────────────────────────────────────────────────────────────
 //  SeaFloor.cs
-//  Mořské dno hluboko pod hladinou. Přes poloprůhlednou vodu (viz OceanSurface)
-//  je vidět jako tmavé členité dno — díky tomu má moře "hloubku" a nekouká se
-//  do prázdna.
+//  Mořské dno pod hladinou. Přes poloprůhlednou vodu (viz OceanSurface) je vidět
+//  jako členité dno — díky tomu má moře "hloubku" a nekouká se do prázdna.
 //
 //  Je to jedna velká plocha, která jede za hráčem. Výška vrcholů = Perlinův šum
-//  ve SVĚTOVÝCH souřadnicích (hloubka ~3 až ~10 pod hladinou), takže dno je
-//  pořád stejné na stejném místě a jen se dogeneruje kolem hráče. Pod vraky
-//  pokladů je navíc písčitá kupa (viz GridManager), ať vrak nestojí ve vzduchu.
+//  ve SVĚTOVÝCH souřadnicích (hloubka ~3 až ~10 pod hladinou), takže dno je pořád
+//  stejné na stejném místě a jen se dogeneruje kolem hráče.
 //
-//  Objekt vytváří GridManager (viz CreateSeaWorld). Nemá kolizi ani vliv na hru —
-//  těžba pokladu funguje dál stejně (mezerník na políčku pokladu).
+//  Pod políčky s vrakem (Treasure) se dno PLYNULE zvedne do mělčiny (~2.8 pod
+//  hladinu) — vypadá to jako přírodní mělčina/útes, na kterém vrak uvázl, ne
+//  jako umělá kupka uprostřed ničeho. Souřadnice vraků dodává GridManager.
+//
+//  Objekt vytváří GridManager (viz CreateSeaWorld). Nemá kolizi ani vliv na hru.
 // ─────────────────────────────────────────────────────────────────────────────
 
 [RequireComponent(typeof(MeshFilter), typeof(MeshRenderer))]
 public class SeaFloor : MonoBehaviour
 {
-    private const float SIZE      = 164f;  // strana plochy (o kus větší než hladina, ať pod ní není mezera)
-    private const float STEP      = 8f;    // rozteč vrcholů (dno je daleko, stačí hrubší síť)
-    private const float FLOOR_MIN = -10f;  // nejhlubší místo dna (hloubka ~10)
-    private const float FLOOR_MAX = -3f;   // nejmělčí místo dna (hloubka ~3) — přes vodu je vidět
-    private const float NOISE     = 0.045f;// měřítko Perlinova šumu (menší = větší kopce)
+    private const float SIZE      = 164f;  // strana plochy
+    private const float STEP      = 4f;    // rozteč vrcholů (jemnější, ať se dá vykreslit mělčina pod vrakem)
+    private const float FLOOR_MIN = -10f;  // nejhlubší místo dna
+    private const float FLOOR_MAX = -3f;   // nejmělčí "normální" místo dna
+    private const float NOISE     = 0.045f;// měřítko Perlinova šumu
 
-    private Transform p1;
-    private Transform p2;
-    private float     nextP2Scan;
+    private const float SHOAL_Y      = -2.7f; // jak vysoko se dno zvedne pod vrakem
+    private const float SHOAL_RADIUS = 9f;    // do jaké vzdálenosti od vraku se dno zvedá
+    private const int   SCAN_RADIUS  = 44;    // v kolika políčkách kolem hledat vraky
 
-    private Mesh      mesh;
-    private Vector3[] verts;
+    private Transform   p1;
+    private Transform   p2;
+    private float       nextP2Scan;
+    private float       nextWreckRescan; // občas přepočítat dno, i když hráč stojí (mohl se dogenerovat nový vrak)
+    private GridManager grid;
+
+    private Mesh       mesh;
+    private Vector3[]  verts;
     private Vector2Int lastSnap = new Vector2Int(int.MaxValue, int.MaxValue);
 
+    private readonly List<Vector2Int> wrecks = new List<Vector2Int>();
+
     /// <summary>Zavolá GridManager hned po vytvoření objektu.</summary>
-    public void Init(Material sandMaterial, Transform player1)
+    public void Init(Material sandMaterial, Transform player1, GridManager gridManager)
     {
-        p1 = player1;
+        p1   = player1;
+        grid = gridManager;
 
         var mr = GetComponent<MeshRenderer>();
         if (sandMaterial != null)
         {
-            // Tmavší kopie písčitého materiálu ostrova — ať dno není tak výrazné.
             var mat = new Material(sandMaterial);
             if (mat.HasProperty("_BaseColor")) mat.SetColor("_BaseColor", new Color(0.33f, 0.38f, 0.36f, 1f));
             if (mat.HasProperty("_Color"))     mat.SetColor("_Color",     new Color(0.33f, 0.38f, 0.36f, 1f));
@@ -55,7 +65,6 @@ public class SeaFloor : MonoBehaviour
         Snap(force: true);
     }
 
-    // Postaví síť vrcholů (výšku doplní Reshape podle Perlinova šumu).
     void BuildMesh()
     {
         int n = Mathf.RoundToInt(SIZE / STEP) + 1;
@@ -82,6 +91,7 @@ public class SeaFloor : MonoBehaviour
             }
 
         mesh = new Mesh { name = "SeaFloor" };
+        if (verts.Length > 65000) mesh.indexFormat = UnityEngine.Rendering.IndexFormat.UInt32;
         mesh.vertices  = verts;
         mesh.triangles = tris;
     }
@@ -95,10 +105,16 @@ public class SeaFloor : MonoBehaviour
                 if (pc.playerIndex == 1) { p2 = pc.transform; break; }
         }
         Snap(force: false);
+
+        // Hráč může stát na místě ve chvíli, kdy se opodál dogeneruje políčko s
+        // vrakem — Snap by pak Reshape nezavolal. Proto ho jednou za čas vynutíme.
+        if (Time.time >= nextWreckRescan)
+        {
+            nextWreckRescan = Time.time + 1f;
+            Reshape();
+        }
     }
 
-    // Posune plochu k hráči (zaokrouhleně na STEP) a když se posunula,
-    // přepočítá výšky vrcholů podle šumu ve světě.
     void Snap(bool force)
     {
         Vector3 c;
@@ -116,19 +132,38 @@ public class SeaFloor : MonoBehaviour
         Reshape();
     }
 
-    // Výška každého vrcholu = Perlinův šum podle jeho SVĚTOVÉ pozice.
+    // Výška vrcholu = Perlinův šum + plynulé zvednutí pod vraky.
     void Reshape()
     {
         float ox = transform.position.x;
         float oz = transform.position.z;
 
+        if (grid != null)
+            grid.CollectTreasureTilesNear(Mathf.RoundToInt(ox), Mathf.RoundToInt(oz), SCAN_RADIUS, wrecks);
+        else
+            wrecks.Clear();
+
         for (int k = 0; k < verts.Length; k++)
         {
             float wx = verts[k].x + ox;
             float wz = verts[k].z + oz;
-            float noise = Mathf.PerlinNoise(wx * NOISE + 500f, wz * NOISE + 500f); // 0..1
-            // noise² → dno je většinou hluboké (~10), mělčiny (~3) jsou jen občas.
-            verts[k].y = Mathf.Lerp(FLOOR_MIN, FLOOR_MAX, noise * noise);
+
+            float noise  = Mathf.PerlinNoise(wx * NOISE + 500f, wz * NOISE + 500f);
+            float floorY = Mathf.Lerp(FLOOR_MIN, FLOOR_MAX, noise * noise);
+
+            // Nejbližší vrak → plynulý nájezd dna vzhůru (přírodní mělčina).
+            float shoal = 0f;
+            for (int t = 0; t < wrecks.Count; t++)
+            {
+                float dx = wx - wrecks[t].x;
+                float dz = wz - wrecks[t].y;
+                float s  = Mathf.Clamp01(1f - Mathf.Sqrt(dx * dx + dz * dz) / SHOAL_RADIUS);
+                s = s * s * (3f - 2f * s); // smoothstep
+                if (s > shoal) shoal = s;
+            }
+            if (shoal > 0f) floorY = Mathf.Max(floorY, Mathf.Lerp(floorY, SHOAL_Y, shoal));
+
+            verts[k].y = floorY;
         }
 
         mesh.vertices = verts;

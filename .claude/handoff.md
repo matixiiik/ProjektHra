@@ -8,13 +8,18 @@ sem Claude píše, kde se přestalo, aby se dalo pokračovat i z notebooku.
 
 ---
 
-## STAV 2026-09-08 večer — vše commitnuté a pushnuté (`a4e363b`), working tree čistý
+## STAV 2026-09-08 pozdě večer — vše commitnuté a pushnuté, working tree čistý
 
-Hotová série coop/maják úprav (viz commity `873f425` … `17f8568` a sekce níže):
-vrak místo truhly, kulatý maják, oba hráči v jedné místnosti majáku (modrý+červený),
-per-hráč obchody, souřadnice per-hráč, oprava nasedání do lodě.
+Poslední práce: **moře — jedna velká voda + průhlednost + dno + obloha**
+(`d10fc2d`, jiná session), pak **dno mělčí + vraky na dně + tmavší hladina + pěna
+za lodí** (`96c79a4`), pak **vraky sedí na přírodní mělčině v meshi dna (ne kupka)
++ loď víc do vody** (viz sekce "MOŘE — DNO A VRAKY" níže).
 
-**Zítra (2026-09-08+1): uživatel bude dávat další úkoly PO KOUSKÁCH přímo do chatu.**
+Předtím: série coop/maják úprav — vrak místo truhly, kulatý maják, oba hráči
+v jedné místnosti majáku (modrý+červený), per-hráč obchody, souřadnice per-hráč,
+oprava nasedání do lodě.
+
+**Zítra: uživatel bude dávat další úkoly PO KOUSKÁCH přímo do chatu.**
 Větší backlog nápadů je v **`Napady.txt`** v kořeni repa (jedna velká voda místo
 dlaždic + vlny, loď víc do vody, nižší spawn rate pokladů/ryb, bedna mega questu
 jen 1× a jen jeden hráč, NPC děda + příběh, start s "boat row small",
@@ -64,6 +69,35 @@ Velký vícefázový úkol:
 | *(coop 2)* | **Coop maják = pochozí interiér navíc + 3 další (2026-09-07/08).** |
 | *(coop 3)* | **Vrak místo truhly na moři + P1 se schová v majáku + per-hráč obchod (2026-09-08).** Viz níže. |
 | *(coop 4)* | **Coop maják pro OBA hráče + kulatá místnost + šipky nikdy P1 (2026-09-08).** Viz níže. |
+
+## MOŘE — DNO A VRAKY (2026-09-08 pozdě večer) — HOTOVO, OTESTOVÁNO přes MCP
+
+Návaznost na `d10fc2d` (jedna velká voda místo dlaždic) a `96c79a4` (první verze
+dna + kupky). Uživatel: *"udelej aby ty kupky nebyli kupky ale primo dno ktery se
+random vygeneruje podle toho kde jsou ty vraky … prirozena generace sveta ne kupka
+uprostred niceho … a ta lod kdyz jede … dej ji vic aby kus tou lodi je pod hladinou"*.
+
+1. **`SeaFloor.cs` — přírodní mělčina v meshi dna.** Zrušené koule "Sandbar"
+   (`GridManager.AddWreckSandbar` + `wreckSandMat` smazané). Dno = jedna síť,
+   výška vrcholu = `Perlin(noise²)` mezi `FLOOR_MIN -10` a `FLOOR_MAX -3`. Pod
+   políčky s vrakem (Treasure) se vrcholy PLYNULE zvednou (smoothstep, `SHOAL_RADIUS 9`)
+   k `SHOAL_Y -2.7` → vrak sedí na mělčině, ne "lítá" ve vodě, ale je pořád vidět
+   z hladiny (voda je průhledná, hladina −0.22). `STEP` 8→4 (jemnější, ať se
+   mělčina vykreslí). Souřadnice vraků dodává `GridManager.CollectTreasureTilesNear(cx,cz,radius,outList)`
+   (`SCAN_RADIUS 44` políček). `SeaFloor.Init` má teď 3. parametr `GridManager grid`.
+   `Reshape()` se volá při posunu sítě (Snap) + navíc jednou za 1 s (`nextWreckRescan`)
+   pro případ, že se vrak dogeneruje, když hráč stojí.
+2. **`ShipModelSwitcher.BOAT_SINK` 0.62 → 1.05.** Model lodě se posadí níž →
+   kus trupu je pod hladinou (objekt hráče Y 0.5, hladina −0.22, model ≈ −0.55).
+
+Ověřeno přes MCP: dno u vraku max Y ≈ −2.9 vs. daleko průmer ≈ −8.3 (přírodní
+přechod), `Wreck` objekt Y −2.9 (sedí na dně), boatModel Y −0.55 (trup pod
+hladinou), 0 chyb. Screenshoty: vrak leží na světlejší mělčině, plynule přechází
+do hloubky, žádná koule.
+
+Pozn.: tmavší vrstva hladiny (`OceanSurface.BuildSkin` / "OceanSkin") a pěna za
+lodí (`BoatWake.cs`) z `96c79a4` — funkčně hotové, stojí za kouknutí v Play naživo
+při skutečné plavbě.
 
 ## COOP MAJÁK PRO OBA + KULATÁ MÍSTNOST (2026-09-08) — HOTOVO, OTESTOVÁNO přes MCP
 

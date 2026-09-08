@@ -41,7 +41,7 @@ public class GridManager : MonoBehaviour
     // Sladěné s OceanSurface.seaLevel (-0.22). Kdyby ryby/vrak plavaly nad vodou
     // nebo se topily, dolaď tady o pár setin.
     private const float FISH_TILE_Y     = -0.45f; // rybí dlaždice — kousek pod hladinou, přes průhlednou vodu prosvítá jako mělčina
-    private const float TREASURE_TILE_Y = -1.9f;  // dlaždice pokladu hluboko → vrak stojí na písčité kupě (viz AddWreckSandbar), kouká jen stěžeň nad hladinu
+    private const float TREASURE_TILE_Y = -1.9f;  // dlaždice pokladu hluboko → trup vraku sedí v mělčině (SeaFloor tam zvedne dno), nad hladinu kouká jen stěžeň
 
     // Veškerý stav hry. Fyzicky ho drží GameSession (přežívá i přechod do
     // scény majáku), GridManager k němu jen přistupuje přes tuhle zkratku.
@@ -121,7 +121,7 @@ public class GridManager : MonoBehaviour
 
         var floor = new GameObject("SeaFloor");
         floor.transform.SetParent(transform);
-        floor.AddComponent<SeaFloor>().Init(islandTerrainMaterial, p1);
+        floor.AddComponent<SeaFloor>().Init(islandTerrainMaterial, p1, this);
 
         var sky = new GameObject("SkyClouds");
         sky.transform.SetParent(transform);
@@ -554,9 +554,6 @@ public class GridManager : MonoBehaviour
         GameObject newTile = Instantiate(prefab, pos, Quaternion.identity, transform);
         activeTiles.Add(GridKey(x, y), newTile);
 
-        // Vrak: přidej pod něj písčitou kupu, ať stojí na "dně" a neplave ve vodě.
-        if ((TileType)status.type == TileType.Treasure) AddWreckSandbar(newTile);
-
         // Rybí dlaždice: zruš vlastní pohupování — sedí napevno v hladině.
         if ((TileType)status.type == TileType.Water_Fish)
         {
@@ -687,34 +684,15 @@ public class GridManager : MonoBehaviour
         foreach (string k in dead) islandTerrains.Remove(k);
     }
 
-    private Material wreckSandMat; // tmavší písek pod vraky (líná inicializace)
-
-    // Přidá pod vrak plochou písčitou kupu — vrší se kousek pod hladinu, takže
-    // vrak vypadá, že sedí na mělčině a neplave uprostřed vody.
-    private void AddWreckSandbar(GameObject tile)
+    // Nasbírá souřadnice políček s vrakem (Treasure) v okolí středu. Používá
+    // SeaFloor, aby pod vraky přírodně zvedl dno (mělčina), místo umělé kupky.
+    public void CollectTreasureTilesNear(int cx, int cz, int radius, List<Vector2Int> outList)
     {
-        if (wreckSandMat == null && islandTerrainMaterial != null)
-        {
-            wreckSandMat = new Material(islandTerrainMaterial);
-            if (wreckSandMat.HasProperty("_BaseColor"))
-                wreckSandMat.SetColor("_BaseColor", new Color(0.5f, 0.48f, 0.4f, 1f));
-            if (wreckSandMat.HasProperty("_Color"))
-                wreckSandMat.SetColor("_Color", new Color(0.5f, 0.48f, 0.4f, 1f));
-        }
-
-        var bar = GameObject.CreatePrimitive(PrimitiveType.Sphere);
-        bar.name = "Sandbar";
-        Destroy(bar.GetComponent<Collider>());
-        bar.transform.SetParent(tile.transform, false);
-        // Široká kupa písku sahající skoro až ke dnu — vršek kolem y −2.9 (tam sedí
-        // trup vraku), spodek hluboko, ať pod ním není mezera do prázdna.
-        bar.transform.localScale    = new Vector3(4.6f, 5.0f, 4.6f);
-        bar.transform.localPosition = new Vector3(0f, -3.5f, 0f);
-
-        var mr = bar.GetComponent<MeshRenderer>();
-        if (wreckSandMat != null) mr.sharedMaterial = wreckSandMat;
-        mr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
-        mr.receiveShadows    = false;
+        outList.Clear();
+        for (int x = cx - radius; x <= cx + radius; x++)
+            for (int y = cz - radius; y <= cz + radius; y++)
+                if (GetTileType(x, y) == TileType.Treasure)
+                    outList.Add(new Vector2Int(x, y));
     }
 
     // Vytvoří barevnou ikonku budovy (čtvereček nad ní) jen pro minimapu.

@@ -69,16 +69,23 @@ public class PirateShip : MonoBehaviour
 
         var go = Instantiate(prefab, root, false);
         go.name = "Model";
-        float sc = size == 0 ? 0.42f : size == 1 ? 0.55f : 0.7f;
-        go.transform.localPosition = new Vector3(0f, 0f, 0f);
+        // Měřítko drženě malé — pirátská loď má být o něco větší než hráčova, ne
+        // obr přes celý ostrov. Model posadíme kousek pod kýl (fbx má pivot na
+        // dně trupu), ať část trupu mizí pod hladinou a loď působí, že pluje.
+        float sc = size == 0 ? 0.30f : size == 1 ? 0.38f : 0.48f;
+        go.transform.localPosition = new Vector3(0f, -0.10f, 0f);
         go.transform.localScale    = new Vector3(sc, sc, sc);
 
-        // Model nemá materiál (Kenney fbx) → dej mu tmavý pirátský nátěr.
-        Material dark = MakeMat(new Color(0.24f, 0.17f, 0.13f));
+        // Kenney fbx nemá materiál. Rozlišíme trup / plachty / vlajky, ať loď
+        // není jen tmavá šmouha (plachty a vlajky by jinak splynuly s trupem).
+        Material hull = SharedMat(ref matHull, new Color(0.24f, 0.17f, 0.13f)); // tmavé dřevo
+        Material sail = SharedMat(ref matSail, new Color(0.86f, 0.81f, 0.70f)); // plátno
+        Material flag = SharedMat(ref matFlag, new Color(0.55f, 0.12f, 0.10f)); // rudá vlajka
         foreach (var mr in go.GetComponentsInChildren<MeshRenderer>(true))
         {
-            mr.sharedMaterial     = dark;
-            mr.shadowCastingMode   = UnityEngine.Rendering.ShadowCastingMode.Off;
+            string n = mr.gameObject.name.ToLowerInvariant();
+            mr.sharedMaterial    = n.Contains("sail") ? sail : n.Contains("flag") ? flag : hull;
+            mr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
         }
         foreach (var col in go.GetComponentsInChildren<Collider>(true)) Destroy(col);
         return true;
@@ -240,5 +247,14 @@ public class PirateShip : MonoBehaviour
         if (m.HasProperty("_BaseColor")) m.SetColor("_BaseColor", c);
         if (m.HasProperty("_Color"))     m.SetColor("_Color", c);
         return m;
+    }
+
+    // Materiály trupu / plachty / vlajky se vytvoří jen jednou pro celou hru
+    // a sdílí je všechny pirátské lodě (žádný materiál navíc na každou loď).
+    private static Material matHull, matSail, matFlag;
+    private static Material SharedMat(ref Material slot, Color c)
+    {
+        if (slot == null) slot = MakeMat(c);
+        return slot;
     }
 }

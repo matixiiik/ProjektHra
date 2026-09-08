@@ -11,10 +11,39 @@ sem Claude píše, kde se přestalo, aby se dalo pokračovat i z notebooku.
 ## STAV 2026-09-09 — vše commitnuté a pushnuté, working tree čistý
 (kromě `Napady.txt`, který si edituje uživatel — necommitovat za něj)
 
-> ⚠️ **Unity MCP byl při této dávce ODPOJENÝ** — kód je jen offline compile-checknutý
-> (`.claude/skills/unity-hra/scripts/compile-check.sh` + přidané nové soubory).
-> **V editoru NEODZKOUŠENO.** Hlavně: pirátské Kenney modely (měřítko/otočení/výška),
-> obchody po odebrání serializovaných polí, čísla ekonomiky, respawn po smrti.
+### PLAY-TEST + OPRAVY dávek 1 a 2 (2026-09-09, MCP zase jede) — HOTOVO, OTESTOVÁNO
+Projeto přes MCP (reflexe + screenshoty). Kompilace 0 chyb/varování.
+
+**Ověřeno funkční:** ekonomika (ceny/výkup přes EconomyConfig), smrt→DeathScreen→
+respawn (mince + mega quest zůstanou, zbytek pryč, ship→0, veslice u nejbližšího
+mola), rozbitá loď→plavání 0.28×→doplavat na molo→auto-výlov, oprava v obchodě
+(`FixBoat`→`boatNeedsRehome`→loď se přemístí k molu).
+
+**Opraveno (6 věcí, jen vizuál + čísla, nulový dopad na pravidla):**
+1. `IslandDecor.EXTRA_PALM_SCALE = 0.38` — Kenney `palm-bend` byl 9 j (větší než
+   ostrov), teď ~1.5 j. Vestavěná `Decor_Palm` má dál `PALM_SCALE 2.1`.
+2. `PirateShip.BuildKenneyModel` — materiály zvlášť pro trup (tmavé dřevo) /
+   plachty (plátno) / vlajky (rudá), sdílené staticky. Dřív jeden tmavý → šmouha.
+3. Pirátské lodě menší (0.30/0.38/0.48 místo 0.42/0.55/0.7) + Model child
+   `localPosition.y = -0.10` → kus trupu pod hladinou, neplave nad vodou.
+4. `IslandDecor` — vyhozeny `grass`, `grass-plant`, `patch-grass-foliage`,
+   `patch-sand-foliage` (jiný Kenney balíček, špatné UV vůči pirátskému atlasu +
+   6-7 j velké). Zůstávají kameny + `palm-bend`.
+5. `PlayerController.TryToggleBoatFoot` — E pěšky u rozbité lodě teď hodí toast
+   "oprav ji v obchode s vylepsenimi (v majaku)" (dřív ticho).
+6. `EconomyConfig` — `PriceMultiplier` teď `0.8–1.2` symetricky kolem 1.0
+   (základní ceny = průměr, ne minimum). `SellBonusPerItem 3→2` (u ryby za 1 minci
+   byl +3 moc; teď ryba 3 / poklad 7 po mega questu).
+
+Pozn.: červený „artefakt" u majáku ve starších screenech byl `MapIcon` quad —
+je na vrstvě `MinimapOnly`, hlavní kamera ho NEvidí, jen můj debug snímek s vlastní
+kamerou. Není to bug, nic se neměnilo.
+
+---
+
+> ⚠️ **Předchozí dávky (níže) byly dělané při ODPOJENÉM Unity MCP.** Play-test výše
+> pokryl hlavní věci; zbytek (split-screen coop dávek 1-2, staré savy) chce ruční
+> proklik člověkem.
 
 Poslední práce (nejnovější nahoře):
 - **Dávka 2 (2026-09-09)**: rozbitá loď → panáček plave (pomalu, zranitelný,

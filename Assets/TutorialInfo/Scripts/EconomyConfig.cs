@@ -18,7 +18,10 @@ public static class EconomyConfig
     // ── Výkup (prodej kořisti v questshopu) — všude stejný ──────────────────
     public const int FishPrice        = 1;  // za 1 rybu
     public const int TreasurePrice    = 5;  // za 1 poklad
-    public const int SellBonusPerItem = 3;  // navíc za kus po splnění mega questu
+    public const int SellBonusPerItem = 2;  // navíc za kus po splnění mega questu
+                                            // (drženo nízko — u ryb za 1 minci je
+                                            //  i +2 velký skok; +2 = ryba za 3,
+                                            //  poklad za 7)
 
     // ── Základní nákupní ceny (per ostrov se násobí PriceMultiplier) ────────
     public const int SpeedUpgrade  = 160;
@@ -46,9 +49,13 @@ public static class EconomyConfig
     public const int WreckRepairCost    = 160; // vytáhnout a spravit ROZBITOU loď (v obchodě)
 
     // ── Per-ostrov cenový násobič ──────────────────────────────────────────
-    /// <summary>Násobič NÁKUPNÍCH cen podle "cenového levelu" ostrova (0–20) → 0.9× až 1.3×.</summary>
+    /// <summary>
+    /// Násobič NÁKUPNÍCH cen podle "cenového levelu" ostrova (0–20) → 0.8× až 1.2×.
+    /// Rozsah je symetrický kolem 1.0, takže základní ceny výše jsou průměr —
+    /// nejlevnější ostrov (level 0) prodává za 80 %, nejdražší (level 20) za 120 %.
+    /// </summary>
     public static float PriceMultiplier(int islandPriceLevel)
-        => 0.9f + Mathf.Clamp(islandPriceLevel, 0, 20) * 0.02f;
+        => 0.8f + Mathf.Clamp(islandPriceLevel, 0, 20) * 0.02f;
 
     /// <summary>Deterministický cenový level ostrova (0–20) z pozice jeho majáku.</summary>
     public static int IslandPriceLevel(int lighthouseX, int lighthouseY)

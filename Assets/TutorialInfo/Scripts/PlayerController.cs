@@ -578,7 +578,14 @@ public class PlayerController : MonoBehaviour
         // se nedá — loď se opravuje v obchodě).
         if (PBoatWrecked)
         {
-            if (isOnFoot) return;
+            if (isOnFoot)
+            {
+                // Panáček je pěšky, loď je rozbitá (a schovaná) — E ji nenasedne.
+                // Řekni hráči, kam si pro opravu dojít.
+                if (CombatDirector.Instance != null)
+                    CombatDirector.Instance.Toast("Lod je rozbita — oprav ji v obchode s vylepsenimi (v majaku).");
+                return;
+            }
             Vector2Int? land = FindAdjacent(px, py, TileType.Pier) ?? FindAdjacent(px, py, TileType.Harbor);
             if (land == null) return;
             isOnFoot = true;

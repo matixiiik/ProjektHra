@@ -25,9 +25,13 @@ public class IslandDecor : MonoBehaviour
     [Tooltip("Šance, že se přidá i druhá (menší) dekorace navrch.")]
     public float secondDecorChance = 0.3f;
 
-    // Palmy jsou dost malé — zvětšíme je, ať jsou vůči majáku a panáčkovi
-    // věrohodnější (cca půl majáku).
+    // Vestavěná palma "Decor_Palm" (v HarborPrefabu) je dost malá — zvětšíme ji,
+    // ať je vůči majáku a panáčkovi věrohodnější (cca půl majáku).
     private const float PALM_SCALE = 2.1f;
+
+    // Kenney model "palm-bend" má naopak velké nativní měřítko (bez úpravy je
+    // vyšší než celý ostrov) — pro něj platí vlastní, mnohem menší měřítko.
+    private const float EXTRA_PALM_SCALE = 0.38f;
 
     // ── Extra Kenney modely (načtou se jednou pro celou hru) ────────────────
     private struct ExtraDecor { public GameObject prefab; public float scale; public bool isPalm; }
@@ -40,16 +44,16 @@ public class IslandDecor : MonoBehaviour
         extras = new List<ExtraDecor>();
 
         // (jméno souboru v Resources/IslandDecor, měřítko, je to palma)
-        AddExtra("rocks-a",             0.5f,  false);
-        AddExtra("rocks-b",             0.5f,  false);
-        AddExtra("rocks-c",             0.5f,  false);
-        AddExtra("rocks-sand-b",        0.5f,  false);
-        AddExtra("rocks-sand-c",        0.5f,  false);
-        AddExtra("grass",               0.6f,  false);
-        AddExtra("grass-plant",         0.6f,  false);
-        AddExtra("palm-bend",           PALM_SCALE, true);
-        AddExtra("patch-grass-foliage", 0.9f,  false);
-        AddExtra("patch-sand-foliage",  0.9f,  false);
+        // Pozn.: kameny a ohnutá palma dostanou z pirátského atlasu (colormap)
+        // rozumné barvy. Ploché "patch" a "grass" meshe jsou z jiného Kenney
+        // balíčku, mají jiné UV → z pirátského atlasu by braly špatné (červené)
+        // texely, proto je tu nepoužíváme.
+        AddExtra("rocks-a",      0.42f, false);
+        AddExtra("rocks-b",      0.42f, false);
+        AddExtra("rocks-c",      0.42f, false);
+        AddExtra("rocks-sand-b", 0.42f, false);
+        AddExtra("rocks-sand-c", 0.42f, false);
+        AddExtra("palm-bend",    EXTRA_PALM_SCALE, true);
     }
 
     private static void AddExtra(string name, float scale, bool isPalm)

@@ -49,36 +49,67 @@ public class PirateShip : MonoBehaviour
         var root = new GameObject("PirateShip");
         root.transform.position = new Vector3(pos.x, SHIP_Y, pos.z);
 
-        float s = size == 0 ? 0.8f : size == 1 ? 1.05f : 1.35f;
-        Material hull = MakeMat(new Color(0.28f, 0.2f, 0.15f));
-        Material sail = MakeMat(new Color(0.15f, 0.15f, 0.17f));
-
-        var body = GameObject.CreatePrimitive(PrimitiveType.Cube);
-        body.name = "Hull";
-        body.transform.SetParent(root.transform, false);
-        body.transform.localScale    = new Vector3(0.7f * s, 0.4f * s, 1.5f * s);
-        body.transform.localPosition = new Vector3(0f, 0.1f, 0f);
-        Strip(body, hull);
-
-        var mast = GameObject.CreatePrimitive(PrimitiveType.Cube);
-        mast.name = "Sail";
-        mast.transform.SetParent(root.transform, false);
-        mast.transform.localScale    = new Vector3(0.08f * s, 1.1f * s, 0.06f * s);
-        mast.transform.localPosition = new Vector3(0f, 0.7f * s, 0f);
-        Strip(mast, hull);
-
-        var cloth = GameObject.CreatePrimitive(PrimitiveType.Cube);
-        cloth.name = "Cloth";
-        cloth.transform.SetParent(root.transform, false);
-        cloth.transform.localScale    = new Vector3(0.7f * s, 0.75f * s, 0.05f * s);
-        cloth.transform.localPosition = new Vector3(0f, 0.8f * s, -0.1f * s);
-        Strip(cloth, sail);
+        // Nejdřív zkus Kenney model z Resources; když není, postav ho z kvádrů.
+        if (!BuildKenneyModel(root.transform, size))
+            BuildPrimitiveModel(root.transform, size);
 
         var ps = root.AddComponent<PirateShip>();
         ps.size  = size;
         ps.maxHp = size == 0 ? 2.5f : size == 1 ? 5f : 9f;
         ps.hp    = ps.maxHp;
         return ps;
+    }
+
+    // Kenney loď: Assets/TutorialInfo/Resources/PirateShips/ship-pirate-{small,medium,large}.fbx
+    private static bool BuildKenneyModel(Transform root, int size)
+    {
+        string name = size == 0 ? "ship-pirate-small" : size == 1 ? "ship-pirate-medium" : "ship-pirate-large";
+        var prefab = Resources.Load<GameObject>("PirateShips/" + name);
+        if (prefab == null) return false;
+
+        var go = Instantiate(prefab, root, false);
+        go.name = "Model";
+        float sc = size == 0 ? 0.42f : size == 1 ? 0.55f : 0.7f;
+        go.transform.localPosition = new Vector3(0f, 0f, 0f);
+        go.transform.localScale    = new Vector3(sc, sc, sc);
+
+        // Model nemá materiál (Kenney fbx) → dej mu tmavý pirátský nátěr.
+        Material dark = MakeMat(new Color(0.24f, 0.17f, 0.13f));
+        foreach (var mr in go.GetComponentsInChildren<MeshRenderer>(true))
+        {
+            mr.sharedMaterial     = dark;
+            mr.shadowCastingMode   = UnityEngine.Rendering.ShadowCastingMode.Off;
+        }
+        foreach (var col in go.GetComponentsInChildren<Collider>(true)) Destroy(col);
+        return true;
+    }
+
+    private static void BuildPrimitiveModel(Transform root, int size)
+    {
+        float s = size == 0 ? 0.8f : size == 1 ? 1.05f : 1.35f;
+        Material hull = MakeMat(new Color(0.28f, 0.2f, 0.15f));
+        Material sail = MakeMat(new Color(0.15f, 0.15f, 0.17f));
+
+        var body = GameObject.CreatePrimitive(PrimitiveType.Cube);
+        body.name = "Hull";
+        body.transform.SetParent(root, false);
+        body.transform.localScale    = new Vector3(0.7f * s, 0.4f * s, 1.5f * s);
+        body.transform.localPosition = new Vector3(0f, 0.1f, 0f);
+        Strip(body, hull);
+
+        var mast = GameObject.CreatePrimitive(PrimitiveType.Cube);
+        mast.name = "Mast";
+        mast.transform.SetParent(root, false);
+        mast.transform.localScale    = new Vector3(0.08f * s, 1.1f * s, 0.06f * s);
+        mast.transform.localPosition = new Vector3(0f, 0.7f * s, 0f);
+        Strip(mast, hull);
+
+        var cloth = GameObject.CreatePrimitive(PrimitiveType.Cube);
+        cloth.name = "Cloth";
+        cloth.transform.SetParent(root, false);
+        cloth.transform.localScale    = new Vector3(0.7f * s, 0.75f * s, 0.05f * s);
+        cloth.transform.localPosition = new Vector3(0f, 0.8f * s, -0.1f * s);
+        Strip(cloth, sail);
     }
 
     void Update()

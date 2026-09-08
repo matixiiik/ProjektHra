@@ -8,10 +8,20 @@ sem Claude píše, kde se přestalo, aby se dalo pokračovat i z notebooku.
 
 ---
 
-## STAV 2026-09-09 — vše commitnuté a pushnuté (`7b0adaf`), working tree čistý
+## STAV 2026-09-09 — vše commitnuté a pushnuté, working tree čistý
 (kromě `Napady.txt`, který si edituje uživatel — necommitovat za něj)
 
+> ⚠️ **Unity MCP byl při této dávce ODPOJENÝ** — kód je jen offline compile-checknutý
+> (`.claude/skills/unity-hra/scripts/compile-check.sh` + přidané nové soubory).
+> **V editoru NEODZKOUŠENO.** Hlavně: pirátské Kenney modely (měřítko/otočení/výška),
+> obchody po odebrání serializovaných polí, čísla ekonomiky, respawn po smrti.
+
 Poslední práce (nejnovější nahoře):
+- **Velká dávka (2026-09-09)**: ekonomika (EconomyConfig — 1 ryba/1, poklad/5,
+  velká loď 1000, ceny per ostrov), křížky na obchodech, mapa → šipka k ostrovu,
+  obrazovka smrti + respawn, ostrovy vzácnější (200) + větší (5×5), palmy 2×,
+  Kenney pirátské lodě, děda musí sedět na ostrově, startovní ostrov bez bedny.
+  Viz sekce "DÁVKA 2026-09-09" níže.
 - **Soubojový systém** (`7b0adaf`): střelba z lodě (LMB / Numpad *), munice
   v obchodě + HUD, nepřátelské ostrovy (~20 %) s dělem, piráti (malá/střední/velká
   loď) s boss health barem, odměny, potopení lodě → obnova na 30. Viz sekce
@@ -105,6 +115,60 @@ Uživatel po kouskách. Hotovo (`<hash tohoto commitu>`):
    (veslice 0, malá 0.5, střední 1, velká 2) + `HasCannon`. `GameData.ammo`
    (+ player2). Obchod: řádek "Munice do děla" (opakovaný nákup, `ammoPackCost`
    60 / `ammoPackSize` 10). Perk texty zmiňují dělo.
+
+## DÁVKA 2026-09-09 (velký seznam po kouskách) — HOTOVO, jen offline compile-check
+
+**Unity MCP byl odpojený → NEODZKOUŠENO v editoru. Projet ručně.**
+
+1. **`EconomyConfig.cs` (NOVÝ) — všechna čísla ekonomiky na jednom místě.**
+   - Výkup: `FishPrice 1`, `TreasurePrice 5`, `SellBonusPerItem 3` (mega quest).
+   - Nákup: Speed 160, Rod 110, Mining 130, ShipSmall 180, ShipMedium 450,
+     **ShipLarge 1000**, AmmoPack 45/12, MapItem 130.
+   - Odměny: pirát 40/110/260, ostrovní dělo 90, bedna 40–120, mega quest 400–900.
+   - `IslandPriceLevel(lx,ly)` = deterministický hash pozice majáku → 0–20;
+     `PriceMultiplier` → 0.9×–1.3×. **Jen NÁKUP, ne výkup.**
+   - `UpgradeShopManager`/`QuestShopManager`/`ChestManager`/`CombatDirector`/
+     `PlayerController` (oprava) čtou z EconomyConfig. **Odebral jsem serializovaná
+     `public int …Cost` pole z obou shopů** — Unity ta data při importu zahodí,
+     hodnoty jsou teď v kódu (ověřit, že obchody dál fungují).
+2. **`GameSession.ShopPriceLevel` (static)** — nastaví se v
+   `PlayerController.TryInteractAdjacentBuilding` při vstupu do majáku / obchodu
+   z pozice dlaždice. Obchod píše "( ceny +N% na tomhle ostrove )".
+3. **Zavírací křížek** vpravo nahoře v obou obchodech (`ShopUI.cs` → `CloseButton`).
+4. **Mapa** — nákup v upgrade shopu (`GameData.hasMap` + player2). Na minimapě
+   **azurová šipka** k nejbližší Harbor dlaždici (`GridManager.NearestHarborTile`),
+   odlišená od zlatého mega-quest kompasu. `MinimapUIRenderer.CreateIslandArrow`.
+5. **`DeathScreen.cs` (NOVÝ)** — panáček na 0 zdraví → freeze + 2 tlačítka:
+   - **Respawn** → `GridManager.RespawnPlayerAtNearestIsland(idx)`: veslice na
+     nejbližším ostrově od místa smrti (nouzově `ForceIslandNear`), **mince a
+     rozdělaný mega quest zůstávají**, ale ryby/poklady/náboje/všechna vylepšení/
+     mapa/sellBonus se ztratí a `shipLevel → 0`, `activeQuest.Reset()`.
+   - **Hlavní menu** → `MainMenuManager.Show()`.
+   - Smrt nastává: loď při 0 HP bere panáčkovi **25 zdraví** (dřív nezničitelný,
+     `Mathf.Max(1,…)` zrušeno). `DeathScreen.IsOpen` gate v `PlayerController.Update`.
+6. **`StoryNpc`** — děda smí sedět jen na políčku obklopeném ze VŠECH 4 stran
+   pevninou (`SurroundedByLand`), nouzově 3/4. Řeší "sedí mimo ostrov".
+7. **Startovní ostrov BEZ bedny** (`GenerateInitialWorld` — `MaybePlaceChest` pryč).
+8. **Generace ostrovů:** `MIN_ISLAND_DISTANCE 50→200`, kandidáti na mřížce `%40`
+   s 30 %, jádro `Random.Range(5,8)` (min 5×5, dřív 4×4), `ISLAND_CANVAS 14→16`,
+   guard `land.Count < 25`. Vraky vzácnější: `GenerateRandomSeaType` 0,15 %→**0,06 %**
+   (ryby 0,35 %→0,35 %).
+9. **Veslice** `ROW_EXTRA_SINK 0.08→0.05` (o kousek výš).
+10. **`IslandDecor`** — `decorChance 0.28→0.5`, občas 2. dekorace, **palmy ×2,1**,
+    ostatní ×0,85–1,25. (Nové Kenney varianty rocks-b/c, grass-plant, patche
+    ZATÍM NE — chtělo by to přesun do Resources, netestovatelné bez editoru.)
+11. **Pirátské Kenney lodě** — `ship-pirate-{small,medium,large}.fbx` přesunuty
+    do `Assets/TutorialInfo/Resources/PirateShips/` (nic je neodkazovalo).
+    `PirateShip.BuildKenneyModel` je `Resources.Load` + tmavý nátěr (fbx nemá
+    materiál), fallback na kvádry. **Měřítko 0.42/0.55/0.7 + otočení + Y −0.35
+    v editoru doladit.**
+
+### ZBÝVÁ z toho seznamu / k doladění
+- Kenney varianty dekorace (rocks-b/c, rocks-sand-b/c, grass-plant, palm-bend/
+  straight, patch-*-foliage) — přesun fbx do Resources + `IslandDecor` je náhodně
+  bere; materiál vzít z existující Decor_ dlaždice.
+- Vyvážení čísel v `EconomyConfig` podle reálného hraní.
+- Vizuální kontrola všeho výše v editoru.
 
 ## SOUBOJOVÝ SYSTÉM (2026-09-09) — HOTOVO, OTESTOVÁNO přes MCP (`7b0adaf`)
 

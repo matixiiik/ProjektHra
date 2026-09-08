@@ -957,7 +957,7 @@ public class GridManager : MonoBehaviour
             d.hasMap = false; d.sellBonus = false;
             d.shipLevel = 0;
             d.activeQuest.Reset();
-            d.boatHealth = 100; d.playerHealth = 100; d.boatWrecked = false;
+            d.boatHealth = 100; d.playerHealth = 100; d.boatWrecked = false; d.boatNeedsRehome = false;
             d.isOnFoot   = true;
             d.playerGridX = spot.x; d.playerGridY = spot.y;
             d.boatGridX   = boatAt.x; d.boatGridY = boatAt.y;
@@ -969,7 +969,8 @@ public class GridManager : MonoBehaviour
             d.player2HasMap = false; d.player2SellBonus = false;
             d.player2ShipLevel = 0;
             d.player2ActiveQuest.Reset();
-            d.player2BoatHealth = 100; d.player2PlayerHealth = 100; d.player2BoatWrecked = false;
+            d.player2BoatHealth = 100; d.player2PlayerHealth = 100;
+            d.player2BoatWrecked = false; d.player2BoatNeedsRehome = false;
             d.player2GridX = spot.x; d.player2GridY = spot.y;
         }
 

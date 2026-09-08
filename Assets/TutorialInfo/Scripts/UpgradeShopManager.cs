@@ -121,8 +121,20 @@ public class UpgradeShopManager : MonoBehaviour
     bool BoatWrecked()       => buyerIndex == 0 ? Data.boatWrecked : Data.player2BoatWrecked;
     void FixBoat()
     {
-        if (buyerIndex == 0) { Data.boatHealth = BoatStats.MaxHealth; Data.boatWrecked = false; }
-        else                 { Data.player2BoatHealth = BoatStats.MaxHealth; Data.player2BoatWrecked = false; }
+        if (buyerIndex == 0)
+        {
+            bool wasWrecked = Data.boatWrecked;
+            Data.boatHealth = BoatStats.MaxHealth;
+            Data.boatWrecked = false;
+            if (wasWrecked) Data.boatNeedsRehome = true; // přemístit loď k molu, až se hráč vrátí
+        }
+        else
+        {
+            bool wasWrecked = Data.player2BoatWrecked;
+            Data.player2BoatHealth = BoatStats.MaxHealth;
+            Data.player2BoatWrecked = false;
+            if (wasWrecked) Data.player2BoatNeedsRehome = true;
+        }
     }
 
     // ── Nákup vylepšení ─────────────────────────────────────────────────────

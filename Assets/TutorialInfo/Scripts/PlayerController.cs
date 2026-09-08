@@ -111,6 +111,11 @@ public class PlayerController : MonoBehaviour
         get => playerIndex == 0 ? gridManager.gameData.boatWrecked : gridManager.gameData.player2BoatWrecked;
         set { if (playerIndex == 0) gridManager.gameData.boatWrecked = value; else gridManager.gameData.player2BoatWrecked = value; }
     }
+    bool PBoatNeedsRehome
+    {
+        get => playerIndex == 0 ? gridManager.gameData.boatNeedsRehome : gridManager.gameData.player2BoatNeedsRehome;
+        set { if (playerIndex == 0) gridManager.gameData.boatNeedsRehome = value; else gridManager.gameData.player2BoatNeedsRehome = value; }
+    }
 
     /// <summary>Je hráč zrovna v lodi na vodě? (pro soubojový systém)</summary>
     public bool IsSailing  => !isOnFoot && !PBoatWrecked && enabled && gameObject.activeInHierarchy;
@@ -296,7 +301,7 @@ public class PlayerController : MonoBehaviour
             Vector3 away = CombatDirector.Instance.AwayFromNearestThreat(transform.position);
             Vector3 escape = transform.position + away * 3f;
             int ex = Mathf.RoundToInt(escape.x), ey = Mathf.RoundToInt(escape.z);
-            if (IsBoatWater(gridManager.GetTileType(ex, ey))) transform.position = new Vector3(ex, transform.position.y, ey);
+            if (IsBoatWater(gridManager.GetTileType(ex, ey))) TeleportTo(ex, ey);
             CombatDirector.Instance.Toast("Lod se rozbila! Doplav k ostrovu a oprav ji v obchode.");
         }
 
@@ -329,10 +334,13 @@ public class PlayerController : MonoBehaviour
     {
         if (isOnFoot && !PBoatWrecked)
         {
-            // Po opravě v obchodě může být zaparkování lodě "nikde" (rozbila se
-            // daleko) — přemísti loď do vody u nejbližšího mola.
-            if (!IsBoatWater(gridManager.GetTileType(boatGridX, boatGridY)))
+            // Po opravě rozbité lodě v obchodě ji přemísti k nejbližšímu molu.
+            if (PBoatNeedsRehome)
+            {
                 RehomeBoatToNearestPier();
+                PBoatNeedsRehome = false;
+                gridManager.Save();
+            }
 
             if (parkedBoatGO == null && boatModel != null
                 && IsBoatWater(gridManager.GetTileType(boatGridX, boatGridY)))

@@ -90,6 +90,7 @@ public class GameData
     public int  boatHealth   = 100;// zdraví lodě (0–100); opravuje se v přístavu / obchodě
     public int  playerHealth = 100;// zdraví hráče (0–100); 0 = smrt (respawn / menu)
     public bool boatWrecked;       // loď je rozbitá → hráč plave ve vodě, dokud ji neopraví v obchodě
+    public bool boatNeedsRehome;   // po opravě rozbité lodě: přemístit ji k nejbližšímu molu
     public int  ammo;              // náboje do děla na lodi (kupují se v obchodě)
     public bool hasMap;            // koupená mapa → na minimapě šipka k nejbližšímu ostrovu
     public ActiveQuest activeQuest = new ActiveQuest();
@@ -116,6 +117,7 @@ public class GameData
     public int  player2BoatHealth   = 100;
     public int  player2PlayerHealth = 100;
     public bool player2BoatWrecked;
+    public bool player2BoatNeedsRehome;
     public int  player2Ammo;
     public bool player2HasMap;
     public ActiveQuest player2ActiveQuest = new ActiveQuest();

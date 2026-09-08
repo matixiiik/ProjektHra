@@ -15,11 +15,14 @@ Poslední práce: **moře — jedna velká voda + průhlednost + dno + obloha**
 za lodí** (`96c79a4`), pak **vraky sedí na přírodní mělčině v meshi dna (ne kupka)
 + loď víc do vody** (viz sekce "MOŘE — DNO A VRAKY" níže).
 
+Pak (poslední): **veslice jako startovní loď + rychlostní progrese lodí,
+příběhové NPC "děda" na základní ostrov (náčrt), níž molo** (`e9826a9`).
+
 Předtím: série coop/maják úprav — vrak místo truhly, kulatý maják, oba hráči
 v jedné místnosti majáku (modrý+červený), per-hráč obchody, souřadnice per-hráč,
 oprava nasedání do lodě.
 
-**Zítra: uživatel bude dávat další úkoly PO KOUSKÁCH přímo do chatu.**
+**Uživatel dává další úkoly PO KOUSKÁCH přímo do chatu.** Backlog v `Napady.txt`.
 Větší backlog nápadů je v **`Napady.txt`** v kořeni repa (jedna velká voda místo
 dlaždic + vlny, loď víc do vody, nižší spawn rate pokladů/ryb, bedna mega questu
 jen 1× a jen jeden hráč, NPC děda + příběh, start s "boat row small",
@@ -69,6 +72,43 @@ Velký vícefázový úkol:
 | *(coop 2)* | **Coop maják = pochozí interiér navíc + 3 další (2026-09-07/08).** |
 | *(coop 3)* | **Vrak místo truhly na moři + P1 se schová v majáku + per-hráč obchod (2026-09-08).** Viz níže. |
 | *(coop 4)* | **Coop maják pro OBA hráče + kulatá místnost + šipky nikdy P1 (2026-09-08).** Viz níže. |
+
+## LODĚ + PŘÍBĚHOVÉ NPC + MOLO (2026-09-08 pozdě večer) — HOTOVO, OTESTOVÁNO přes MCP
+
+Uživatel po kouskách: loď o kousek víc z vody + níž molo; NPC "děda" na základní
+ostrov (náčrt příběhu — schoval poklad, poslední přání ho najít); startovat
+veslicí ne malou lodí; každá loď ať je lepší než předchozí.
+
+1. **Startovní loď = veslice.** `shipLevel` nově: **0 = veslice** (`boat-row-small`,
+   přidán jako child Playeru v SampleScene, materiál PirateColormap), 1 = malá
+   plachetnice, 2 = střední, 3 = velká. `ShipModelSwitcher` má pole `shipRow`
+   (zapojené). Staré savy: loď o stupeň "níž" (level 1 = dřív střední, teď malá) —
+   WIP projekt, uživateli řečeno.
+2. **`BoatStats.cs` (NOVÝ)** — na jednom místě co která úroveň lodě umí. KAŽDÁ
+   vyšší je znatelně lepší: `SpeedMultiplier` 0.75 / 1.0 / 1.25 / 1.5 ×,
+   `MiningMultiplier` 0.8 pro střední+, `FishBonus` +1 ryba/zátah pro velkou.
+   Čte to `PlayerController.Move/FishingRoutine/MineRoutine`.
+3. **Obchod** (`UpgradeShopManager`) — 3 řádky lodí (malá `shipSmallCost` 200,
+   střední 300, velká 800), popis = `BoatStats.Perk(level)`. Panel vyšší (h 505).
+   `get boat row/small/medium/large` v konzoli.
+4. **`StoryNpc.cs` (NOVÝ) — NÁČRT příběhu.** Objekt "StoryNpc" v SampleScene.
+   V `Start()` si přes `GridManager.GetStartIslandHarborTiles()` (nová public
+   metoda — flood-fill pevniny nejblíž počátku, vrací Harbor dlaždice) najde
+   políčko na **startovním ostrově** (ne u majáku, nejradši u mola), postaví
+   sedícího panáčka v kódu (stejné díly jako hráč + šedé vlasy/vousy, sedí, kouká
+   na moře). Hráč pěšky vedle + `E` (P1) / `Numpad1` (P2) → krátký dialog (IMGUI
+   box dole, 6 replik, náčrt textu). `PlayerController`: nové pole `storyNpc`,
+   gate `myTalkOpen` (mrazí jen toho hráče, co mluví), v
+   `TryInteractAdjacentBuilding` kontrola `storyNpc.IsAt(tx,ty)`.
+   **TODO příště:** navázat na skutečný úkol/odměnu (teď jen text).
+5. **Molo níž** — `GridManager.PIER_TILE_Y = -0.25` (dřív default -0.1), deska
+   těsně nad hladinou, ať nasedání nevypadá jako skok. `BOAT_SINK` 1.05 → 0.93
+   (loď o kus víc nad hladinou).
+
+Ověřeno přes MCP: nová hra → shipLevel 0, veslice se ukáže při nasednutí; NPC
+placed na startovním ostrově (2 seedy), dialog jede 0→5 a zavře se; molo Y -0.25
+(screenshot: deska u hladiny, ne díra); BoatStats hodnoty; 0 chyb/varování.
+Commit `e9826a9`.
 
 ## MOŘE — DNO A VRAKY (2026-09-08 pozdě večer) — HOTOVO, OTESTOVÁNO přes MCP
 

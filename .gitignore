@@ -37,6 +37,7 @@
 *.opendb
 *.VC.db
 UpgradeLog.htm
+UpgradeLog*.htm
 sysinfo.txt
 
 # Buildy

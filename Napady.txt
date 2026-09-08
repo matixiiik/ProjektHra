@@ -6,7 +6,9 @@ predel to ze kdyz vejdes do majaku je to ctverec - uprav to nejak aby to bylo ko
 
 predelej aby to more nebyli nejlip tyle ale jedna velka voda a pridat tam nejak vlny (aby to nevypadlo jako ze tam glitchuje textura), udelej jeste aby kdyz natocis kameru tak to vypada ze ta lod lita tak ji dej vic do vody aby to vypadalo jako ze fakt pluje, uber spawn rate pokladu aby nebyli tak caste a ty pole s rybama taky (ale porad nejvic basic jsou ryby pak poklady pak ostrovy pak mege quest bedny atd...) + ty poklady maji trosku tmavsi barvu nez more dej tam stejnou barvu kdyz tam je takovahle extra textura vraku, kdyz uz se jednou otevre bedna s mega questem tak uz nikdy potom nupujde otevrit znova (ani ve split screenu muze ji otevrti jenom jeden clovek bud player 2 nebo player 1
 
-pridej npc stejne postavicky jako ja jenom sede ale jenom na ten zakladni ostrov (chtel bych z tehle hry udelat alespon kratkou pribehovku a tadyta postava, deda, to zacne jakoze bude rikat ze si schoval pokald a ze je to jeho posldni prani abych ho nasel (ale to pak jeste nejak doladime zatim nacrt))
+
+
+pridej npc stejne postavicky jako ja jenom sede ale jenom na ten zakladni ostrov (chtel bych z tehle hry udelat alespon kratkou pribehovku a tadyta postava, deda, to zacne jakoze bude rikat ze si schoval pokald a ze je to jeho posldni prani abych ho nasel (ale to pak jeste nejak doladime zatim nacrt)), zmensi ty postavičky na ostrove (i když hrajou 2 hraci) aby nebyli stejne vysoci jako majak aby to vypadalo vic realisticky
 
 pridej jeste ze se nebude zacinat se small boat ale s boat row small a pak se to teprve zacne dokupat na ty lepsi v shopu, pridej kazde lodi at ma nejake vylepseni oproti ty posledni
 

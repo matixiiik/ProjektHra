@@ -19,9 +19,11 @@ using System;
 public class GridManager : MonoBehaviour
 {
     // Kolik políček na každou stranu od hráče se drží "naživu" (s 3D objekty).
-    // Nakloněná kamera vidí dál dopředu, proto větší než dřív (bylo 15).
-    // Vzdálený okraj schová mlha (RenderSettings.fog ve scéně).
-    public const int ACTIVE_GRID_SIZE = 19;
+    // Obyčejná voda 3D objekt nevytváří (kreslí ji OceanSurface), takže objekty
+    // mají jen ostrovy, ryby a poklady — číslo může být klidně vyšší.
+    // Konec mlhy (viz SkyClouds) je sladěný s touhle hodnotou, aby "naskočení"
+    // vzdálených ostrovů zůstalo schované v oparu.
+    public const int ACTIVE_GRID_SIZE = 28;
 
     // Prefaby jednotlivých typů políček (nastavují se v inspektoru).
     public GameObject waterPrefab;
@@ -34,6 +36,12 @@ public class GridManager : MonoBehaviour
     public GameObject lighthousePrefab;   // maják (vejde se do něj – viz LighthouseManager)
     public GameObject chestPrefab;        // bedna na ostrově (otevírá ChestManager)
     public Material   islandTerrainMaterial; // materiál hladkého terénu ostrova
+
+    // Výšky zvláštních mořských dlaždic vůči velké vodní ploše (viz OceanSurface).
+    // Sladěné s OceanSurface.seaLevel (-0.22). Kdyby ryby/vrak plavaly nad vodou
+    // nebo se topily, dolaď tady o pár setin.
+    private const float FISH_TILE_Y     = -0.45f; // rybí dlaždice — kousek pod hladinou, přes průhlednou vodu prosvítá jako mělčina
+    private const float TREASURE_TILE_Y = -1.0f;  // celá dlaždice pokladu níž → vrak je potopený, kouká jen kus trupu a stěžeň
 
     // Veškerý stav hry. Fyzicky ho drží GameSession (přežívá i přechod do
     // scény majáku), GridManager k němu jen přistupuje přes tuhle zkratku.
@@ -79,6 +87,7 @@ public class GridManager : MonoBehaviour
         if (gameData.tileData.Count == 0) GenerateInitialWorld();
 
         GenerateWorld(gameData.playerGridX, gameData.playerGridY);
+        CreateSeaWorld();
         OnWorldChanged?.Invoke();
 
         SoundManager.StartWaves(); // hukot moře na pozadí
@@ -87,6 +96,37 @@ public class GridManager : MonoBehaviour
 
     // Při zavření hry ulož.
     void OnApplicationQuit() => Save();
+
+    // ── Moře jako celek: hladina + dno + obloha ────────────────────────────
+    // Místo stovek malých vodních dlaždic je celé moře jedna poloprůhledná
+    // plocha (OceanSurface), pod ní členité dno (SeaFloor) a nad tím obloha
+    // s mraky (SkyClouds). Všechno jede za hráčem. Materiál vody si půjčíme
+    // z waterPrefabu, materiál dna z terénu ostrova.
+    private void CreateSeaWorld()
+    {
+        Material waterMat = null;
+        if (waterPrefab != null)
+        {
+            var r = waterPrefab.GetComponentInChildren<MeshRenderer>();
+            if (r != null) waterMat = r.sharedMaterial;
+        }
+
+        Transform p1 = null;
+        foreach (var pc in FindObjectsByType<PlayerController>(FindObjectsSortMode.None))
+            if (pc.playerIndex == 0) { p1 = pc.transform; break; }
+
+        var ocean = new GameObject("Ocean");
+        ocean.transform.SetParent(transform);
+        ocean.AddComponent<OceanSurface>().Init(waterMat, p1);
+
+        var floor = new GameObject("SeaFloor");
+        floor.transform.SetParent(transform);
+        floor.AddComponent<SeaFloor>().Init(islandTerrainMaterial, p1);
+
+        var sky = new GameObject("SkyClouds");
+        sky.transform.SetParent(transform);
+        sky.AddComponent<SkyClouds>().Init(p1);
+    }
 
     /// <summary>Uklidí zbytečná data a uloží hru na disk.</summary>
     public void Save()
@@ -460,10 +500,10 @@ public class GridManager : MonoBehaviour
         return false;
     }
 
-    // S 40% šancí položí jednu bednu na náhodné (volné) políčko pevniny.
+    // S 25% šancí položí jednu bednu na náhodné (volné) políčko pevniny.
     private void MaybePlaceChest(List<(int x, int y)> land)
     {
-        if (UnityEngine.Random.value >= 0.4f) return;
+        if (UnityEngine.Random.value >= 0.25f) return;
 
         var free = new List<(int x, int y)>();
         foreach (var p in land)
@@ -481,12 +521,13 @@ public class GridManager : MonoBehaviour
             && gameData.tileData[key].type == (int)TileType.Harbor;
     }
 
-    // Náhodný typ mořského políčka: 0,5 % poklad, 0,5 % ryby, zbytek voda.
+    // Náhodný typ mořského políčka: 0,15 % poklad, 0,35 % ryby, zbytek voda.
+    // Poklad je vzácnější než ryby; obojí zředěné oproti dřívějším 0,5 % / 0,5 %.
     private TileType GenerateRandomSeaType()
     {
         float roll = UnityEngine.Random.value * 100f;
-        if (roll < 0.5f) return TileType.Treasure;
-        if (roll < 1.0f) return TileType.Water_Fish;
+        if (roll < 0.15f) return TileType.Treasure;
+        if (roll < 0.50f) return TileType.Water_Fish;
         return TileType.Water;
     }
 
@@ -496,11 +537,29 @@ public class GridManager : MonoBehaviour
     private void InstantiateTile(int x, int y, TileStatus status)
     {
         GameObject prefab = GetPrefabForType((TileType)status.type);
-        if (prefab == null) return;
+        if (prefab == null) return; // obyčejná voda se nekreslí po dlaždicích — je to velká plocha (OceanSurface)
 
         Vector3 pos = new Vector3(x, -0.1f, y);
+
+        // Rybí dlaždici posaď kousek pod hladinu — přes poloprůhlednou vodu
+        // (OceanSurface) prosvítá jako světlejší mělčina = poznáš kde rybařit.
+        // Zvlášť se nehoupe (WaterWave dole zrušíme).
+        if ((TileType)status.type == TileType.Water_Fish) pos.y = FISH_TILE_Y;
+
+        // Poklad: celou dlaždici (i s vrakem) posaď hluboko pod hladinu, ať vrak
+        // vypadá jako potopená troska — kouká jen kus trupu a stěžeň. Kolem je
+        // jen velká voda ve stejné barvě, žádná tmavší dlaždice.
+        if ((TileType)status.type == TileType.Treasure) pos.y = TREASURE_TILE_Y;
+
         GameObject newTile = Instantiate(prefab, pos, Quaternion.identity, transform);
         activeTiles.Add(GridKey(x, y), newTile);
+
+        // Rybí dlaždice: zruš vlastní pohupování — sedí napevno v hladině.
+        if ((TileType)status.type == TileType.Water_Fish)
+        {
+            var wave = newTile.GetComponent<WaterWave>();
+            if (wave != null) Destroy(wave);
+        }
 
         // Mlha: zapnutá, dokud políčko není prozkoumané.
         Transform fog = newTile.transform.Find("FogVisual");
@@ -768,7 +827,7 @@ public class GridManager : MonoBehaviour
     {
         switch (t)
         {
-            case TileType.Water:       return waterPrefab;
+            case TileType.Water:       return null; // kreslí ji velká vodní plocha (OceanSurface), ne dlaždice
             case TileType.Water_Fish:  return waterFishPrefab;
             case TileType.Treasure:    return treasurePrefab;
             case TileType.Harbor:      return harborPrefab;

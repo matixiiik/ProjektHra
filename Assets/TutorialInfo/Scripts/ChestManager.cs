@@ -51,14 +51,16 @@ public class ChestManager : MonoBehaviour
         if (grid.GetTileType(x, y) != TileType.Chest) return false;
 
         string key = x + "," + y;
-        var opened = playerIndex == 0 ? grid.gameData.openedChests : grid.gameData.player2OpenedChests;
 
-        if (opened.Contains(key))
+        // Bednu s mega questem smí otevřít jen JEDEN hráč a jen jednou. Když už ji
+        // otevřel kdokoli (i druhý hráč ve split-screenu), je nadobro prázdná.
+        if (IsOpened(x, y))
         {
             Toast("Tahle bedna už je prázdná.");
             return true; // pořád "vyřízeno" — ať se hráč nezkusí nalodit
         }
 
+        var opened = playerIndex == 0 ? grid.gameData.openedChests : grid.gameData.player2OpenedChests;
         opened.Add(key);
 
         // Pár mincí rovnou z bedny.

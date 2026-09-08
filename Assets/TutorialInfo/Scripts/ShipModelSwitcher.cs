@@ -13,6 +13,11 @@ public class ShipModelSwitcher : MonoBehaviour
     public GameObject shipMedium; // model pro úroveň 1
     public GameObject shipLarge;  // model pro úroveň 2
 
+    // O kolik posadit model lodě níž (pod objekt hráče), aby loď seděla v hladině
+    // a nevypadala, že "lítá" nad vodou — hlavně při nakloněné kameře.
+    // (Objekt hráče je ve výšce 0.5, hladina cca -0.22 → loď skončí kolem -0.15.)
+    private const float BOAT_SINK = 0.62f;
+
     private GridManager      grid;
     private PlayerController player;
 
@@ -44,7 +49,13 @@ public class ShipModelSwitcher : MonoBehaviour
                             : level == 1 ? shipMedium
                             :              shipLarge;
         if (selected != null && !onFoot)
+        {
             selected.SetActive(true);
+
+            // Posaď model lodě níž k hladině (jinak "lítá" nad vodou).
+            Vector3 lp = selected.transform.localPosition;
+            selected.transform.localPosition = new Vector3(lp.x, -BOAT_SINK, lp.z);
+        }
 
         // Řekni PlayerControlleru, který objekt je teď jeho loď (kvůli otáčení).
         if (player != null && selected != null)

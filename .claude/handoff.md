@@ -17,6 +17,9 @@ sem Claude píše, kde se přestalo, aby se dalo pokračovat i z notebooku.
 > obchody po odebrání serializovaných polí, čísla ekonomiky, respawn po smrti.
 
 Poslední práce (nejnovější nahoře):
+- **Dávka 2 (2026-09-09)**: rozbitá loď → panáček plave (pomalu, zranitelný,
+  opraví v obchodě); 25% šance že zásah do lodě trefí i panáčka; extra Kenney
+  dekorace ostrovů z Resources. Viz "DÁVKA 2026-09-09 #2" níže.
 - **Velká dávka (2026-09-09)**: ekonomika (EconomyConfig — 1 ryba/1, poklad/5,
   velká loď 1000, ceny per ostrov), křížky na obchodech, mapa → šipka k ostrovu,
   obrazovka smrti + respawn, ostrovy vzácnější (200) + větší (5×5), palmy 2×,
@@ -115,6 +118,32 @@ Uživatel po kouskách. Hotovo (`<hash tohoto commitu>`):
    (veslice 0, malá 0.5, střední 1, velká 2) + `HasCannon`. `GameData.ammo`
    (+ player2). Obchod: řádek "Munice do děla" (opakovaný nákup, `ammoPackCost`
    60 / `ammoPackSize` 10). Perk texty zmiňují dělo.
+
+## DÁVKA 2026-09-09 #2 — HOTOVO, jen offline compile-check (Unity MCP pořád odpojený)
+
+1. **Rozbitá loď → panáček plave.** `GameData.boatWrecked` (+player2). Loď na
+   0 HP se **rozbije** (dřív reset na 30): panáček je ve vodě, plave
+   `moveSpeed * BoatStats.SwimSpeedMultiplier (0.28)`. Dělo do něj pořád může
+   střílet (`CannonBall`/`CombatDirector` cílí i na `IsSwimming`; `DamageBoat`
+   při rozbité lodi jde rovnou do panáčka). Panáček na 0 → obrazovka smrti.
+   - `CanEnter` při plavání povolí i molo/pevninu → doplaveš k ostrovu a
+     `OnEnteredTile` tě automaticky vyloví (nebo E). Nedá se rybařit/těžit/střílet.
+   - `ShipModelSwitcher` schová loď i při `boatWrecked`. Panáček plave o 0.28 níž.
+   - Noví piráti se nespawnují, když hráč jen plave (`TrySpawnPirate` kouká na
+     `IsSailing`, ne `IsSwimming`).
+2. **Oprava v obchodě.** `UpgradeShopManager` řádek "Opravit ROZBITOU loď"
+   (`EconomyConfig.WreckRepairCost 160`) / "Opravit loď (hp/100)" (2/bod).
+   `FixBoat` nastaví `boatHealth 100`, `boatWrecked false` a `boatNeedsRehome true`.
+   `PlayerController.SyncParkedBoat` pak loď přemístí k nejbližšímu molu
+   (`GridManager.NearestPierTile`) a flag smaže.
+3. **25 % zásah do panáčka.** Zásah do celé lodě má `BoatStats.CannonSplashChance`
+   (0.25) šanci trefit i panáčka (splash = `max(3, dmg/2)`).
+4. **Extra dekorace ostrovů.** 10 Kenney fbx do
+   `Assets/TutorialInfo/Resources/IslandDecor/` (rocks-a/b/c, rocks-sand-b/c,
+   grass, grass-plant, palm-bend, patch-grass-foliage, patch-sand-foliage).
+   `IslandDecor` je načte staticky, přidá do fondu vedle vestavěných `Decor_*`,
+   materiál (PirateColormap) vezme z existující `Decor_` dlaždice. **Měřítka
+   0.5–0.9 + palma 2.1× — doladit v editoru.**
 
 ## DÁVKA 2026-09-09 (velký seznam po kouskách) — HOTOVO, jen offline compile-check
 

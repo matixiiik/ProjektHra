@@ -139,6 +139,10 @@ public class PlayerController : MonoBehaviour
         // Zobraz správně loď / panáčka.
         ShowBoatOrFoot();
 
+        // Pěna za lodí, když pluje (vlastní objekt, jede za lodí sám).
+        var wakeGo = new GameObject("BoatWake_P" + (playerIndex + 1));
+        wakeGo.AddComponent<BoatWake>().Bind(this);
+
         ExploreCurrentPosition();
     }
 

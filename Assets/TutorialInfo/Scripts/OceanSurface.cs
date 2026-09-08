@@ -46,11 +46,13 @@ public class OceanSurface : MonoBehaviour
         p1 = player1;
 
         var mr = GetComponent<MeshRenderer>();
+        Color waterBase = Color.cyan;
         if (waterMaterial != null)
         {
             // Vlastní kopie materiálu — ať nesaháme na sdílený asset ve složce.
             var mat = new Material(waterMaterial);
             Color c = mat.HasProperty("_BaseColor") ? mat.GetColor("_BaseColor") : Color.cyan;
+            waterBase = c;
             c.a = waterAlpha;
             if (mat.HasProperty("_BaseColor")) mat.SetColor("_BaseColor", c);
             if (mat.HasProperty("_Color"))     mat.SetColor("_Color", c);
@@ -66,7 +68,35 @@ public class OceanSurface : MonoBehaviour
         BuildFlatMesh();
         GetComponent<MeshFilter>().sharedMesh = mesh;
 
+        BuildSkin(mr.sharedMaterial, waterBase);
+
         FollowPlayers();
+    }
+
+    // Tenká tmavší "kožka" těsně nad hlavní hladinou. Sdílí animovanou síť, takže
+    // se vlní s ní. Je hodně průhledná → u lodě je hladina znát tmavší, ale do
+    // hloubky (dno, vraky) je pořád vidět.
+    void BuildSkin(Material baseWaterMat, Color waterBase)
+    {
+        if (baseWaterMat == null) return;
+
+        var skinGo = new GameObject("OceanSkin");
+        skinGo.transform.SetParent(transform, false);
+        skinGo.transform.localPosition = new Vector3(0f, 0.02f, 0f);
+        skinGo.layer = gameObject.layer;
+
+        skinGo.AddComponent<MeshFilter>().sharedMesh = mesh; // stejná (animovaná) síť
+
+        var smr = skinGo.AddComponent<MeshRenderer>();
+        smr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+        smr.receiveShadows    = false;
+
+        var skinMat = new Material(baseWaterMat);
+        Color sc = new Color(waterBase.r * 0.5f, waterBase.g * 0.6f, waterBase.b * 0.65f, 0.22f);
+        if (skinMat.HasProperty("_BaseColor")) skinMat.SetColor("_BaseColor", sc);
+        if (skinMat.HasProperty("_Color"))     skinMat.SetColor("_Color", sc);
+        skinMat.renderQueue = baseWaterMat.renderQueue + 1; // kreslit až po hlavní hladině
+        smr.sharedMaterial = skinMat;
     }
 
     // Postaví plochou čtvercovou síť vrcholů STEP od sebe, vycentrovanou na (0,0).

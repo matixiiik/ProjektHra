@@ -7,8 +7,9 @@ using UnityEngine;
 //  do prázdna.
 //
 //  Je to jedna velká plocha, která jede za hráčem. Výška vrcholů = Perlinův šum
-//  ve SVĚTOVÝCH souřadnicích (pohybuje se zhruba mezi FLOOR_MIN a FLOOR_MAX),
-//  takže dno je pořád stejné na stejném místě a jen se dogeneruje kolem hráče.
+//  ve SVĚTOVÝCH souřadnicích (hloubka ~3 až ~10 pod hladinou), takže dno je
+//  pořád stejné na stejném místě a jen se dogeneruje kolem hráče. Pod vraky
+//  pokladů je navíc písčitá kupa (viz GridManager), ať vrak nestojí ve vzduchu.
 //
 //  Objekt vytváří GridManager (viz CreateSeaWorld). Nemá kolizi ani vliv na hru —
 //  těžba pokladu funguje dál stejně (mezerník na políčku pokladu).
@@ -19,8 +20,8 @@ public class SeaFloor : MonoBehaviour
 {
     private const float SIZE      = 164f;  // strana plochy (o kus větší než hladina, ať pod ní není mezera)
     private const float STEP      = 8f;    // rozteč vrcholů (dno je daleko, stačí hrubší síť)
-    private const float FLOOR_MIN = -15f;  // nejhlubší místo dna
-    private const float FLOOR_MAX = -10f;  // nejmělčí místo dna
+    private const float FLOOR_MIN = -10f;  // nejhlubší místo dna (hloubka ~10)
+    private const float FLOOR_MAX = -3f;   // nejmělčí místo dna (hloubka ~3) — přes vodu je vidět
     private const float NOISE     = 0.045f;// měřítko Perlinova šumu (menší = větší kopce)
 
     private Transform p1;
@@ -41,8 +42,8 @@ public class SeaFloor : MonoBehaviour
         {
             // Tmavší kopie písčitého materiálu ostrova — ať dno není tak výrazné.
             var mat = new Material(sandMaterial);
-            if (mat.HasProperty("_BaseColor")) mat.SetColor("_BaseColor", new Color(0.28f, 0.32f, 0.30f, 1f));
-            if (mat.HasProperty("_Color"))     mat.SetColor("_Color",     new Color(0.28f, 0.32f, 0.30f, 1f));
+            if (mat.HasProperty("_BaseColor")) mat.SetColor("_BaseColor", new Color(0.33f, 0.38f, 0.36f, 1f));
+            if (mat.HasProperty("_Color"))     mat.SetColor("_Color",     new Color(0.33f, 0.38f, 0.36f, 1f));
             mr.sharedMaterial = mat;
         }
         mr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
@@ -126,7 +127,8 @@ public class SeaFloor : MonoBehaviour
             float wx = verts[k].x + ox;
             float wz = verts[k].z + oz;
             float noise = Mathf.PerlinNoise(wx * NOISE + 500f, wz * NOISE + 500f); // 0..1
-            verts[k].y = Mathf.Lerp(FLOOR_MIN, FLOOR_MAX, noise);
+            // noise² → dno je většinou hluboké (~10), mělčiny (~3) jsou jen občas.
+            verts[k].y = Mathf.Lerp(FLOOR_MIN, FLOOR_MAX, noise * noise);
         }
 
         mesh.vertices = verts;

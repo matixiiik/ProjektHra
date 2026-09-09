@@ -15,8 +15,9 @@ using UnityEngine;
 public static class CharacterModel
 {
     // Kenney "Mini Characters" FBX je maličký (~0,68 j vysoký při měřítku 1).
-    // Postavičky ve hře jsou ~1,2 j vysoké → zvětšíme ~2,7×.
-    public const float DEFAULT_SCALE = 1.85f;
+    // 1.6 → model je ve světě ~1,08 j vysoký (o něco menší než původní panáček,
+    // aby se postava opticky vešla i do malé veslice).
+    public const float DEFAULT_SCALE = 1.6f;
 
     private static Texture2D colormap;
     private static bool      colormapTried;
@@ -39,10 +40,15 @@ public static class CharacterModel
         go.transform.localPosition    = Vector3.zero;
         go.transform.localEulerAngles = Vector3.zero;
 
-        // Cílem je, aby model měl VE SVĚTĚ výšku `scale` bez ohledu na to, jak je
-        // zmenšený/zvětšený rodič (interiérová postavička je např. scale 0,5).
-        float pl = parent != null ? Mathf.Max(0.0001f, parent.lossyScale.y) : 1f;
-        go.transform.localScale = Vector3.one * (scale / pl);
+        // Cílem je, aby model měl VE SVĚTĚ rovnoměrné měřítko `scale` bez ohledu na
+        // to, jak (i nerovnoměrně) je zmenšený/zvětšený rodič — interiérová
+        // postavička je např. scale (0,5, 0,55, 0,5), tak dělíme každou osu zvlášť,
+        // ať model není zploštělý.
+        Vector3 pl = parent != null ? parent.lossyScale : Vector3.one;
+        go.transform.localScale = new Vector3(
+            scale / Mathf.Max(0.0001f, pl.x),
+            scale / Mathf.Max(0.0001f, pl.y),
+            scale / Mathf.Max(0.0001f, pl.z));
 
         if (!colormapTried)
         {

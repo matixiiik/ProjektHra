@@ -283,6 +283,7 @@ public class LighthouseInteriorDecor : MonoBehaviour
             {
                 ip.areaRadius  = WALK_RADIUS;
                 ip.innerRadius = 0f; // uprostřed nic není
+                ip.frontZ      = TABLE_Z - 0.85f; // bariéra před stolem (ať do něj hráč nevleze)
             }
 
         foreach (var it in FindObjectsByType<InteriorInteractable>(FindObjectsSortMode.None))

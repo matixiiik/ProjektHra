@@ -32,6 +32,10 @@ public class InteriorPlayer : MonoBehaviour
     private Vector3 areaCenter = Vector3.zero;
     public void SetAreaCenter(Vector3 c) => areaCenter = c;
 
+    [Tooltip("Nejzazší Z (vůči středu místnosti), kam hráč smí — bariéra před stolem " +
+             "u zadní stěny. Nastavuje LighthouseInteriorDecor. Velká hodnota = bez omezení.")]
+    [HideInInspector] public float frontZ = 999f;
+
     private InteriorInteractable nearest; // co je zrovna v dosahu (kvůli nápovědě)
     private GUIStyle promptStyle;
 
@@ -136,6 +140,10 @@ public class InteriorPlayer : MonoBehaviour
                                                  fromCenter = fromCenter.normalized * innerRadius;
         pos.x = areaCenter.x + fromCenter.x;
         pos.z = areaCenter.z + fromCenter.z;
+
+        // Bariéra: nedovol projít stolem u zadní stěny.
+        if (pos.z - areaCenter.z > frontZ) pos.z = areaCenter.z + frontZ;
+
         transform.position = pos;
 
         if (dir.sqrMagnitude > 0.01f)

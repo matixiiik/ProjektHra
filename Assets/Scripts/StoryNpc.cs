@@ -388,9 +388,9 @@ public class StoryNpc : MonoBehaviour
             CharacterModel.DEFAULT_SCALE, new Color(0.78f, 0.75f, 0.72f), "SitAnim");
         if (model != null)
         {
-            // Póza "sit" spouští nohy pod úroveň modelu — zvedni ho, ať nejde
-            // nohama do země a zadkem sedí na sudu (výška odladěná ručně).
-            model.transform.localPosition += new Vector3(0f, 0.28f, 0f);
+            // Póza "sit" je "schoulená" (hlava níž, boky v ~0,33) — model trochu
+            // zvedni, ať nejde nohama do země a zadkem sedí na sudu (odladěno ručně).
+            model.transform.localPosition += new Vector3(0f, 0.24f, 0f);
             AddSeat();
             return;
         }
@@ -427,8 +427,8 @@ public class StoryNpc : MonoBehaviour
         if (col != null) Destroy(col);
         barrel.name = "DedaSeat";
         barrel.transform.SetParent(transform, false);
-        barrel.transform.localPosition = new Vector3(0f, 0.26f, -0.1f);  // kousek za dědou (pod zadkem)
-        barrel.transform.localScale    = new Vector3(0.58f, 0.25f, 0.58f); // horní hrana ~0,53 = výška sedu
+        barrel.transform.localPosition = new Vector3(0f, 0.15f, -0.12f);  // pod zadkem, kousek dozadu
+        barrel.transform.localScale    = new Vector3(0.52f, 0.16f, 0.52f); // nízká stolička, horní hrana ~0,31 = výška sedu
 
         var r = barrel.GetComponent<Renderer>();
         if (r != null)

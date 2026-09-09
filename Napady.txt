@@ -23,8 +23,8 @@ udelat extremne vzacne mega ostrovy (zatim pouze velka plocha ale at budes ready
 
 
 
-Nápady, jak to vylepšit
-pridej prikaz get item jako treba mapu nebo naboje atd
+pridej ze kdyz ses 50 blocku od ostrova tak se ti zobrazi pouze ten ostrov na velke mape a uz tam zustane (aby hraci co hledaji ostrov nemuseli plout uplne na random ale kdyz bude nekde blizko tak aby mohli je t tam)
+najdi nejake panacky a stahni je ale musi se hodit do grafiky kterou tady delame, zvys o malinko spawnrate vraku, 1 ryba = 2 mince, prikaz exit v konzoli zavre konzoli, mapa jde videt i kdyz jsem jako panacek (nejde jenom v majaku),
 Zvuk soubojů — dělová rána, „thunk" zásahu, zvuk potopení. SoundManager je procedurální, přidat pár synth zvuků je rychlé. Teď je boj skoro němý.
 Feedback zásahu — krátký červený záblesk / lehké cuknutí kamery / žbluňk částic při trefě. Teď se hýbe jen HP bar.
 Piráti a nepřátelské ostrovy na minimapě (červené tečky) + červená vlajka na majáku nepřátelského ostrova — teď zjistíš že je ostrov nepřátelský, až když po tobě začne pálit.
@@ -33,5 +33,4 @@ Vrak po rozbité lodi zůstane chvíli na hladině — doplaveš k němu a zachr
 Pauza při otevřeném obchodu/dialogu — teď hra běží dál a pirát tě může sejmout, když nakupuješ v majáku (pokud to není záměr).
 Krátká nápověda na startu (třeba od dědy): LMB = střelba, E = maják/přístav, R = oprava. Nový hráč ovládání netuší.
 Pěna i za pirátskými loděmi — teď kloužou po vodě bez stopy, působí staticky.
-
 

@@ -1,0 +1,194 @@
+Co je fakt dobré (tímhle začni prezentaci)
+Nekonečný procedurálně generovaný svět — líné generování dlaždic kolem hráče (GenerateRegion ±28), úklid vzdálených, organické ostrovy (jádro + náhodný růst + zaplňování zálivů), deterministické umístění (mřížka %40 + hash pozice). To je reálná algoritmická práce, ne jen "slepím prefaby".
+Save systém — 3 nezávislé sloty, vlastní SerializableDictionary, protože JsonUtility neumí Dictionary. GameSession (DontDestroyOnLoad) drží data napříč scénami.
+Observer pattern — OnWorldChanged event: HUD a minimapa se překreslí, aniž by o sobě navzájem věděly. Čisté oddělení světa od UI.
+EconomyConfig — všechna čísla ekonomiky na jednom místě, per-ostrov ceny přes deterministický hash. Ukázka "konfigurace oddělená od logiky".
+Vše procedurální (meshe, textury HUD, zvuky, postavičky z primitiv) → nula externích assetů kromě CC0 Kenney → žádná licenční past. Zároveň to ukazuje šířku (mesh generation, syntéza zvuku, IMGUI i runtime uGUI).
+Lokální split-screen coop — netriviální (3 kamery, oddělené ekonomiky, per-hráč UI).
+Co bych udělal PŘED obhajobou (levné, velká hodnota)
+
+1. Pár unit testů. Teď je jich 0, přitom com.unity.test-framework je nainstalovaný. To je největší slabina "softwarového projektu". Stačí 8–12 EditMode testů na čistou logiku — nepotřebují scénu, nulové riziko:
+
+EconomyConfig.Price / PriceMultiplier (rozsah 0.8–1.2, zaokrouhlení)
+BoatStats.SpeedMultiplier pro úrovně 0–3
+GridManager.GridKey ↔ ParseGridKey round-trip
+ActiveQuest.IsComplete, MegaQuest.Reset
+save → JSON → load zachová tileData
+
+Přímo odpovídá otázce "jak to testuješ?".
+
+2. README.md do kořene. Examinátoři to milují. Co v něm: co to je, jak spustit (Unity verze), ovládání, a hlavně popis architektury (GridManager = svět, GameData = save, event flow, MultiplayerManager). handoff.md a Napady.txt tohle nenahrazují — jsou to pracovní poznámky.
+
+3. Smazat template smetí — ReadMe.cs, Editor/ReadmeEditor.cs, zbytky Assets/TutorialInfo/ (Icons/URP.png, Layout.wlt). Je to Unity šablona, ne tvůj kód, a v prezentovaném projektu působí nedodělaně.
+
+4. Rozhodni se o .claude/, CLAUDE.md, Napady.txt v gitu. Odhalují AI workflow. Buď je nech a umět říct "AI byl nástroj, tady je jak", nebo je dej do .gitignore. Není to kód, ale ovlivní to dojem.
+
+Co bych přepsal, kdyby byl čas (spíš "vím o tom, plánuju")
+
+5. GridManager je God object (1418 řádků). Dělá: generování světa, instancování dlaždic, tvarování ostrovů, mega ostrov, terénní meshe, orchestraci save, data pro minimapu, respawn, pomocníky pro NPC, tvorbu moře, úklid. Rozdělit na WorldGenerator, TileSpawner, IslandBuilder, SaveCoordinator. Nechal jsem celé kvůli času a protože se to hodně vzájemně volá — ale je to legitimní kritika, kterou je fajn předběhnout.
+
+6. Duplikace player2* v GameData (~30 polí × 2) + větvení playerIndex == 0 ? x : player2x po celé codebase. Čistší: třída PlayerState, GameData.players[2] (pole serializovatelných tříd JsonUtility umí). Neudělal jsem to, protože je to zásah do save formátu i všech konzumentů (PlayerController, oba shopy, HUD, minimapa).
+
+7. Save nemá verzování. GameData se serializuje syrově. Přidání pole / rozšíření enumu může rozbít staré savy (projekt na to má varování "nikdy nepřečíslovat enum"). int saveVersion + migrace by bylo robustnější. Férová otázka: "co se stane se starým savem, když přidáš pole?" — odpověď teď: "JsonUtility nechá default hodnotu, což většinou funguje".
+
+8. tileData roste neomezeně. ClearOldTiles maže vzdálené dlaždice, ale ne prozkoumané (isExplored). Po hodně dlouhé hře save nafoukne. Řešení: ukládat jen "zajímavé" dlaždice, zbytek regenerovat ze seedu.
+
+9. Hodně FindFirstObjectByType / FindObjectsByType, některé za běhu — MinimapUIRenderer.Update (dokud nenajde hráče), UpgradeShopManager.AnyShopOpen volá FindObjectsByType 2× a je to statická property z PauseMenu.Update každý snímek. Porušuje to i vlastní konvenci projektu ("wiring v Start()").
+
+10. Singletonů je víc, než byl původní záměr — GameSession, LighthouseManager, ChestManager, CombatDirector, SoundManager, StoryNpc + statické IsOpen na DeathScreen / GameConsole / MapScreen. CLAUDE.md říká "žádné singletony kromě statických flagů" a ta hranice se rozmělnila. Buď upřímný: "začal jsem bez nich, přidával je postupně, aby na sebe systémy dosáhly".
+
+11. Coop = Instantiate(P1) + mazání komponent (Camera, HUD, minimapa, konzole…). Křehké — nová "jen jednou ve scéně" komponenta = musíš ji přidat do seznamu mazání v MultiplayerManager. Maják v coopu (aditivní scéna + +5000 offset světa řešený ve 3 skriptech) je chytré, ale hacky. Čistší by byl PlayerRig prefab.
+
+12. Chybí .asmdef → celý kód je jedna assembly, každá změna = plná rekompilace. U 10k řádků zatím netrpí, ale rozdělení na Runtime/Editor assembly je "best practice", na kterou se může examinátor zeptat.
+
+13. Drobnosti — Assets/Scripts/ je plochá (47 souborů, chtělo by podsložky World/ Player/ UI/ Combat/ Story/); GameConsole je rostoucí switch s opakovaným int.TryParse (chtělo by tabulku příkazů); Input je celý na starém API, ale inputsystem balíček je nainstalovaný a nepoužitý; 3× [DefaultExecutionOrder] jsou hacky pořadí spouštění.
+
+Na co se u zkoušky připravit
+Otázka	Odpověď
+Návrhové vzory?	Observer (OnWorldChanged), Singleton (přiznat, že jich je víc), State machine (StoryNpc, ShipModelSwitcher), Strategy-ish (BoatStats per úroveň). Object pooling ne (u téhle frekvence OK).
+Perzistence?	JsonUtility → persistentDataPath, 3 sloty, PlayerPrefs pamatuje poslední. Vlastní SerializableDictionary kvůli limitům.
+Jak testuješ?	Ručně + (pokud chceš zmínit) přes Unity MCP. Doplň pár unit testů, ať máš co ukázat.
+Nejtěžší část?	Nekonečný svět bez záseků, nebo split-screen coop.
+Co bys udělal jinak?	Tenhle seznam. Hlavně: rozdělit GridManager, PlayerState[2], testy a .asmdef od začátku.
+Škáluje to?	Svět ano (líné generování). Save roste s prozkoumanou plochou — po dlouhé hře problém, dá se řešit.
+
+
+
+
+
+
+
+
+
+
+Pokračování příběhu — mega ostrovy
+Context
+
+Hráč doplaje na příběhový mega ostrov (storyStep 2 → 3) a dostane jen hlášku "někdo tu už kopal". Na ostrově se nedá nic dělat — je to jen země + obelisk (MegaIslandMarker). Cíl: udělat z toho reálný úkol a rozvést příběh do krátkého uzavřeného oblouku přes 3 tematicky odlišné mega ostrovy, s přepady na moři mezi nimi, aby to nebylo pořád stejné.
+
+Rozhodnutí uživatele:
+
+Úkol na ostrově: probojovat se přes obránce → uprostřed trezor, který se otevře přes puzzle (5–20 min čistého hraní, komplexnější ale řešitelné).
+V trezoru není poklad, ale vzkaz od soka.
+Sok = někdo ze sokovy minulosti starého námořníka; identita se odhaluje postupně přes 3 ostrovy; finále = setkání obou stařešinů po letech, teprve tam se odhalí kdo to je.
+Rozsah: všechny 3 ostrovy + přepady + finále, ale po malých kouskách (do maturity ~6 měsíců).
+Strážci ostrova 1: nový stacionární typ nepřítele (zbraně — mušketa apod. — se doladí později, v1 stačí základ).
+1. Příběhový oblouk
+Ostrov 1 — "Pevnost staré posádky"
+
+Opevněný úkryt sokovy staré posádky. Zarostlé, děla, uzamčený trezor.
+
+Připlutí → 2–3 ostrovní děla (HostileIslandCannon) + 1 hlídkující pirátská loď po tobě pálí. Sejmeš je z lodě. Pak je moře čisté a doplaješ k molu.
+Pěšky → nový typ nepřítele: stacionární strážci (LandGuard) — stojí na místě, když jsi blízko, pálí po tobě. (v1: koule jako dělo; v2: mušketa)
+Trezor uprostřed, zamčený. Puzzle: po ostrově je ~6 kamenných tabulek s vodítky (hádanka / symbol). Přečteš je (E), z nich vydedukuješ 4-symbolový kód a zadáš ho na trezoru. Špatně → "X ze 4 správně". Chodíš po velkém ostrově, čteš, luštíš → 5–20 min.
+Trezor se otevře → prázdný, jen vzkaz soka: "Přišel jsi pozdě, [starý příteli]. Našel jsem to první. Jestli to fakt chceš, hledej mě dál. — [iniciála]"
+náznak, že sok zná starého námořníka jako kapitána.
+Doma (dialog s námořníkem, storyStep 4): pozná rukopis, zmlkne, dá souřadnice ostrova 2 — ale neřekne kdo to je. → megaIndex++, nový mega ostrov, waypoint, storyStep 2.
+Přepad mezi 1 a 2
+
+Zhruba v polovině trasy k ostrovu 2 → 2 piráti + toast "Tihle na tebe čekali…". Jednorázově (ambush1Done v save).
+
+Ostrov 2 — "Hřbitov lodí"
+
+Vraky, mělčiny, jiná atmosféra (víc průzkum, míň boj).
+
+Kolem ostrova loď ducha (ship-ghost) — mini-boss.
+Trezor = zpola zahrabané lodní podpalubí. Jiný puzzle: najdeš 3 kusy roztržené mapy ve 3 vracích (kopeš u nich — jako mega quest dig), složíš je, výsledek = poloha / kód do podpalubí.
+Uvnitř sokův nedávno opuštěný tábor. Druhý vzkaz — teď víc: sok viní námořníka z něčeho (ztroskotání / smrt / opuštění). Beze jména, ale je to osobní.
+Doma: námořník otřesený, přizná "byl jsem tam kapitán… něco se stalo". Souřadnice ostrova 3.
+Ostrov 3 — "Kde to začalo" (sok je tam)
+
+Není to poklad — je tam sok.
+
+Sokova loď hlídá příjezd — boss fight (velká loď).
+Vylodíš se. Sok je tam jako NPC (postavička jako námořník, jiný design).
+Finální konfrontace: "poklad" = něco malého a osobního (lodní zvon / sokův deník / jméno vyryté do kamene). Případně žádné zlato — smíření.
+Setkání: přivedeš soka zpět k námořníkovi. Dva staří lidé po desítkách let. Odhalení kdo sok je. Smíří se (možná volba).
+Odměna: unikátní trvalý bonus + storyDone.
+2. Sdílená infrastruktura (postavit první)
+GameData (nová pole, POUZE na konec — serializují se do save; sdílená P1/P2)
+public int  megaIndex;      // 0 = ostrov 1, 1 = ostrov 2, 2 = ostrov 3
+public int  megaTask;       // postup na aktuálním ostrově: 0=přijel,1=obrana padla,2=trezor otevřený,3=hotovo (vzkaz vzat / finále)
+public int  megaCode;       // rozdělaný stav puzzlu trezoru (zadané symboly, zakódováno)
+public int  megaCluesMask;  // které tabulky s vodítky už hráč přečetl (bity)
+public bool ambush1Done;
+public bool ambush2Done;
+public bool storyDone;
+MegaIslandMarker = "mozek ostrova"
+
+Dnes jen staví obelisk. Rozšířit:
+
+public static MegaIslandMarker Instance (Awake) — jako ChestManager/StoryNpc, odůvodnění: jeden na hru, musí být dosažitelný z PlayerController.
+Start(): obelisk (vždy) + podle grid.gameData.megaIndex zavolá BuildFortress() / BuildWreckGraveyard() / BuildConfrontation().
+Deterministické pozice obsahu z storyIslandX/Y + jednoduchý hash (žádná náhoda za běhu, ať to po loadu vypadá stejně).
+Update(): hlídá megaTask — když jsou všechna děla + strážci zničení, megaTask 0 → 1 + toast. (Děla volají CombatDirector.OnIslandCannonDestroyed → marker si drží počítadlo, nebo skenuje FindObjectsByType.)
+public bool TryInteract(int x, int y, int playerIndex) — marker zná světové pozice obelisku / tabulek / trezoru / vzkazu a testuje Chebyshev(hráč, cíl) ≤ 1:
+obelisk → ukáže nápovědu k puzzlu
+tabulka → přečte vodítko, nastaví bit v megaCluesMask
+trezor (megaTask == 1) → otevře IMGUI zadávání kódu; správně → megaTask 2, objeví se vzkaz; špatně → "X ze 4"
+vzkaz (megaTask == 2) → ukáže text soka, megaTask 3
+Hák interakce
+
+V PlayerController.TryInteractAdjacentBuilding() (skenuje 4 sousedy, pořadí StoryNpc → Lighthouse → Chest → shopy) přidat JEDEN řádek na začátek: if (MegaIslandMarker.Instance != null && MegaIslandMarker.Instance.TryInteract(tx, ty, playerIndex)) return true;
+
+Umístění dalšího ostrova
+
+Stejný mechanismus jako StoryNpc.GiveToSailor(): nová metoda StoryNpc.GiveNextIslandCoords() — megaIndex++, megaTask = 0, megaCluesMask = 0, megaCode = 0, gridManager.PlaceMegaIsland(sx, sy) (daleko, deterministicky), hasWaypoint = true, storyStep = 2.
+
+StoryNpc dialog
+BuildDialogForStep() case 3: text závisí na megaTask — dokud není 3, jen "vrať se, až to dokončíš"; při megaTask == 3 → reakce na vzkaz pro daný megaIndex (3 různé texty) + tlačítko / poslední replika → GiveNextIslandCoords() (nebo u megaIndex == 2 → finále).
+HUDCounter.RefreshStory() case 3: podle megaTask ukázat aktuální cíl ("Znič obranu ostrova" / "Najdi trezor a vyřeš zámek" / "Vrať se za námořníkem se vzkazem").
+MegaIsland render
+
+Beze změny — EnsureIslandTerrain už MegaIsland umí, minimapa/mapa fialově.
+
+3. Ostrov 1 — detail
+
+MegaIslandMarker.BuildFortress():
+
+Děla: 2–3× HostileIslandCannon.Spawn(tile, "mega") na okrajových MegaIsland dlaždicích u vody (deterministicky). Klíč "mega" → clearedIslands.
+Strážci: nový LandGuard.cs (primitiva jako sokův panáček). Pole hp, TakeHit(float), Update(): pokud je hráč (v lodi i pěšky) do vzdálenosti RANGE a "vidí" ho, každých RELOAD s vypálí CannonBall.Fire(..., Side.Enemy). Na smrt → řekne markeru. 2–3 kusy u trezoru.
+Trezor: kamenná bedna + dveře (primitiva) uprostřed vedle obelisku.
+6 tabulek s vodítky: ploché kameny s textem, rozeseté po ostrově (deterministicky). Text = krátká hádanka česky, dohromady dá 4-symbolový kód.
+Vzkaz: malý objekt (svitek) uvnitř trezoru, aktivní až megaTask == 2.
+
+Tok: přijedeš (storyStep 3, megaTask 0) → sejmeš děla + hlídkující loď z lodě → megaTask 1 → doplaješ, pěšky → čteš tabulky, luštíš, zadáš kód na trezoru → megaTask 2 → E na vzkaz → megaTask 3 → domů → dialog s námořníkem → GiveNextIslandCoords().
+
+Puzzle — 3 varianty (rozhodnout při implementaci)
+Kód z hádanek (doporučeno): ~6 tabulek, každá je nápověda k jednomu ze 4 symbolů kódu (2 jsou návnady). Zadání na trezoru = 4 pozice, cyklíš symboly (E), potvrdíš. Feedback "X ze 4 správně". Řešitelné, textově obhajitelné, zabere čas (velký ostrov + přemýšlení).
+Sekvence aktivace: 4–5 ohňů, zapálit ve správném pořadí (z obelisku), špatně → reset. Jednodušší, ale kratší.
+Kombinace z prostředí: kód = počet děl + směr stínu obelisku + datum na hrobu… Hezké, ale těžší udělat férové.
+4. Přepad na moři
+
+Nová statická třída StoryEvents (jen metody, žádný stav — stav v GameData): StoryEvents.CheckAmbush(GridManager grid) volaná z PlayerController.OnEnteredTile. Když storyStep == 2 && megaIndex >= 1 && !ambush1Done a hráč je do ~30 políček od poloviny úsečky (start ostrov → storyIslandX/Y) → PirateShip.Spawn ×2, CombatDirector.Instance.Toast(...), ambush1Done = true, grid.Save().
+
+5. Ostrov 2 & 3 — náčrt (pozdější kousky)
+
+Ostrov 2 (BuildWreckGraveyard): ship-ghost mini-boss (přesunout ship-ghost.fbx do Assets/Resources/, Resources.Load jako pirátské lodě). 3 kopací místa v mělčině kolem ostrova → DigRoutine-styl z lodě (reuse mega quest dig). Po 3 kusech → kód do podpalubí. Jiné hádanky, jiná tematika.
+
+Ostrov 3 (BuildConfrontation): na příjezd spawn velké pirátské lodě jako boss (tuning HP). Po potopení → vylodění → RivalNpc.cs (jako StoryNpc, jiný vzhled) na ostrově. Finální dialog strom, storyDone = true, storyStep na finální hodnotu, odměna. Poslední replika u starého námořníka doma.
+
+6. Rozdělení na kousky (6 měsíců, po částech)
+Infra — GameData pole, MegaIslandMarker singleton + TryInteract hák, storyStep 3 závislý na megaTask, HUD/dialog cases. (Ostrov zatím prázdný, megaTask se posouvá jen konzolí.)
+Ostrov 1 — obrana — děla + LandGuard + megaTask 0→1.
+Ostrov 1 — trezor + puzzle — tabulky, zadávání kódu, megaTask 1→2.
+Ostrov 1 — vzkaz + návrat — svitek, dialog s námořníkem, GiveNextIslandCoords.
+Přepad na moři.
+Ostrov 2 (ghost ship + dig 3 kusy + puzzle + vzkaz).
+Ostrov 3 (boss + RivalNpc + finále + storyDone).
+Doladění — texty, tempo, tematické dekorace ostrovů, odměna.
+7. Co zapojit v editoru
+Nic pro ostrov 1 (vše primitiva v kódu jako LighthouseInteriorDecor).
+Ostrov 2: přesunout Assets/Kenney/PirateKit/Models/ship-ghost.fbx do Assets/Resources/GhostShip/ (aby šel Resources.Load). Řekne se uživateli.
+8. Ověření (Unity MCP)
+Rozšířit konzoli: story megatask <n>, story nextisland.
+Play → story island → dopluj (nebo tp k storyIslandX/Y) → zkontroluj, že MegaIslandMarker postaví děla/strážce/trezor/tabulky.
+Sejmi děla (nebo story megatask 1) → megaTask = 1, toast.
+Pěšky → E na tabulky (megaCluesMask bity), E na obelisk (nápověda), E na trezor → zadej kód → megaTask 2 → E na vzkaz → megaTask 3.
+tp domů → dialog s námořníkem → GiveNextIslandCoords umístí ostrov 2, waypoint.
+0 chyb v konzoli po každém kroku.
+9. Rizika / kde neztloustnout
+Nepřidávat nový TileType pro trezor/tabulky — jsou to jednorázové objekty jednoho ostrova, marker si je drží pozičně (enum se serializuje → append-only bolest).
+MegaIslandMarker se snadno rozroste do dalšího God objektu — držet ho tenký, jednotlivé části (BuildFortress, puzzle, LandGuard) do vlastních metod/souborů.
+Puzzle musí mít férový feedback ("X ze 4"), jinak je to hádání a u zkoušky se to blbě obhajuje.
+Deterministické pozice (hash, ne Random za běhu) — jinak po loadu ostrov jinak.

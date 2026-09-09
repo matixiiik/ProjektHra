@@ -22,8 +22,22 @@ v `.claude/story-plan.md`. **NIC se z toho zatím nestaví** — bude se dělat 
 kouskách do maturity. Až se začne: první milník = "Infra" + "Ostrov 1 — obrana"
 (viz plán sekce 6).
 
-### 📦 DÁVKA FEATUR 2026-09-10 (jiná session, commity `271186c..e762bb0`, NEpushnuto — čeká na playtest)
-Ověřeno compile-checkem + MCP Console (bez chyb), NEProklikáno v editoru.
+### 📦 DÁVKA FEATUR 2026-09-10 (jiná session, commity `271186c..c022f6f`, PUSHNUTO — čeká na playtest)
+Ověřeno compile-checkem + MCP Console (bez chyb) + screenshoty, NEProklikáno celé.
+
+**ANIMACE POSTAV (commit `c022f6f`):** Kenney Mini Characters mají 32 klipů
+v sobě (idle/walk/sprint/**sit**/holding-shoot/…). FBX importér přenastaven na
+Generic + avatar (CreateFromThisModel), smyčky na idle/walk/sprint/sit.
+`PlayerAnim.controller` = 1D blend tree na `Speed`; `SitAnim.controller` = sit.
+`CharacterModel.TryBuild(..., controllerName)` přiřadí controller, root motion off.
+- **Hráč venku** (PlayerController): chodí podle skutečné rychlosti (UpdateFigureAnim)
+- **Hráč v MAJÁKU** (InteriorPlayer): model + animace i uvnitř (dřív primitivní panáček)
+- **Děda**: model `character-male-e` + `sit` + dřevěný sud (`StoryNpc.AddSeat` — pozici
+  sudu vůči sedu případně dolaď)
+- **Prodavači** (LighthouseInteriorDecor.BuildKeeper): Kenney model `character-male-c`,
+  idle, čelem ke dveřím
+TODO doladit: sud pod dědou, případně shoot animace když hráč střílí z lodě
+(figura hráče je ale při plavbě schovaná, takže nízká priorita).
 - **1 ryba = 2 mince** (EconomyConfig.FishPrice), **víc vraků** (0,06→0,10 %),
   velká mapa jde i **pěšky**, konzole **`exit`** ji zavře
 - **ostrov na velké mapě od 50 políček** (TileStatus.mapped, GameData.mappedIslands,

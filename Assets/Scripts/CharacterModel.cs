@@ -14,8 +14,9 @@ using UnityEngine;
 
 public static class CharacterModel
 {
-    // Kenney FBX má výšku ~1.8 j; postavičky ve hře jsou ~1 j vysoké → zmenšíme.
-    public const float DEFAULT_SCALE = 0.55f;
+    // Kenney "Mini Characters" FBX je maličký (~0,68 j vysoký při měřítku 1).
+    // Postavičky ve hře jsou ~1,2 j vysoké → zvětšíme ~2,7×.
+    public const float DEFAULT_SCALE = 1.85f;
 
     private static Texture2D colormap;
     private static bool      colormapTried;

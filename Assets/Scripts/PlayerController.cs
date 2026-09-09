@@ -212,6 +212,9 @@ public class PlayerController : MonoBehaviour
             transform.position = new Vector3(sx, 0.5f, sy);
         }
 
+        // Pěší postavička = Kenney model (fallback = původní primitivní panáček).
+        BuildPlayerFigure();
+
         // Zobraz správně loď / panáčka.
         ShowBoatOrFoot();
 
@@ -417,6 +420,30 @@ public class PlayerController : MonoBehaviour
         PCoins += amount;
         gridManager.Save();
         gridManager.NotifyWorldChanged();
+    }
+
+    // Nahradí primitivního panáčka (děti headDotu) Kenney modelem postavy.
+    // P1 = modré oblečení, P2 = červené. Když model v Resources není, nechá
+    // původní primitiva.
+    void BuildPlayerFigure()
+    {
+        if (headDot == null) return;
+
+        // P2 vzniká jako kopie P1 → mohl by mít zděděný model (ve špatné barvě).
+        var stale = headDot.transform.Find("CharModel");
+        if (stale != null) DestroyImmediate(stale.gameObject);
+
+        Color tint = playerIndex == 1
+            ? new Color(0.82f, 0.24f, 0.20f)  // P2 — červené oblečení
+            : new Color(0.32f, 0.46f, 0.72f); // P1 — modré
+
+        var model = CharacterModel.TryBuild(headDot.transform, "character-male-a",
+                                            CharacterModel.DEFAULT_SCALE, tint);
+        if (model == null) return;
+
+        // Schovej původní primitivní díly (Body / Head / Hat / Nose).
+        foreach (Transform child in headDot.transform)
+            if (child != model.transform) child.gameObject.SetActive(false);
     }
 
     // Loď (plovoucí kopie) má existovat právě když je hráč pěšky s celou lodí.

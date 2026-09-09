@@ -41,7 +41,7 @@ public class MapScreen : MonoBehaviour
     private Vector2 dragLast;
     private bool    draggedFar;             // odlišení "táhnutí" od "kliknutí"
 
-    private GUIStyle titleStyle, hintStyle;
+    private GUIStyle titleStyle, hintStyle, compassStyle;
 
     // Barvy — sladěné s minimapou.
     private static readonly Color CWater  = new Color(0.16f, 0.55f, 0.72f);
@@ -107,6 +107,9 @@ public class MapScreen : MonoBehaviour
 
         // Rámeček mapy.
         DrawFrame(mapRect, 3f, new Color(0.55f, 0.42f, 0.24f));
+
+        // Světové strany u okrajů mapy (sladěno s minimapou: S nahoře, V vpravo).
+        DrawCompass(mapRect);
 
         // Titulek + nápověda.
         GUI.Label(new Rect(halfX, 34f, halfW, 34f), "MAPA", titleStyle);
@@ -285,6 +288,34 @@ public class MapScreen : MonoBehaviour
     {
         if (px < 0 || px >= TEX || py < 0 || py >= TEX) return;
         buf[py * TEX + px] = c;
+    }
+
+    // Písmena světových stran (S / J / V / Z) zevnitř u okrajů mapy.
+    void DrawCompass(Rect m)
+    {
+        if (compassStyle == null)
+            compassStyle = new GUIStyle(GUI.skin.label)
+            {
+                fontSize = 19, fontStyle = FontStyle.Bold,
+                alignment = TextAnchor.MiddleCenter,
+                normal = { textColor = new Color(1f, 0.92f, 0.6f) }
+            };
+
+        CompassLetter("S", new Rect(m.center.x - 14f, m.y + 4f,          28f, 22f));
+        CompassLetter("J", new Rect(m.center.x - 14f, m.yMax - 26f,      28f, 22f));
+        CompassLetter("V", new Rect(m.xMax - 26f,     m.center.y - 11f,  22f, 22f));
+        CompassLetter("Z", new Rect(m.x + 4f,         m.center.y - 11f,  22f, 22f));
+    }
+
+    // Písmeno + tmavý stín pod ním, ať je čitelné i nad světlou mapou.
+    void CompassLetter(string s, Rect r)
+    {
+        Color keep = compassStyle.normal.textColor;
+        var sh = new Rect(r.x + 1.5f, r.y + 1.5f, r.width, r.height);
+        compassStyle.normal.textColor = new Color(0f, 0f, 0f, 0.75f);
+        GUI.Label(sh, s, compassStyle);
+        compassStyle.normal.textColor = keep;
+        GUI.Label(r, s, compassStyle);
     }
 
     // ── Pomůcky ─────────────────────────────────────────────────────────────

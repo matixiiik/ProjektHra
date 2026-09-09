@@ -122,7 +122,7 @@ public class GameConsole : MonoBehaviour
                 Log("<color=#ffff88>upgrade</color> speed/rod/mining      odemkne upgrade");
                 Log("<color=#ffff88>tp</color> <x> <y>                   teleport");
                 Log("<color=#ffff88>explore</color> [radius]             odhalí mapu");
-                Log("<color=#ffff88>locate</color> [fish/treasure/chest/island/quest]  najde nejbližší");
+                Log("<color=#ffff88>locate</color> [fish/treasure/chest/island/pirate/quest]  najde nejbližší");
                 Log("<color=#ffff88>respawn</color>                       oživí hráče u nejbližšího ostrova");
                 Log("<color=#ffff88>story</color> [krok / island / histtreasure]   příběh (test)");
                 Log("<color=#ffff88>reset money</color>                   vynuluje mince");
@@ -300,6 +300,7 @@ public class GameConsole : MonoBehaviour
             ReportNearest("poklad",  grid.NearestTileOfType(px, py, TileType.Treasure),   px, py);
             ReportNearest("bedna",   grid.NearestTileOfType(px, py, TileType.Chest),      px, py);
             ReportNearest("ostrov",  grid.NearestTileOfType(px, py, TileType.Harbor),     px, py);
+            ReportNearest("nepřátelský ostrov", NearestHostileIsland(px, py),             px, py);
             return;
         }
 
@@ -309,6 +310,18 @@ public class GameConsole : MonoBehaviour
             case "treasure": ReportNearest("poklad", grid.NearestTileOfType(px, py, TileType.Treasure),   px, py); break;
             case "chest":    ReportNearest("bedna",  grid.NearestTileOfType(px, py, TileType.Chest),      px, py); break;
             case "island":   ReportNearest("ostrov", grid.NearestTileOfType(px, py, TileType.Harbor),     px, py); break;
+            case "pirate":
+            case "pirateisland":
+            case "hostile":
+            {
+                var h = NearestHostileIsland(px, py);
+                if (h == null)
+                    Log("<color=#ffcc66>Žádný nepřátelský ostrov jsi zatím neobjevil. Pluj dál od startu — " +
+                        "zhruba 1 z 5 ostrovů je nepřátelský (červená vlajka na majáku, červená tečka na minimapě).</color>");
+                else
+                    ReportNearest("nepřátelský ostrov", h, px, py);
+                break;
+            }
             case "quest":
                 var mq = grid.gameData.megaQuest;
                 if (mq != null && mq.active && !mq.dug)
@@ -317,9 +330,25 @@ public class GameConsole : MonoBehaviour
                     Log("<color=#ffcc66>Žádný rozdělaný mega quest.</color>");
                 break;
             default:
-                Log("Použití: locate <fish/treasure/chest/island/quest>");
+                Log("Použití: locate <fish/treasure/chest/island/pirate/quest>");
                 break;
         }
+    }
+
+    // Nejbližší nepřátelský ostrov, který hráč už objevil (má dělo, ještě ho nezničil).
+    // Nepřátelské ostrovy se nedají předpovědět dopředu — do seznamu se přidají,
+    // až k nim hráč jednou dopluje. ~20 % všech ostrovů je nepřátelských.
+    Vector2Int? NearestHostileIsland(int px, int py)
+    {
+        Vector2Int? best = null;
+        int bestDist = int.MaxValue;
+        foreach (string k in grid.ActiveHostileIslandKeys())
+        {
+            var t = GridManager.KeyToTile(k);
+            int d = Mathf.Max(Mathf.Abs(t.x - px), Mathf.Abs(t.y - py));
+            if (d < bestDist) { bestDist = d; best = t; }
+        }
+        return best;
     }
 
     // Vypíše jeden řádek "název: směr, vzdálenost" (nebo že nic není).

@@ -165,7 +165,7 @@ jednoho hráče nemrazí druhého.**
 ### Herní konzole (cheaty) — `GameConsole`, klávesa `` ` ``
 `get money/fish/treasure`, `get boat row/small/medium/large`,
 `get item map/ammo/histtreasure/sellbonus/megamap`, `upgrade speed/rod/mining`,
-`tp <x> <y>`, `explore [radius]`, `locate [fish/treasure/chest/island/quest]`,
+`tp <x> <y>`, `explore [radius]`, `locate [fish/treasure/chest/island/pirate/quest]`,
 `respawn`, `story [krok/island/histtreasure]`, `reset money`, `clear`.
 
 ## Konvence v kódu

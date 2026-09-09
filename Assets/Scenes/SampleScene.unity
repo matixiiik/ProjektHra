@@ -751,7 +751,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::CameraOrbit
   distance: 14
-  pitch: 52
+  pitch: 43
   yaw: 0
   sensitivity: 0.18
   minPitch: 25
@@ -862,8 +862,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d32529247d823f8429ef925cefce3855, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::QuestShopManager
-  fishSellPrice: 10
-  treasureSellPrice: 30
 --- !u!114 &341549787
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -876,12 +874,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 7be313b5d37af2443a58690658d8c0d2, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::UpgradeShopManager
-  speedUpgradeCost: 150
-  rodUpgradeCost: 100
-  miningUpgradeCost: 120
-  shipSmallCost: 200
-  shipMediumCost: 300
-  shipLargeCost: 800
 --- !u!1 &410087039
 GameObject:
   m_ObjectHideFlags: 0

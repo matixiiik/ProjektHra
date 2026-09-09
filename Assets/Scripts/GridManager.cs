@@ -122,6 +122,7 @@ public class GridManager : MonoBehaviour
         if (GameSession.ReturningFromLighthouse) SoundManager.PlayDoor(); // vrznutí — vyšel ven z majáku
 
         CombatDirector.Ensure(); // piráti + děla nepřátelských ostrovů
+        SoloPause.Ensure();      // v sólu pauza při otevřeném obchodu / dialogu / mapě
     }
 
     // Při zavření hry ulož.

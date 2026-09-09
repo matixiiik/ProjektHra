@@ -128,13 +128,16 @@ public class PauseMenu : MonoBehaviour
 
     // ── Akce tlačítek ────────────────────────────────────────────────────────
 
-    public void OpenMenu()     { isOpen = true;  Time.timeScale = 0f; } // 0 = hra stojí
-    public void ContinueGame() { isOpen = false; Time.timeScale = 1f; }
+    /// <summary>Je pauza otevřená? (čte SoloPause, ať si nepřebíjí timeScale)</summary>
+    public static bool IsPaused { get; private set; }
+
+    public void OpenMenu()     { isOpen = true;  IsPaused = true;  Time.timeScale = 0f; } // 0 = hra stojí
+    public void ContinueGame() { isOpen = false; IsPaused = false; Time.timeScale = 1f; }
 
     public void NewGame()
     {
         Time.timeScale = 1f;
-        isOpen = false;
+        isOpen = false; IsPaused = false;
         if (grid   != null) grid.NewGameReset();
         if (player != null) player.TeleportTo(grid.gameData.playerGridX, grid.gameData.playerGridY);
         FindFirstObjectByType<ShipModelSwitcher>()?.Apply();
@@ -142,7 +145,7 @@ public class PauseMenu : MonoBehaviour
 
     public void GoToMainMenu()
     {
-        isOpen = false;
+        isOpen = false; IsPaused = false;
         if (MultiplayerManager.IsMultiplayer) MultiplayerManager.Stop(); // ukonči split screen
         MainMenuManager.Show();
     }

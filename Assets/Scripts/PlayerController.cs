@@ -140,6 +140,19 @@ public class PlayerController : MonoBehaviour
     private float nextShotTime;
     private const float SHOOT_COOLDOWN = 0.55f;
     private float damageGraceUntil; // krátká nezranitelnost po "potopení" lodě
+    private float lastDamageTime = -999f; // kdy hráč naposledy dostal zásah (kvůli regeneraci)
+    private float healAccum;             // nasbírané zlomky HP při regeneraci pěšky
+
+    /// <summary>
+    /// Má tenhle hráč otevřené nějaké "okno" (obchod / dialog / mapu / je v majáku)?
+    /// V coopu se pak nezapočítá zásah (v sólu se stejně pauzuje – viz SoloPause).
+    /// </summary>
+    public bool ModalOpen =>
+           (upgradeShopManager != null && upgradeShopManager.IsOpenForBuyer(playerIndex))
+        || (questShopManager   != null && questShopManager.IsOpenForBuyer(playerIndex))
+        || MapScreen.IsOpenFor(playerIndex)
+        || (storyNpc != null && storyNpc.IsTalkingWith(playerIndex))
+        || LighthouseManager.IsInside(playerIndex);
     ActiveQuest PQuest     => playerIndex == 0 ? gridManager.gameData.activeQuest      : gridManager.gameData.player2ActiveQuest;
 
     // ── Pomocníci na klávesy (P1 dostane k1, P2 dostane k2) ─────────────────
@@ -220,6 +233,21 @@ public class PlayerController : MonoBehaviour
         // až nasedne) — řeší i načtení save uprostřed vylodění.
         SyncParkedBoat();
 
+        // Regenerace zdraví panáčka — když je pěšky v bezpečí (na ostrově se po
+        // něm nestřílí) a aspoň 6 s nedostal zásah, pomalu se léčí (2 HP/s).
+        if (isOnFoot && !PBoatWrecked && PPlayerHealth < 100
+            && Time.time - lastDamageTime > 6f)
+        {
+            healAccum += 2f * Time.deltaTime;
+            if (healAccum >= 1f)
+            {
+                int add = Mathf.FloorToInt(healAccum);
+                healAccum -= add;
+                PPlayerHealth = Mathf.Min(100, PPlayerHealth + add);
+                gridManager.NotifyWorldChanged();
+            }
+        }
+
         // Velká mapa — v lodi i pěšky (ne když plaveš s rozbitou lodí) a jen
         // s koupenou mapou. M (P1) / Numpad 2 (P2). Řeší otevření i zavření
         // (Toggle), proto je to nad "zámkem" ovládání níž.
@@ -294,6 +322,9 @@ public class PlayerController : MonoBehaviour
     {
         if (isOnFoot || dmg <= 0 || DeathScreen.IsOpen) return;
         if (Time.time < damageGraceUntil) return;
+        if (ModalOpen) return; // hráč zrovna nakupuje / mluví / je v majáku → nezraní ho to
+
+        lastDamageTime = Time.time;
 
         // Rozbitá loď → hráč plave → koule trefí přímo jeho.
         if (PBoatWrecked) { DamagePlayer(dmg); return; }
@@ -346,6 +377,9 @@ public class PlayerController : MonoBehaviour
     public void DamagePlayer(int dmg)
     {
         if (dmg <= 0 || DeathScreen.IsOpen) return;
+        if (ModalOpen) return;
+
+        lastDamageTime = Time.time;
         PPlayerHealth -= dmg;
         if (damageFeedback != null) damageFeedback.Play();
         gridManager.NotifyWorldChanged();

@@ -51,6 +51,9 @@ public class StoryNpc : MonoBehaviour
     /// <summary>Mluví zrovna tenhle hráč s dědou? (blokuje mu pohyb)</summary>
     public bool IsTalkingWith(int playerIndex) => talkingWith == playerIndex;
 
+    /// <summary>Mluví s dědou někdo?</summary>
+    public bool IsTalking => talkingWith != -1;
+
     /// <summary>Spustí dialog pro daného hráče (volá PlayerController po zmáčknutí E vedle dědy).</summary>
     public void StartTalk(int playerIndex)
     {

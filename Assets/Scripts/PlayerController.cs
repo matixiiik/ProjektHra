@@ -440,12 +440,27 @@ public class PlayerController : MonoBehaviour
             ? new Color(0.82f, 0.24f, 0.20f)  // P2 — červené oblečení
             : new Color(0.32f, 0.46f, 0.72f); // P1 — modré
 
+        // Kde má primitivní panáček nohy (aby model stál na stejné výšce).
+        float feetY = headDot.transform.position.y;
+        bool  found = false;
+        foreach (var mr in headDot.GetComponentsInChildren<MeshRenderer>(true))
+        {
+            float b = mr.bounds.min.y;
+            if (!found || b < feetY) { feetY = b; found = true; }
+        }
+
         var model = CharacterModel.TryBuild(headDot.transform, "character-male-a",
                                             CharacterModel.DEFAULT_SCALE, tint, "PlayerAnim");
         if (model == null) return;
 
         figureAnimator = CharacterModel.GetAnimator(model);
         figurePrevPos  = new Vector3(transform.position.x, 0f, transform.position.z); // ať anim nezačne "sprintem"
+
+        if (found)
+        {
+            var p = model.transform.position;
+            model.transform.position = new Vector3(p.x, feetY, p.z);
+        }
 
         // Schovej původní primitivní díly (Body / Head / Hat / Nose).
         foreach (Transform child in headDot.transform)

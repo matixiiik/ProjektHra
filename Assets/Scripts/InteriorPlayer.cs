@@ -73,6 +73,15 @@ public class InteriorPlayer : MonoBehaviour
         var stale = transform.Find("CharModel");
         if (stale != null) DestroyImmediate(stale.gameObject);
 
+        // Podlaha místnosti (na ni model postavíme nohama). Fallback = y 0.
+        float floorY = 0f;
+        var floor = GameObject.Find("Floor");
+        if (floor != null)
+        {
+            var fr = floor.GetComponent<Renderer>();
+            if (fr != null) floorY = fr.bounds.max.y;
+        }
+
         Color tint = ownerPlayerIndex == 1
             ? new Color(0.82f, 0.24f, 0.20f)   // P2 — červené
             : new Color(0.32f, 0.46f, 0.72f);  // P1 — modré
@@ -83,13 +92,14 @@ public class InteriorPlayer : MonoBehaviour
 
         figureAnimator = CharacterModel.GetAnimator(model);
 
-        // Schovej původní scénické díly postavičky (mají materiál "InteriorPlayer").
+        // Posaď model nohama na podlahu.
+        var mp = model.transform.position;
+        model.transform.position = new Vector3(mp.x, floorY, mp.z);
+
+        // Schovej VŠECHNY původní scénické díly postavičky (Body / Head / Hat / Nose).
         foreach (var mr in GetComponentsInChildren<MeshRenderer>(true))
-        {
-            if (mr.transform.IsChildOf(model.transform)) continue;
-            if (mr.sharedMaterial != null && mr.sharedMaterial.name.Contains("InteriorPlayer"))
+            if (!mr.transform.IsChildOf(model.transform))
                 mr.enabled = false;
-        }
     }
 
     void Update()

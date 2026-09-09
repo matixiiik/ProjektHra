@@ -64,7 +64,8 @@ public class GridManager : MonoBehaviour
     // Ostrovy, které hráč zahlédl na dálku a jsou teď na velké mapě (klíč "minX,minY").
     // Cache z gameData.mappedIslands, aby se ostrov nemapoval (a neukládal) pořád dokola.
     private HashSet<string> mappedIslandKeys = new HashSet<string>();
-    private int lastMapScanX = int.MinValue, lastMapScanY = int.MinValue;
+    private int  lastMapScanX, lastMapScanY;
+    private bool didFirstMapScan;
 
     /// <summary>Vyvolá se po každé změně světa (pohyb, těžba, nákup...). Poslouchá HUD a minimapa.</summary>
     public event Action OnWorldChanged;
@@ -381,7 +382,8 @@ public class GridManager : MonoBehaviour
     /// </summary>
     public void MapNearbyIslands(int cx, int cy, int radius)
     {
-        if (Mathf.Abs(cx - lastMapScanX) < 10 && Mathf.Abs(cy - lastMapScanY) < 10) return;
+        if (didFirstMapScan && Mathf.Abs(cx - lastMapScanX) < 10 && Mathf.Abs(cy - lastMapScanY) < 10) return;
+        didFirstMapScan = true;
         lastMapScanX = cx;
         lastMapScanY = cy;
 

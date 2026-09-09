@@ -38,7 +38,11 @@ public static class CharacterModel
         go.name = "CharModel";
         go.transform.localPosition    = Vector3.zero;
         go.transform.localEulerAngles = Vector3.zero;
-        go.transform.localScale       = Vector3.one * scale;
+
+        // Cílem je, aby model měl VE SVĚTĚ výšku `scale` bez ohledu na to, jak je
+        // zmenšený/zvětšený rodič (interiérová postavička je např. scale 0,5).
+        float pl = parent != null ? Mathf.Max(0.0001f, parent.lossyScale.y) : 1f;
+        go.transform.localScale = Vector3.one * (scale / pl);
 
         if (!colormapTried)
         {

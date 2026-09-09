@@ -18,7 +18,7 @@ using UnityEngine;
 
 public class StoryNpc : MonoBehaviour
 {
-    private const string NpcName   = "Starý námořník";
+    private const string NpcName   = "Děda";
     private const float  HintRange = 2.4f; // na kolik políček se ukáže nápověda "zmáčkni E"
 
     public static StoryNpc Instance { get; private set; }
@@ -58,11 +58,11 @@ public class StoryNpc : MonoBehaviour
     public void StartTalk(int playerIndex)
     {
         if (talkingWith != -1) return;
-        if (Time.time < reopenAllowedAt) return; // právě jsme dialog zavřeli — nech E "vyprchat"
+        if (Time.unscaledTime < reopenAllowedAt) return; // právě jsme dialog zavřeli — nech E "vyprchat"
         talkingWith    = playerIndex;
         line           = 0;
         BuildDialogForStep();
-        ignoreKeyUntil = Time.time + 0.25f;
+        ignoreKeyUntil = Time.unscaledTime + 0.25f;
         SoundManager.PlayClick();
     }
 
@@ -138,7 +138,7 @@ public class StoryNpc : MonoBehaviour
             default:
                 activeLines = new[]
                 {
-                    "Ta stopa nás dovede dál. Buď trpělivý, námořníku.",
+                    "Ta stopa nás dovede dál. Buď trpělivý, chlapče.",
                 };
                 break;
         }
@@ -197,7 +197,7 @@ public class StoryNpc : MonoBehaviour
         };
         line = 0;
         showGiveButton = false;
-        ignoreKeyUntil = Time.time + 0.2f;
+        ignoreKeyUntil = Time.unscaledTime + 0.2f;
     }
 
     /// <summary>Volá PlayerController, když hráč vstoupí na příběhový mega ostrov.</summary>
@@ -214,7 +214,7 @@ public class StoryNpc : MonoBehaviour
         if (grid != null) grid.NotifyWorldChanged();
 
         if (CombatDirector.Instance != null)
-            CombatDirector.Instance.Toast("Někdo tu už kopal. Na obelisku je vzkaz — vrať se za starým námořníkem.");
+            CombatDirector.Instance.Toast("Někdo tu už kopal. Na obelisku je vzkaz — vrať se za dědou.");
     }
 
     // ───────────────────────────────────────────────────────────────────────
@@ -388,7 +388,10 @@ public class StoryNpc : MonoBehaviour
             CharacterModel.DEFAULT_SCALE, new Color(0.78f, 0.75f, 0.72f), "SitAnim");
         if (model != null)
         {
-            AddSeat();     // sud, na kterém děda sedí
+            // Póza "sit" spouští nohy pod úroveň modelu — zvedni ho, ať nejde
+            // nohama do země a zadkem sedí na sudu (výška odladěná ručně).
+            model.transform.localPosition += new Vector3(0f, 0.28f, 0f);
+            AddSeat();
             return;
         }
 
@@ -412,7 +415,7 @@ public class StoryNpc : MonoBehaviour
         startHintShown = true;
         if (CombatDirector.Instance != null)
             CombatDirector.Instance.Toast(
-                "Ovladani:  WASD plout  -  E maják/přístav  -  mys strilet  -  R opravit lod  -  M mapa  -  promluv s namornikem (E)",
+                "Ovladani:  WASD plout  -  E maják/přístav  -  mys strilet  -  R opravit lod  -  M mapa  -  promluv s dedou (E)",
                 9f);
     }
 
@@ -424,8 +427,8 @@ public class StoryNpc : MonoBehaviour
         if (col != null) Destroy(col);
         barrel.name = "DedaSeat";
         barrel.transform.SetParent(transform, false);
-        barrel.transform.localPosition = new Vector3(0f, 0.28f, -0.05f);
-        barrel.transform.localScale    = new Vector3(0.5f, 0.28f, 0.5f);
+        barrel.transform.localPosition = new Vector3(0f, 0.26f, -0.1f);  // kousek za dědou (pod zadkem)
+        barrel.transform.localScale    = new Vector3(0.58f, 0.25f, 0.58f); // horní hrana ~0,53 = výška sedu
 
         var r = barrel.GetComponent<Renderer>();
         if (r != null)
@@ -482,7 +485,7 @@ public class StoryNpc : MonoBehaviour
     void Update()
     {
         if (talkingWith == -1) return;
-        if (Time.time < ignoreKeyUntil) return;
+        if (Time.unscaledTime < ignoreKeyUntil) return;
 
         bool advance = talkingWith == 0
             ? (Input.GetKeyDown(KeyCode.E) || Input.GetKeyDown(KeyCode.Space))
@@ -499,7 +502,7 @@ public class StoryNpc : MonoBehaviour
         if (showGiveButton && line >= activeLines.Length - 1) return;
 
         line++;
-        ignoreKeyUntil = Time.time + 0.12f;
+        ignoreKeyUntil = Time.unscaledTime + 0.12f;
         if (line >= activeLines.Length) { OnDialogFinished(); EndTalk(); return; }
         SoundManager.PlayClick();
     }
@@ -508,7 +511,7 @@ public class StoryNpc : MonoBehaviour
     {
         talkingWith     = -1;
         line            = 0;
-        reopenAllowedAt = Time.time + 0.35f; // ať tentýž stisk E hned neotevře dialog znovu
+        reopenAllowedAt = Time.unscaledTime + 0.35f; // ať tentýž stisk E hned neotevře dialog znovu
     }
 
     void OnGUI()
@@ -534,7 +537,7 @@ public class StoryNpc : MonoBehaviour
         Rect half = HalfRect(playerIndex);
         string key = playerIndex == 0 ? "E" : "Numpad 1";
         var r = new Rect(half.x, half.yMax - 90f, half.width, 26f);
-        GUI.Label(r, "[" + key + "]  promluv se starým námořníkem", hintStyle);
+        GUI.Label(r, "[" + key + "]  promluv s dědou", hintStyle);
     }
 
     private void DrawDialog(int playerIndex)

@@ -11,6 +11,9 @@ using UnityEngine;
 //  Pauza z menu / smrti / hlavního menu si timeScale řídí sama — SoloPause do
 //  toho nešahá a vrací čas do chodu jen tehdy, když ho sám zastavil.
 //
+//  POZOR: interiér majáku (LighthouseInterior) je vlastní scéna, kde se CHODÍ —
+//  ten se NEpauzuje (jinak by nešlo hýbat). Pauzu tam řeší jen otevřené obchody.
+//
 //  Vytváří se sám z GridManager.Awake() (SoloPause.Ensure()).
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -27,6 +30,9 @@ public class SoloPause : MonoBehaviour
 
     void OnDestroy()
     {
+        // Kdyby nás zničila změna scény (sólo vstup do majáku) uprostřed pauzy,
+        // vrať čas do chodu — jinak by v nové scéně timeScale zůstal 0.
+        if (weStoppedTime) Time.timeScale = 1f;
         if (instance == this) instance = null;
     }
 
@@ -41,8 +47,7 @@ public class SoloPause : MonoBehaviour
 
         bool modal = UpgradeShopManager.AnyShopOpen
                   || MapScreen.IsOpen
-                  || (StoryNpc.Instance != null && StoryNpc.Instance.IsTalking)
-                  || LighthouseManager.InsidePlayerIndex >= 0;
+                  || (StoryNpc.Instance != null && StoryNpc.Instance.IsTalking);
 
         if (modal && !weStoppedTime)
         {

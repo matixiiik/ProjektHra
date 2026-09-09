@@ -355,6 +355,19 @@ public class PlayerController : MonoBehaviour
         if (playerIndex == 0) gridManager.gameData.isOnFoot = false;
         damageGraceUntil = Time.time + 2f; // chvilka na nadechnutí
 
+        // Půlka nákladu se vysype do vody jako vrak — chvíli plave, doplaveš k
+        // němu a zachráníš ji zpět. Když ho necháš klesnout, je pryč.
+        int lostFish = PFishCount     / 2;
+        int lostTrea = PTreasureCount / 2;
+        int lostAmmo = PAmmo          / 2;
+        if (lostFish > 0 || lostTrea > 0 || lostAmmo > 0)
+        {
+            PFishCount     -= lostFish;
+            PTreasureCount -= lostTrea;
+            PAmmo          -= lostAmmo;
+            WreckDebris.Spawn(transform.position, playerIndex, lostFish, lostTrea, lostAmmo);
+        }
+
         DespawnParkedBoat();
 
         // Malý odraz od nejbližšího nebezpečí (ať hráč nezačíná plavat pirátovi pod dělem).
@@ -384,6 +397,17 @@ public class PlayerController : MonoBehaviour
         if (damageFeedback != null) damageFeedback.Play();
         gridManager.NotifyWorldChanged();
         if (PPlayerHealth <= 0) { PPlayerHealth = 0; gridManager.Save(); DeathScreen.Show(playerIndex); }
+    }
+
+    /// <summary>Vrátí hráči náklad zachráněný z vraku rozbité lodě.</summary>
+    public void RecoverCargo(int fish, int treasure, int ammo)
+    {
+        PFishCount     += Mathf.Max(0, fish);
+        PTreasureCount += Mathf.Max(0, treasure);
+        PAmmo          += Mathf.Max(0, ammo);
+        SoundManager.PlayCoin();
+        gridManager.Save();
+        gridManager.NotifyWorldChanged();
     }
 
     /// <summary>Přidá hráči mince (odměna za potopení piráta / zničení děla).</summary>

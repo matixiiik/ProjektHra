@@ -22,6 +22,35 @@ v `.claude/story-plan.md`. **NIC se z toho zatím nestaví** — bude se dělat 
 kouskách do maturity. Až se začne: první milník = "Infra" + "Ostrov 1 — obrana"
 (viz plán sekce 6).
 
+### 🔧 OPRAVY ANIMAČNÍ DÁVKY 2026-09-10 (commit `7b06280`, PUSHNUTO — ověřeno v Play módu přes MCP)
+Reakce na hlášení uživatele po playtestu animací:
+- **"v majáku nejde chodit"** → `SoloPause` měl v modal-checku `LighthouseManager`,
+  takže při vstupu do majáku nastavil `Time.timeScale = 0`, pak se SoloPause při
+  sólo změně scény zničil a timeScale zůstal 0 navždy → `Time.deltaTime = 0` → nic
+  se nehýbe. Odebráno z modal-checku + `OnDestroy` vrací timeScale na 1.
+  → tohle byla nejspíš i příčina **erroru po výstupu z majáku**.
+- **"nefunguje e abych to posunul dál"** (dialog s dědou) → dialog běží při pauze
+  (timeScale 0), `Time.time` zamrzlé, `ignoreKeyUntil` napořád v budoucnosti.
+  Všech 6 výskytů `Time.time` → `Time.unscaledTime` ve `StoryNpc.cs`.
+- **"pořád je tam napsáno starý námořník"** → `NpcName` + všechny nápovědy/toasty
+  přejmenované na "Děda".
+- **"postavička vypadá jinak než na ostrově"** → `InteriorPlayer` má scale 0,5,
+  takže model byl poloviční. `CharacterModel.TryBuild` teď normalizuje na světovou
+  výšku bez ohledu na scale rodiče (obě verze teď 1,24).
+- **postava se v majáku vznášela** → sedá nohama na `Floor` (bounds.max.y), schová
+  se všechny původní MeshRenderery (i Head/Nose s jiným materiálem).
+- **"posuň sud pod dědu ať na něm fakt sedí"** → model zvednutý o 0,28 (póza sit
+  dává nohy pod zem), sud (`AddSeat`) na `(0, 0,26, -0,1)` scale `(0,58, 0,25, 0,58)`,
+  vršek sudu ~0,53. Ověřeno: děda modelY [0,02..1,27].
+- **"posuň stůl v majáku malilinko dopředu"** → `TABLE_Z` 2,25→1,95, `KEEPER_Z`
+  2,70→2,40 (blíž ke dveřím, ať se prodavači za pult vejdou).
+- **GridManager.MapNearbyIslands** — bezpečný první sken (`bool didFirstMapScan`
+  místo `int.MinValue` sentinelu, kvůli overflow riziku).
+
+Ověřeno přes MCP Play mód: chození v majáku i venku (`canMove=True`), děda sedí
+na sudu, prodavači mají skin (screenshot), výstup z majáku bez erroru
+(`timeScale=1` zpět v SampleScene), dialog E se posouvá. **Uživatel má proklikat.**
+
 ### 📦 DÁVKA FEATUR 2026-09-10 (jiná session, commity `271186c..c022f6f`, PUSHNUTO — čeká na playtest)
 Ověřeno compile-checkem + MCP Console (bez chyb) + screenshoty, NEProklikáno celé.
 

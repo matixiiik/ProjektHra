@@ -11,6 +11,13 @@ sem Claude píše, kde se přestalo, aby se dalo pokračovat i z notebooku.
 ## STAV 2026-09-09 — vše commitnuté a pushnuté, working tree čistý
 (kromě `Napady.txt` a `Doporuceni.txt`, které si edituje uživatel — necommitovat za něj)
 
+### 📖 PLÁN PŘÍBĚHU (2026-09-09) — `.claude/story-plan.md`
+Schválený návrh pokračování příběhu: **3 mega ostrovy, sok = ztracený syn
+starého námořníka.** Detail (oblouk, technická kostra, rozdělení na kousky,
+můj názor) je v `.claude/story-plan.md`. **NIC se z toho zatím nestaví** —
+bude se dělat po kouskách do maturity. Až se začne: první milník = "Infra"
++ "Ostrov 1 — obrana" (viz plán sekce 6).
+
 ### ⚙️ STRUKTURNÍ ÚKLID 2026-09-09 večer (jiná session, pushnuto `99efd2c..d26249b`)
 **Skripty se PŘESUNULY: `Assets/TutorialInfo/Scripts/` → `Assets/Scripts/`.**
 Taky: `TutorialInfo/Materials` → `Assets/Materials`, `TutorialInfo/Resources` →

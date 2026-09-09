@@ -11,7 +11,26 @@ sem Claude píše, kde se přestalo, aby se dalo pokračovat i z notebooku.
 ## STAV 2026-09-09 — vše commitnuté a pushnuté, working tree čistý
 (kromě `Napady.txt`, který si edituje uživatel — necommitovat za něj)
 
-### MAJÁK — PODKOVA PULTŮ (2026-09-09) — HOTOVO, OTESTOVÁNO přes MCP
+### MAJÁK — PŘESTAVBA PODLE NÁČRTU (2026-09-09) — HOTOVO, OTESTOVÁNO přes MCP
+Uživatel poslal ruční náčrt. `LighthouseInteriorDecor` přestavěno:
+- **JEDEN dlouhý stůl** u zadní stěny, **rovnoběžný se dveřmi** (podél osy X,
+  bez rotace — `BuildMainTable`). Za ním 3 prodavači na `SLOT_X = ±1.3` a 0
+  (`BuildKeeper`, bez klobouku). 3 body interakce před stolem (`COUNTER_Z 2.55`).
+- **Velká mapa na zdi** nad stolem v dřevěném rámu (`BuildWallMap`).
+- Uprostřed **nízký kamenný sloup** + závěsná lampa, kolem velký kruhový
+  kobereček (`BuildCentre`). `InteriorPlayer.innerRadius = 0.95` — hráč nesmí
+  do sloupu (nová property, respektuje ji clamp v Update).
+- Dekorace (ohřívadla/lucerny/květiny/bedny) po stranách — nepovinné.
+- Coop offset: kostky pultu ze scény se přesouvají absolutně, offset se spočítá
+  z Counter_Quest (`coopOffset = qu.position - SceneQuestPos`).
+
+**"Proč se spawnuju v majáku":** jen proto, že v editoru zůstala otevřená scéna
+`LighthouseInterior`. Build Settings mají SampleScene jako index 0 (správně).
+Necháno otevřené `SampleScene`.
+
+---
+
+### MAJÁK — PODKOVA PULTŮ (2026-09-09) — nahrazeno výše
 - `LighthouseInteriorDecor`: 3 pulty teď tvoří **podkovu ⊐** otevřenou ke dveřím:
   prostřední (quest, oranžový) rovnoběžný se dveřmi, boční (upgrade / výkupna)
   na jeho rozích otočené dovnitř (`DressCounter` bere explicitní `yaw`, nastavuje

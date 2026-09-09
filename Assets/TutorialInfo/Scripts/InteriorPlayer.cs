@@ -21,6 +21,9 @@ public class InteriorPlayer : MonoBehaviour
     [Tooltip("Poloměr kruhové pochozí plochy (kolem středu místnosti).")]
     public float areaRadius = 3.4f;
 
+    [Tooltip("Vnitřní poloměr — kolem středu je sloup, tam hráč nesmí.")]
+    public float innerRadius = 0f;
+
     // Kterého hráče tenhle panáček ovládá. Nastaví LighthouseInterior při vstupu.
     [HideInInspector] public int ownerPlayerIndex = 0;
 
@@ -73,9 +76,13 @@ public class InteriorPlayer : MonoBehaviour
 
         Vector3 pos = transform.position + dir * moveSpeed * Time.deltaTime;
 
-        // Kruhové omezení plochy (maják je kulatý) — drž hráče v poloměru areaRadius.
+        // Kruhové omezení plochy (maják je kulatý) — drž hráče mezi innerRadius
+        // (sloup uprostřed) a areaRadius (stěna).
         Vector3 fromCenter = new Vector3(pos.x - areaCenter.x, 0f, pos.z - areaCenter.z);
-        if (fromCenter.magnitude > areaRadius) fromCenter = fromCenter.normalized * areaRadius;
+        float dist = fromCenter.magnitude;
+        if (dist > areaRadius)                    fromCenter = fromCenter.normalized * areaRadius;
+        else if (innerRadius > 0f && dist < innerRadius && dist > 0.001f)
+                                                 fromCenter = fromCenter.normalized * innerRadius;
         pos.x = areaCenter.x + fromCenter.x;
         pos.z = areaCenter.z + fromCenter.z;
         transform.position = pos;

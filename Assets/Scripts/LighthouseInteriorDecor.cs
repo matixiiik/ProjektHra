@@ -152,6 +152,16 @@ public class LighthouseInteriorDecor : MonoBehaviour
     {
         var g = NewChild("Shopkeeper", new Vector3(x, 0f, KEEPER_Z));
 
+        // Kenney model postavy (idle), obarvený podle barvy trička; čelem ke dveřím.
+        var model = CharacterModel.TryBuild(g.transform, "character-male-c",
+            CharacterModel.DEFAULT_SCALE, shirt, "PlayerAnim");
+        if (model != null)
+        {
+            g.transform.rotation = Quaternion.LookRotation(Vector3.back); // Kenney model kouká +Z → otoč
+            return;
+        }
+
+        // Fallback — prodavač ze základních tvarů.
         Material shirtMat = Mat(shirt);
         Box(g.transform,    "Legs", new Vector3(0f, 0.30f, 0f),     new Vector3(0.42f, 0.60f, 0.36f), woodDark);
         Cyl(g.transform,    "Body", new Vector3(0f, 0.86f, 0f),     new Vector3(0.56f, 0.42f, 0.56f), Vector3.zero, shirtMat);

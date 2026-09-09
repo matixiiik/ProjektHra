@@ -381,11 +381,16 @@ public class StoryNpc : MonoBehaviour
 
         MaybeShowStartHint();
 
-        // Nejdřív zkus Kenney model postavy (starý námořník = trochu vybledlá barva).
-        // Když v Resources není, postav dědu ze základních tvarů jako dřív.
-        if (CharacterModel.TryBuild(transform, "character-male-e",
-                CharacterModel.DEFAULT_SCALE, new Color(0.78f, 0.75f, 0.72f)) != null)
+        // Nejdřív zkus Kenney model postavy (starý námořník = trochu vybledlá barva,
+        // animace "sit" — sedí). Když v Resources není, postav dědu ze základních
+        // tvarů jako dřív.
+        var model = CharacterModel.TryBuild(transform, "character-male-e",
+            CharacterModel.DEFAULT_SCALE, new Color(0.78f, 0.75f, 0.72f), "SitAnim");
+        if (model != null)
+        {
+            AddSeat();     // sud, na kterém děda sedí
             return;
+        }
 
         Material coat  = MakeMat(new Color(0.30f, 0.33f, 0.42f)); // obnošený modrý kabát
         Material skin  = MakeMat(new Color(0.83f, 0.66f, 0.53f));
@@ -409,6 +414,25 @@ public class StoryNpc : MonoBehaviour
             CombatDirector.Instance.Toast(
                 "Ovladani:  WASD plout  -  E maják/přístav  -  mys strilet  -  R opravit lod  -  M mapa  -  promluv s namornikem (E)",
                 9f);
+    }
+
+    // Dřevěný sud, na kterém děda sedí (animace "sit" ho posadí zhruba do této výšky).
+    private void AddSeat()
+    {
+        var barrel = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+        var col = barrel.GetComponent<Collider>();
+        if (col != null) Destroy(col);
+        barrel.name = "DedaSeat";
+        barrel.transform.SetParent(transform, false);
+        barrel.transform.localPosition = new Vector3(0f, 0.28f, -0.05f);
+        barrel.transform.localScale    = new Vector3(0.5f, 0.28f, 0.5f);
+
+        var r = barrel.GetComponent<Renderer>();
+        if (r != null)
+        {
+            r.sharedMaterial = MakeMat(new Color(0.36f, 0.24f, 0.14f)); // tmavé dřevo
+            r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.On;
+        }
     }
 
     private Vector2Int? NearestPier()

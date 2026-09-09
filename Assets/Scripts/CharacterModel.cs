@@ -25,8 +25,11 @@ public static class CharacterModel
     /// Vytvoří model postavy jako dítě `parent` (localPosition 0). Vrací instanci,
     /// nebo null, když model "Characters/{modelName}" v Resources není.
     /// `tint` se násobí s texturou (bílá = beze změny, šedá = "starší/vybledlý").
+    /// `controllerName` = jméno Animator Controlleru v Resources/Characters
+    /// (např. "PlayerAnim" nebo "SitAnim"); null = bez animací (statická póza).
     /// </summary>
-    public static GameObject TryBuild(Transform parent, string modelName, float scale, Color tint)
+    public static GameObject TryBuild(Transform parent, string modelName, float scale, Color tint,
+                                      string controllerName = null)
     {
         var prefab = Resources.Load<GameObject>("Characters/" + modelName);
         if (prefab == null) return null;
@@ -61,11 +64,29 @@ public static class CharacterModel
         }
         foreach (var c in go.GetComponentsInChildren<Collider>(true)) Object.Destroy(c);
 
-        // Animator bez controlleru nechceme (jen by logoval) — vypni ho, model
-        // zůstane ve výchozí pozici, což pro stojící/sedící postavu stačí.
+        // Animace: přiřaď Animator Controller z Resources (loco / sit …). Root
+        // motion vypnutý — pozici řídíme sami, animace jen "hraje na místě".
         var anim = go.GetComponentInChildren<Animator>(true);
-        if (anim != null) anim.enabled = false;
+        if (anim != null)
+        {
+            if (!string.IsNullOrEmpty(controllerName))
+            {
+                var ctrl = Resources.Load<RuntimeAnimatorController>("Characters/" + controllerName);
+                if (ctrl != null)
+                {
+                    anim.runtimeAnimatorController = ctrl;
+                    anim.applyRootMotion = false;
+                    anim.enabled = true;
+                }
+                else anim.enabled = false; // controller nenalezen → radši statická póza
+            }
+            else anim.enabled = false;
+        }
 
         return go;
     }
+
+    /// <summary>Animator na modelu vytvořeném přes TryBuild (nebo null).</summary>
+    public static Animator GetAnimator(GameObject model)
+        => model != null ? model.GetComponentInChildren<Animator>(true) : null;
 }

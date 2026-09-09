@@ -60,9 +60,47 @@ public class InteriorPlayer : MonoBehaviour
     private bool MoveKey(KeyCode p1Key, KeyCode p2Key)
         => IsP1 ? Input.GetKey(p1Key) : Input.GetKey(p2Key);
 
+    // ── Kenney model postavičky (idle/walk) ────────────────────────────────
+    private bool     figureBuilt;
+    private Animator figureAnimator;
+
+    private void EnsureFigure()
+    {
+        if (figureBuilt) return;
+        figureBuilt = true;
+
+        // P2 v coopu vzniká jako klon → zahoď případný zděděný model.
+        var stale = transform.Find("CharModel");
+        if (stale != null) DestroyImmediate(stale.gameObject);
+
+        Color tint = ownerPlayerIndex == 1
+            ? new Color(0.82f, 0.24f, 0.20f)   // P2 — červené
+            : new Color(0.32f, 0.46f, 0.72f);  // P1 — modré
+
+        var model = CharacterModel.TryBuild(transform, "character-male-a",
+            CharacterModel.DEFAULT_SCALE, tint, "PlayerAnim");
+        if (model == null) return;
+
+        figureAnimator = CharacterModel.GetAnimator(model);
+
+        // Schovej původní scénické díly postavičky (mají materiál "InteriorPlayer").
+        foreach (var mr in GetComponentsInChildren<MeshRenderer>(true))
+        {
+            if (mr.transform.IsChildOf(model.transform)) continue;
+            if (mr.sharedMaterial != null && mr.sharedMaterial.name.Contains("InteriorPlayer"))
+                mr.enabled = false;
+        }
+    }
+
     void Update()
     {
-        if (MyShopOpen() || GameConsole.IsOpen) return;
+        EnsureFigure();
+
+        if (MyShopOpen() || GameConsole.IsOpen)
+        {
+            if (figureAnimator != null) figureAnimator.SetFloat("Speed", 0f);
+            return;
+        }
 
         // Pohyb po rovině (X = doprava, Z = dopředu). Hráč 1 = WASD, hráč 2 = šipky.
         float h = 0f, v = 0f;
@@ -73,6 +111,9 @@ public class InteriorPlayer : MonoBehaviour
 
         Vector3 dir = new Vector3(h, 0f, v);
         if (dir.sqrMagnitude > 1f) dir.Normalize();
+
+        if (figureAnimator != null)
+            figureAnimator.SetFloat("Speed", dir.sqrMagnitude > 0.01f ? moveSpeed : 0f);
 
         Vector3 pos = transform.position + dir * moveSpeed * Time.deltaTime;
 

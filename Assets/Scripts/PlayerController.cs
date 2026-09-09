@@ -236,6 +236,9 @@ public class PlayerController : MonoBehaviour
         // až nasedne) — řeší i načtení save uprostřed vylodění.
         SyncParkedBoat();
 
+        // Animace pěší postavičky (idle/walk/sprint podle rychlosti).
+        UpdateFigureAnim();
+
         // Regenerace zdraví panáčka — když je pěšky v bezpečí (na ostrově se po
         // něm nestřílí) a aspoň 6 s nedostal zásah, pomalu se léčí (2 HP/s).
         if (isOnFoot && !PBoatWrecked && PPlayerHealth < 100
@@ -438,12 +441,41 @@ public class PlayerController : MonoBehaviour
             : new Color(0.32f, 0.46f, 0.72f); // P1 — modré
 
         var model = CharacterModel.TryBuild(headDot.transform, "character-male-a",
-                                            CharacterModel.DEFAULT_SCALE, tint);
+                                            CharacterModel.DEFAULT_SCALE, tint, "PlayerAnim");
         if (model == null) return;
+
+        figureAnimator = CharacterModel.GetAnimator(model);
+        figurePrevPos  = new Vector3(transform.position.x, 0f, transform.position.z); // ať anim nezačne "sprintem"
 
         // Schovej původní primitivní díly (Body / Head / Hat / Nose).
         foreach (Transform child in headDot.transform)
             if (child != model.transform) child.gameObject.SetActive(false);
+    }
+
+    private Animator figureAnimator;   // animátor pěší postavičky (idle/walk/sprint)
+    private Vector3  figurePrevPos;    // pozice z minulého snímku (na výpočet rychlosti)
+    private float    figureAnimSpeed;  // vyhlazená rychlost pro blend tree
+
+    // Podle skutečné rychlosti pohybu přepíná idle → walk → sprint.
+    void UpdateFigureAnim()
+    {
+        if (figureAnimator == null) return;
+
+        float raw = 0f;
+        if (headDot != null && headDot.activeInHierarchy)
+        {
+            Vector3 p = new Vector3(transform.position.x, 0f, transform.position.z);
+            raw = (p - figurePrevPos).magnitude / Mathf.Max(Time.deltaTime, 0.0001f);
+            figurePrevPos = p;
+        }
+        else
+        {
+            figurePrevPos = new Vector3(transform.position.x, 0f, transform.position.z);
+        }
+
+        // Vyhlaď, ať blend tree neposkakuje.
+        figureAnimSpeed = Mathf.Lerp(figureAnimSpeed, Mathf.Min(raw, 8f), 12f * Time.deltaTime);
+        figureAnimator.SetFloat("Speed", figureAnimSpeed);
     }
 
     // Loď (plovoucí kopie) má existovat právě když je hráč pěšky s celou lodí.

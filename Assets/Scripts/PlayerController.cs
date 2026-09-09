@@ -214,10 +214,10 @@ public class PlayerController : MonoBehaviour
         // až nasedne) — řeší i načtení save uprostřed vylodění.
         SyncParkedBoat();
 
-        // Velká mapa — jen v lodi (ne pěšky / plavání) a jen s koupenou mapou.
-        // M (P1) / Numpad 2 (P2). Řeší otevření i zavření (Toggle), proto je to
-        // nad "zámkem" ovládání níž.
-        if (KeyDown(KeyCode.M, KeyCode.Keypad2) && !isOnFoot && !PBoatWrecked && PHasMap
+        // Velká mapa — v lodi i pěšky (ne když plaveš s rozbitou lodí) a jen
+        // s koupenou mapou. M (P1) / Numpad 2 (P2). Řeší otevření i zavření
+        // (Toggle), proto je to nad "zámkem" ovládání níž.
+        if (KeyDown(KeyCode.M, KeyCode.Keypad2) && !PBoatWrecked && PHasMap
             && !GameConsole.IsOpen && !MainMenuManager.IsVisible && !DeathScreen.IsOpen)
         {
             MapScreen.Toggle(playerIndex, gridManager);

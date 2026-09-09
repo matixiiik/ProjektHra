@@ -16,7 +16,7 @@ using UnityEngine;
 public static class EconomyConfig
 {
     // ── Výkup (prodej kořisti v questshopu) — všude stejný ──────────────────
-    public const int FishPrice        = 1;  // za 1 rybu
+    public const int FishPrice        = 2;  // za 1 rybu
     public const int TreasurePrice    = 5;  // za 1 poklad
     public const int SellBonusPerItem = 2;  // navíc za kus po splnění mega questu
                                             // (drženo nízko — u ryb za 1 minci je

@@ -2,8 +2,8 @@ using UnityEngine;
 
 // ─────────────────────────────────────────────────────────────────────────────
 //  MapScreen.cs
-//  Velká mapa, kterou si hráč otevře v lodi klávesou M (P1) / Numpad 2 (P2) —
-//  ale jen když má koupenou "Mapu" v obchodě s vylepšeními.
+//  Velká mapa, kterou si hráč otevře klávesou M (P1) / Numpad 2 (P2) — v lodi
+//  i pěšky na ostrově, jen když má koupenou "Mapu" v obchodě s vylepšeními.
 //
 //  • Uprostřed jsi ty, kolem se kreslí prozkoumané okolí stejně jako na minimapě
 //    (co je v mlze, to je šedé). Vidíš, kde jsi už byl a kde jsou ostrovy.

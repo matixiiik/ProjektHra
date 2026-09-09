@@ -785,13 +785,13 @@ public class GridManager : MonoBehaviour
         SaveManager.SaveGame(gameData); // ať to reload po návratu z majáku najde hotové
     }
 
-    // Náhodný typ mořského políčka: 0,06 % vrak s pokladem, 0,35 % ryby, zbytek voda.
+    // Náhodný typ mořského políčka: 0,10 % vrak s pokladem, 0,35 % ryby, zbytek voda.
     // Vraky jsou vzácné schválně — má se za nimi "lovit", ne je potkávat na potkání.
     private TileType GenerateRandomSeaType()
     {
         float roll = UnityEngine.Random.value * 100f;
-        if (roll < 0.06f) return TileType.Treasure;
-        if (roll < 0.41f) return TileType.Water_Fish;
+        if (roll < 0.10f) return TileType.Treasure;
+        if (roll < 0.45f) return TileType.Water_Fish;
         return TileType.Water;
     }
 

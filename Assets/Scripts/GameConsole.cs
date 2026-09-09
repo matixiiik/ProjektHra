@@ -127,6 +127,7 @@ public class GameConsole : MonoBehaviour
                 Log("<color=#ffff88>story</color> [krok / island / histtreasure]   příběh (test)");
                 Log("<color=#ffff88>reset money</color>                   vynuluje mince");
                 Log("<color=#ffff88>clear</color>                         vymaže konzoli");
+                Log("<color=#ffff88>exit</color>                          zavře konzoli");
                 Log("──────────────────────────────");
                 break;
 
@@ -139,6 +140,8 @@ public class GameConsole : MonoBehaviour
             case "story":   HandleStory(p);   break;
             case "reset":   HandleReset(p);   break;
             case "clear":   log.Clear();      break;
+            case "exit":
+            case "quit":    IsOpen = false;   break;
 
             default:
                 Log($"<color=#ff6666>Neznámý příkaz: {p[0]}</color>  (napiš <color=#ffff88>help</color>)");

@@ -31,10 +31,10 @@ public class LighthouseInteriorDecor : MonoBehaviour
     private static readonly Color SellShirt    = new Color(0.30f, 0.62f, 0.30f); // zelená — výkupna (vpravo)
 
     // Jeden dlouhý stůl u zadní stěny (rovnoběžný se dveřmi = podél osy X).
-    private const float TABLE_Z    = 3.1f;  // jak daleko dozadu je stůl
+    private const float TABLE_Z    = 2.25f; // jak daleko dozadu je stůl (víc do místnosti)
     private const float SLOT_X     = 1.3f;  // rozestup 3 obchodů podél stolu
-    private const float COUNTER_Z  = 2.55f; // kde je bod interakce (před stolem)
-    private const float KEEPER_Z   = 3.5f;  // kde stojí prodavač (za stolem)
+    private const float COUNTER_Z  = 1.65f; // kde je bod interakce (před stolem)
+    private const float KEEPER_Z   = 2.70f; // kde stojí prodavač (za stolem)
     private static readonly Vector3 SceneQuestPos = new Vector3(2.6f, 0.5f, 2.5f); // původní poloha kostky (coop)
 
     private Material wood, woodDark, stone, cloth, leaf, ember, metal, skin;

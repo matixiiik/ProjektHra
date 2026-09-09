@@ -589,7 +589,8 @@ public class PlayerController : MonoBehaviour
         isMoving = false;
     }
 
-    // Odkryje mlhu kolem aktuální pozice (poloměr 2 políčka).
+    // Odkryje mlhu kolem aktuální pozice (poloměr 2 políčka) a přidá na velkou
+    // mapu ostrovy, které jsou blíž než 50 políček.
     void ExploreCurrentPosition()
     {
         int cx = Mathf.RoundToInt(transform.position.x);
@@ -597,6 +598,7 @@ public class PlayerController : MonoBehaviour
         if (cx == lastExploredX && cy == lastExploredY) return; // beze změny
 
         gridManager.MarkAreaExplored(cx, cy, 2);
+        gridManager.MapNearbyIslands(cx, cy, 50);
         lastExploredX = cx;
         lastExploredY = cy;
     }

@@ -44,6 +44,10 @@ public class TileStatus
     public int decorScale; // měřítko dekorace v % (0 = ber jako 100)
     public int tileRot;    // natočení celé dlaždice: 0..3 → *90° (jen vzhled písku)
 
+    // true = dlaždice patří ostrovu, který hráč zahlédl na dálku (do 50 políček) →
+    // ukáže se na velké mapě, i když u něj hráč fyzicky nebyl (viz MapScreen).
+    public bool mapped;
+
     public TileStatus(int type)
     {
         this.type = type;

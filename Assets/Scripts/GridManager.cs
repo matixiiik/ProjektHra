@@ -61,6 +61,11 @@ public class GridManager : MonoBehaviour
     private Dictionary<string, IslandRec> islandTerrains = new Dictionary<string, IslandRec>();
     private HashSet<string> islandTilesWithTerrain = new HashSet<string>();
 
+    // Ostrovy, které hráč zahlédl na dálku a jsou teď na velké mapě (klíč "minX,minY").
+    // Cache z gameData.mappedIslands, aby se ostrov nemapoval (a neukládal) pořád dokola.
+    private HashSet<string> mappedIslandKeys = new HashSet<string>();
+    private int lastMapScanX = int.MinValue, lastMapScanY = int.MinValue;
+
     /// <summary>Vyvolá se po každé změně světa (pohyb, těžba, nákup...). Poslouchá HUD a minimapa.</summary>
     public event Action OnWorldChanged;
 
@@ -94,6 +99,9 @@ public class GridManager : MonoBehaviour
 
         // Starý save bez uložené dekorace ostrovů → doplň ji jednou (a ulož).
         MigrateIslandDecor();
+
+        // Načti seznam ostrovů, co jsou už na velké mapě.
+        mappedIslandKeys = new HashSet<string>(gameData.mappedIslands);
 
         GenerateWorld(gameData.playerGridX, gameData.playerGridY);
         CreateSeaWorld();
@@ -362,6 +370,77 @@ public class GridManager : MonoBehaviour
             if (dx * dx + dy * dy <= r2) return true;
         }
         return false;
+    }
+
+    // ── Zahlédnutí ostrova na dálku → přidat na velkou mapu ─────────────────
+    /// <summary>
+    /// Ostrov blíž než `radius` políček od [cx,cy] se přidá na velkou mapu (a
+    /// zůstane tam), i když u něj hráč fyzicky nebyl. Volá PlayerController při
+    /// pohybu. Sám si to throttluje (scan celého světa jen po posunu o 10 políček).
+    /// </summary>
+    public void MapNearbyIslands(int cx, int cy, int radius)
+    {
+        if (Mathf.Abs(cx - lastMapScanX) < 10 && Mathf.Abs(cy - lastMapScanY) < 10) return;
+        lastMapScanX = cx;
+        lastMapScanY = cy;
+
+        long r2 = (long)radius * radius;
+        List<Vector2Int> seeds = null;
+        foreach (var kv in gameData.tileData)
+        {
+            if (!IsIslandTile(kv.Value.type)) continue;
+            var (x, y) = ParseGridKey(kv.Key);
+            long dx = x - cx, dy = y - cy;
+            if (dx * dx + dy * dy > r2) continue;
+            (seeds ??= new List<Vector2Int>()).Add(new Vector2Int(x, y));
+        }
+        if (seeds == null) return;
+
+        bool any = false;
+        foreach (var s in seeds)
+        {
+            var tiles = FloodFillIsland(s.x, s.y, out int minX, out int minY);
+            if (tiles.Count == 0) continue;
+
+            string key = minX + "," + minY;
+            if (!mappedIslandKeys.Add(key)) continue; // ostrov už na mapě je
+
+            gameData.mappedIslands.Add(key);
+            foreach (var t in tiles)
+                if (gameData.tileData.TryGetValue(GridKey(t.x, t.y), out var st))
+                    st.mapped = true;
+            any = true;
+        }
+
+        if (any) { Save(); OnWorldChanged?.Invoke(); }
+    }
+
+    // Flood-fill spojité souše (Harbor/Pier/Lighthouse/Chest/MegaIsland) z [sx,sy].
+    private List<Vector2Int> FloodFillIsland(int sx, int sy, out int minX, out int minY)
+    {
+        var result = new List<Vector2Int>();
+        minX = sx; minY = sy;
+
+        var seen  = new HashSet<Vector2Int>();
+        var stack = new Stack<Vector2Int>();
+        stack.Push(new Vector2Int(sx, sy));
+
+        while (stack.Count > 0)
+        {
+            var c = stack.Pop();
+            if (!seen.Add(c)) continue;
+            if (!IsIslandTile((int)GetTileType(c.x, c.y))) continue;
+
+            result.Add(c);
+            if (c.x < minX) minX = c.x;
+            if (c.y < minY) minY = c.y;
+
+            stack.Push(new Vector2Int(c.x + 1, c.y));
+            stack.Push(new Vector2Int(c.x - 1, c.y));
+            stack.Push(new Vector2Int(c.x, c.y + 1));
+            stack.Push(new Vector2Int(c.x, c.y - 1));
+        }
+        return result;
     }
 
     // ── Organický (nepravidelný) ostrov ────────────────────────────────────

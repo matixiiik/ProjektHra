@@ -248,7 +248,10 @@ public class MapScreen : MonoBehaviour
     Color TileColor(int x, int y)
     {
         string key = x + "," + y;
-        if (!grid.gameData.tileData.TryGetValue(key, out TileStatus st) || !st.isExplored)
+        // Ukaž políčko, když ho hráč prozkoumal, NEBO patří ostrovu zahlédnutému
+        // na dálku (st.mapped) — díky tomu na mapě "vykoukne" blízký ostrov,
+        // i když u něj hráč fyzicky nebyl.
+        if (!grid.gameData.tileData.TryGetValue(key, out TileStatus st) || (!st.isExplored && !st.mapped))
             return CFog;
 
         switch ((TileType)st.type)

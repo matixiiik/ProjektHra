@@ -19,9 +19,10 @@ using UnityEngine;
 public class IslandDecor : MonoBehaviour
 {
     [Range(0f, 1f)]
-    [Tooltip("Základní šance na dekoraci. Každý ostrov si ji navíc sám trochu " +
-             "posune nahoru/dolů, aby nebyly všechny stejně husté.")]
-    public float decorChance = 0.16f;
+    [Tooltip("Šance na dekoraci na 'povolené' dlaždici (šachovnicově každá druhá, " +
+             "ať dekorace nikdy nestojí těsně u sebe). Každý ostrov si ji navíc " +
+             "trochu posune nahoru/dolů, aby nebyly všechny stejně husté.")]
+    public float decorChance = 0.30f;
 
     [Tooltip("Šance, že se přidá i druhá (menší) dekorace navrch.")]
     public float secondDecorChance = 0f;
@@ -83,12 +84,19 @@ public class IslandDecor : MonoBehaviour
         // tolik neprozradí.
         transform.rotation = Quaternion.Euler(0f, Random.Range(0, 4) * 90f, 0f);
 
+        // Dekorace jen na "šachovnicově každé druhé" dlaždici → nikdy nestojí dvě
+        // těsně vedle sebe (řeší přehuštění na malých ostrovech). Deterministické
+        // podle souřadnic → po znovunačtení ostrova vypadá stejně.
+        int gx = Mathf.RoundToInt(transform.position.x);
+        int gy = Mathf.RoundToInt(transform.position.z);
+        if (((gx + gy) & 1) != 0) return; // "sudá" dlaždice zůstane holá
+
         // Každý ostrov má vlastní "hustotu" dekorace odvozenou z jeho hrubé
         // pozice (ostrovy vznikají po 40 políčkách) — některé jsou skoro holé,
         // jiné o něco zarostlejší, ať nevypadají všechny stejně.
         int islandSeed = Mathf.RoundToInt(transform.position.x / 40f) * 73856093
                        ^ Mathf.RoundToInt(transform.position.z / 40f) * 19349663;
-        float islandBias = -0.05f + ((islandSeed & 0xFFFF) / 65535f) * 0.14f; // -0.05 .. +0.09
+        float islandBias = -0.06f + ((islandSeed & 0xFFFF) / 65535f) * 0.14f; // -0.06 .. +0.08
         float chance = Mathf.Clamp01(decorChance + islandBias);
 
         if (Random.value > chance) return; // dlaždice zůstane holá

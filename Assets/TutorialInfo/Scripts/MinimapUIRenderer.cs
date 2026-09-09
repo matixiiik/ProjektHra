@@ -139,12 +139,18 @@ public class MinimapUIRenderer : MonoBehaviour
     // ── Health bary nad minimapou ───────────────────────────────────────────
     void CreateHealthBars()
     {
-        // "Panáček" těsně nad minimapou, "Loď" nad ním.
-        playerHpFillRT = MakeHpBar("HpPanacek", 4f,  HpPlayerColor, out playerHpLabel);
-        boatHpFillRT   = MakeHpBar("HpLod",     24f, HpBoatColor,   out boatHpLabel);
+        // "Panáček" těsně nad minimapou, "Loď" nad ním — stejně vysoké, 3px mezera.
+        playerHpFillRT = MakeHpBar("HpPanacek", 3f,                   HpPlayerColor, out playerHpLabel);
+        boatHpFillRT   = MakeHpBar("HpLod",     3f + HP_BAR_H + 3f,   HpBoatColor,   out boatHpLabel);
     }
 
     // Jeden pruh: dítě minimapy, ukotvený k jejímu hornímu okraji, stejně široký.
+    // Oba pruhy mají PŘESNĚ stejné rozměry a odsazení — sedí nad minimapou nad
+    // sebou, o kousek užší než minimapa (ať nepřečnívají přes kulatý okraj).
+    private const float HP_BAR_H      = 16f;  // výška pruhu
+    private const float HP_BAR_INSET  = 8f;   // odsazení od levého i pravého okraje minimapy
+    private const float HP_FILL_PAD   = 3f;   // vnitřní okraj (lem panelu)
+
     RectTransform MakeHpBar(string name, float yAboveMap, Color fillColor, out Text label)
     {
         var go = new GameObject(name);
@@ -153,8 +159,8 @@ public class MinimapUIRenderer : MonoBehaviour
         rt.anchorMin = new Vector2(0f, 1f);
         rt.anchorMax = new Vector2(1f, 1f);
         rt.pivot     = new Vector2(0.5f, 0f);
-        rt.sizeDelta = new Vector2(0f, 17f);
-        rt.anchoredPosition = new Vector2(0f, yAboveMap);
+        rt.offsetMin = new Vector2(HP_BAR_INSET, yAboveMap);
+        rt.offsetMax = new Vector2(-HP_BAR_INSET, yAboveMap + HP_BAR_H);
 
         var bg = new GameObject("BG");
         bg.transform.SetParent(go.transform, false);
@@ -166,23 +172,29 @@ public class MinimapUIRenderer : MonoBehaviour
         bgImg.type   = Image.Type.Sliced;
         bgImg.raycastTarget = false;
 
+        // Výplň = obrázek přes celý vnitřek pruhu, ořezaný podle fillAmount
+        // (Image.Type.Filled) — vždycky přesně zarovnaná, nikdy se "nepřevrátí".
         var fill = new GameObject("Fill");
         fill.transform.SetParent(go.transform, false);
         var fillRt = fill.AddComponent<RectTransform>();
-        fillRt.anchorMin = new Vector2(0f, 0f);
-        fillRt.anchorMax = new Vector2(1f, 1f); // šířka přes anchorMax.x v Refresh
-        fillRt.offsetMin = new Vector2(2f, 2f);
-        fillRt.offsetMax = new Vector2(0f, -2f);
+        fillRt.anchorMin = Vector2.zero; fillRt.anchorMax = Vector2.one;
+        fillRt.offsetMin = new Vector2(HP_FILL_PAD, HP_FILL_PAD);
+        fillRt.offsetMax = new Vector2(-HP_FILL_PAD, -HP_FILL_PAD);
         var fillImg = fill.AddComponent<Image>();
-        fillImg.color = fillColor;
+        fillImg.sprite      = HudSkin.White();
+        fillImg.type        = Image.Type.Filled;
+        fillImg.fillMethod  = Image.FillMethod.Horizontal;
+        fillImg.fillOrigin  = (int)Image.OriginHorizontal.Left;
+        fillImg.fillAmount  = 1f;
+        fillImg.color       = fillColor;
         fillImg.raycastTarget = false;
 
         var txtGo = new GameObject("Label");
         txtGo.transform.SetParent(go.transform, false);
         var txtRt = txtGo.AddComponent<RectTransform>();
         txtRt.anchorMin = Vector2.zero; txtRt.anchorMax = Vector2.one;
-        txtRt.offsetMin = new Vector2(6f, 0f);
-        txtRt.offsetMax = new Vector2(-4f, 0f);
+        txtRt.offsetMin = new Vector2(8f, 0f);
+        txtRt.offsetMax = new Vector2(-6f, 0f);
         label = txtGo.AddComponent<Text>();
         label.font      = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
         label.fontSize  = 11;
@@ -211,9 +223,12 @@ public class MinimapUIRenderer : MonoBehaviour
     {
         if (fillRT == null) return;
         hp = Mathf.Clamp(hp, 0, 100);
-        fillRT.anchorMax = new Vector2(hp / 100f, 1f);
         var img = fillRT.GetComponent<Image>();
-        if (img != null) img.color = hp <= 30 ? HpLowColor : healthyColor;
+        if (img != null)
+        {
+            img.fillAmount = hp / 100f;
+            img.color      = hp <= 30 ? HpLowColor : healthyColor;
+        }
         if (label != null) label.text = $"{name}  {hp}";
     }
 

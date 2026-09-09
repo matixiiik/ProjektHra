@@ -69,7 +69,7 @@ public class GridManager : MonoBehaviour
 
     // Parametry generování ostrovů.
     private const int ISLAND_SIZE         = 10; // "jmenovitá" velikost (kompatibilita se starým kódem)
-    private const int ISLAND_CANVAS       = 16; // max rozměr organického ostrova (plátno, do kterého se vejde)
+    private const int ISLAND_CANVAS       = 20; // max rozměr organického ostrova (plátno, do kterého se vejde)
     private const int ISLAND_PADDING      = 1;  // volné pole kolem ostrova při kontrole místa
     private const int MIN_ISLAND_DISTANCE = 200;// minimální rozestup mezi ostrovy (dřív 50 — ostrovy jsou teď vzácnější)
     private const int CLEANUP_LIMIT       = 120;// políčka dál než tohle se ze save mažou
@@ -355,10 +355,10 @@ public class GridManager : MonoBehaviour
 
         var land = new HashSet<(int, int)>();
 
-        // 1) Pevné jádro — náhodný obdélník 5..7 × 5..7 uprostřed (min. 5×5),
-        //    ať se na ostrov vejde maják 2×2, bedna, dekorace a nedrhne to o sebe.
-        int cw = UnityEngine.Random.Range(5, 8);
-        int ch = UnityEngine.Random.Range(5, 8);
+        // 1) Pevné jádro — náhodný obdélník 7..10 × 7..10 uprostřed (min. 7×7),
+        //    ať je na ostrově dost místa a dekorace se nemusí mačkat na sebe.
+        int cw = UnityEngine.Random.Range(7, 11);
+        int ch = UnityEngine.Random.Range(7, 11);
         for (int x = cx - cw / 2; x <= cx - cw / 2 + cw - 1; x++)
             for (int y = cy - ch / 2; y <= cy - ch / 2 + ch - 1; y++)
                 land.Add((x, y));
@@ -412,7 +412,7 @@ public class GridManager : MonoBehaviour
     private void GenerateIsland(int startX, int startY)
     {
         var land = StampOrganicLand(startX, startY, explored: false);
-        if (land.Count < 25) return; // pojistka (jádro je min. 5×5)
+        if (land.Count < 49) return; // pojistka (jádro je min. 7×7)
 
         PlaceEdgePier(land);
         PlaceLighthouse(land);

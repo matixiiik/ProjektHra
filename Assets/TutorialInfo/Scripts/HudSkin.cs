@@ -68,6 +68,18 @@ public static class HudSkin
         return Mathf.Min(dx, dy);
     }
 
+    // ── Bílý sprite (pro Image.Type.Filled u health barů) ────────────────
+    private static Sprite whiteSprite;
+    public static Sprite White()
+    {
+        if (whiteSprite != null) return whiteSprite;
+        var t = new Texture2D(4, 4, TextureFormat.RGBA32, false);
+        for (int i = 0; i < 16; i++) t.SetPixel(i % 4, i / 4, Color.white);
+        t.Apply();
+        whiteSprite = Sprite.Create(t, new Rect(0, 0, 4, 4), new Vector2(0.5f, 0.5f));
+        return whiteSprite;
+    }
+
     // ── Ikonky (28×28) ───────────────────────────────────────────────────
     public enum IconKind { Coin, Fish, Treasure, Ammo, Heart, Anchor }
 

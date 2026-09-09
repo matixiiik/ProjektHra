@@ -704,6 +704,10 @@ public class PlayerController : MonoBehaviour
     private Vector3 headDotHomeLocalPos;
     private bool    headDotHomeSaved;
 
+    // O kolik posadit panáčka pod hladinu, když plave (rozbitá loď) — tak, aby
+    // z vody koukala jen hlava. Postavička je ~1,1 vysoká, hladina cca -0.22.
+    private const float SWIM_SINK = 0.66f;
+
     // Zapne loď / panáčka podle stavu (loď / pěšky / plave).
     void ShowBoatOrFoot()
     {
@@ -721,9 +725,10 @@ public class PlayerController : MonoBehaviour
 
             if (!headDotHomeSaved) { headDotHomeLocalPos = headDot.transform.localPosition; headDotHomeSaved = true; }
 
-            // Při plavání posad panáčka hloub — trčí z vody jen po ramena.
+            // Při plavání posad panáčka hluboko pod hladinu — kouká jen hlava,
+            // ať to vypadá, že plave (ne že stojí ve vodě).
             headDot.transform.localPosition = swimming
-                ? headDotHomeLocalPos + new Vector3(0f, -0.28f, 0f)
+                ? headDotHomeLocalPos + new Vector3(0f, -SWIM_SINK, 0f)
                 : headDotHomeLocalPos;
         }
     }

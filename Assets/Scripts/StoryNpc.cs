@@ -268,20 +268,40 @@ public class StoryNpc : MonoBehaviour
     {
         if (gridManager == null) { gridManager = FindFirstObjectByType<GridManager>(); return; }
 
+        var data = gridManager.gameData;
+
+        // Už dřív usazený děda → použij ULOŽENÉ políčko (pokud je pořád v pořádku),
+        // ať se po návratu z majáku nestěhuje.
+        if (data.storyNpcPlaced)
+        {
+            var saved = new Vector2Int(data.storyNpcX, data.storyNpcY);
+            if (TileStillGood(saved))
+            {
+                tilePos = saved;
+                placed  = true;
+                gridManager.ReserveNpcTile(tilePos.x, tilePos.y);
+                BuildFigure();
+                return;
+            }
+            // uložené políčko se rozpadlo (kraj ostrova se přeskládal) → vyber znovu
+        }
+
         List<Vector2Int> harbor = gridManager.GetStartIslandHarborTiles();
         if (harbor.Count == 0) return;
 
         // Děda musí SEDĚT NA OSTROVĚ — jen políčko, které má kolem sebe (4-směrně)
         // samou pevninu (ne kraj / molo / vodu), aby nekoukal z ničeho. Vynech
-        // taky políčka těsně u majáku. Z vyhovujících vezmi to nejblíž startu hráče.
-        Vector2Int spawn = new Vector2Int(gridManager.gameData.playerGridX, gridManager.gameData.playerGridY);
+        // taky políčka těsně u majáku. Referenční bod pro "nejblíž" je počátek
+        // světa [0,0] (tam je startovní ostrov) — NE aktuální pozice hráče,
+        // jinak by se děda "stěhoval" podle toho, odkud hráč zrovna přišel.
+        Vector2Int origin = Vector2Int.zero;
         Vector2Int best = default; float bestDist = float.MaxValue; bool has = false;
 
         foreach (var t in harbor)
         {
             if (!SurroundedByLand(t)) continue;
             if (NextToLighthouse(t))  continue;
-            float d = (t - spawn).sqrMagnitude;
+            float d = (t - origin).sqrMagnitude;
             if (d < bestDist) { bestDist = d; best = t; has = true; }
         }
 
@@ -292,7 +312,7 @@ public class StoryNpc : MonoBehaviour
             foreach (var t in harbor)
             {
                 if (LandNeighbourCount(t) < 3 || NextToLighthouse(t)) continue;
-                float d = (t - spawn).sqrMagnitude;
+                float d = (t - origin).sqrMagnitude;
                 if (d < bestDist) { bestDist = d; best = t; has = true; }
             }
         }
@@ -300,6 +320,12 @@ public class StoryNpc : MonoBehaviour
 
         tilePos = best;
         placed  = true;
+
+        // Ulož políčko napevno.
+        data.storyNpcPlaced = true;
+        data.storyNpcX      = best.x;
+        data.storyNpcY      = best.y;
+        gridManager.Save();
 
         // Na dědově políčku nesmí být žádná dekorace (kámen / palma) — ať trčí
         // ze země panáček, ne trs trávy. GridManager to zařídí i po opětovném

@@ -22,6 +22,19 @@ v `.claude/story-plan.md`. **NIC se z toho zatím nestaví** — bude se dělat 
 kouskách do maturity. Až se začne: první milník = "Infra" + "Ostrov 1 — obrana"
 (viz plán sekce 6).
 
+### 🔧 DROBNOSTI 2026-09-10 (commit `e1aa0c0`, PUSHNUTO — ověřeno v Play módu)
+- **žlutý toast s ovládáním na startu pryč** → ovládání teď říká děda v dialogu
+  (krok 0, hráč na voru): přidán WASD + M na mapu k dosavadnímu E/R/myš.
+- **velká mapa: světové strany S / J / V / Z** u okrajů (`MapScreen.DrawCompass`),
+  stejná orientace jako minimapa (S nahoře, V vpravo), tmavý stín kvůli čitelnosti.
+- **`locate pirate`** (+ `hostile`, `pirateisland`) → nejbližší OBJEVENÝ nepřátelský
+  ostrov. Nepřátelské ostrovy nejdou předpovědět dopředu (žádný seed, `Random.value`
+  při generování) — do `gameData.hostileIslands` se přidá, až k němu hráč dopluje
+  (v dosahu ACTIVE_GRID_SIZE 28). Prázdný případ vypíše nápovědu.
+  **Šance nepřátelského ostrova = 20 % ze všech vzniklých ostrovů** (`GridManager`
+  ř. ~527, `Random.value < 0.20f`). Ostrovy samotné: mřížka po 40, 30 % šance,
+  min. rozestup 200 → nepřátelský ostrov zhruba 1 z 5 potkaných.
+
 ### 🔧 OPRAVY ANIMAČNÍ DÁVKY #3 2026-09-10 (commit `0167003`, PUSHNUTO — ověřeno screenshotem)
 - **"lampa ze stropu zasahuje do obličeje prostředního prodavače"** → `HangingLamp`
   tělo lampy z y 2,5 na **3,2** (kratší řetěz). V pohledu od dveří už neprotíná.

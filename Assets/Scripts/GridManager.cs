@@ -955,6 +955,10 @@ public class GridManager : MonoBehaviour
                 {
                     tower.localPosition += new Vector3(0.5f, 0f, 0.5f);
                     tower.localScale    *= 3.2f; // maják má být na mapě pořádně vidět (cca 2× víc než dřív)
+
+                    // Nepřátelský ostrov → červená vlajka na majáku (vidíš to dřív,
+                    // než po tobě dělo začne pálit).
+                    if (IsHostileIslandNear(x, y)) AddHostileFlag(newTile);
                 }
                 else
                 {
@@ -962,6 +966,52 @@ public class GridManager : MonoBehaviour
                 }
             }
         }
+    }
+
+    // Je poblíž [x,y] kotva nepřátelského ostrova, kterému hráč ještě nezničil dělo?
+    private bool IsHostileIslandNear(int x, int y)
+    {
+        foreach (string k in gameData.hostileIslands)
+        {
+            if (gameData.clearedIslands.Contains(k)) continue;
+            var t = KeyToTile(k);
+            if (Mathf.Abs(t.x - x) <= 16 && Mathf.Abs(t.y - y) <= 16) return true;
+        }
+        return false;
+    }
+
+    // Červená vlajka na stožáru vysoko nad majákem (parent = kořen dlaždice, měřítko 1,
+    // takže rozměry jsou ve světových jednotkách — dlaždice je 1×1, věž ~3 vysoká).
+    // Výšku/velikost případně dolaď tady podle skutečné výšky lighthousePrefabu.
+    private void AddHostileFlag(GameObject tile)
+    {
+        var pole = GameObject.CreatePrimitive(PrimitiveType.Cube);
+        Destroy(pole.GetComponent<Collider>());
+        pole.name = "HostileFlagPole";
+        pole.transform.SetParent(tile.transform, false);
+        pole.transform.localPosition = new Vector3(0.5f, 3.6f, 0.5f);
+        pole.transform.localScale    = new Vector3(0.06f, 1.4f, 0.06f);
+        TintPrimitive(pole, new Color(0.15f, 0.1f, 0.07f));
+
+        var flag = GameObject.CreatePrimitive(PrimitiveType.Cube);
+        Destroy(flag.GetComponent<Collider>());
+        flag.name = "HostileFlag";
+        flag.transform.SetParent(tile.transform, false);
+        flag.transform.localPosition = new Vector3(0.82f, 4.0f, 0.5f);
+        flag.transform.localScale    = new Vector3(0.55f, 0.34f, 0.03f);
+        TintPrimitive(flag, new Color(0.85f, 0.09f, 0.07f));
+    }
+
+    private static void TintPrimitive(GameObject go, Color c)
+    {
+        var r = go.GetComponent<Renderer>();
+        if (r == null) return;
+        Shader sh = Shader.Find("Universal Render Pipeline/Lit") ?? Shader.Find("Standard");
+        var m = sh != null ? new Material(sh) : r.material;
+        if (m.HasProperty("_BaseColor")) m.SetColor("_BaseColor", c);
+        if (m.HasProperty("_Color"))     m.SetColor("_Color", c);
+        r.material = m;
+        r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
     }
 
     /// <summary>

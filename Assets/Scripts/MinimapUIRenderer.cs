@@ -34,6 +34,7 @@ public class MinimapUIRenderer : MonoBehaviour
     public Color fogColor         = new Color(0.35f, 0.35f, 0.35f, 1f); // neprozkoumáno
     public Color playerColor      = Color.white;                        // bod vlastního hráče
     public Color otherPlayerColor = new Color(1f, 0.5f, 0f, 1f);        // bod druhého hráče (oranžová)
+    public Color hostileColor     = new Color(1f, 0.15f, 0.1f, 1f);     // piráti + nepřátelské ostrovy (červená)
 
     [Header("Okraj minimapy")]
     public int   borderPixels = 3;
@@ -344,6 +345,8 @@ public class MinimapUIRenderer : MonoBehaviour
         txt.text = letter;
     }
 
+    private float nextCombatRefresh;
+
     void Update()
     {
         if (playerArrowRT == null) return;
@@ -355,6 +358,15 @@ public class MinimapUIRenderer : MonoBehaviour
         }
         if (myPlayer != null)
             playerArrowRT.localEulerAngles = new Vector3(0f, 0f, -myPlayer.HeadingDegrees);
+
+        // Když jsou na moři piráti, překresluj minimapu i bez změny světa (ať se
+        // červené tečky hýbou). Throttle, ať to nestojí výkon každý snímek.
+        if (Time.time >= nextCombatRefresh
+            && FindObjectsByType<PirateShip>(FindObjectsSortMode.None).Length > 0)
+        {
+            nextCombatRefresh = Time.time + 0.25f;
+            Refresh();
+        }
     }
 
     // Vytvoří jednoduchou trojúhelníkovou šipku (mířící nahoru) jako sprite.
@@ -446,8 +458,35 @@ public class MinimapUIRenderer : MonoBehaviour
                 tex.SetPixel(rx, ry, otherPlayerColor);
         }
 
+        // Piráti — červené tečky (2×2 px, ať jsou vidět).
+        foreach (var pirate in FindObjectsByType<PirateShip>(FindObjectsSortMode.None))
+        {
+            int rx = Mathf.RoundToInt(pirate.transform.position.x) - cx + viewRadius;
+            int ry = Mathf.RoundToInt(pirate.transform.position.z) - cy + viewRadius;
+            StampDot(rx, ry, hostileColor);
+        }
+
+        // Nepřátelské ostrovy — červená tečka na kotvě ostrova (dokud mu hráč nezničí dělo).
+        foreach (string k in grid.ActiveHostileIslandKeys())
+        {
+            Vector2Int t = GridManager.KeyToTile(k);
+            StampDot(t.x - cx + viewRadius, t.y - cy + viewRadius, hostileColor);
+        }
+
         MaskCircle();     // kulatá minimapa místo čtverce + kruhový rámeček
         tex.Apply(false); // promítni změny do textury
+    }
+
+    // Nakreslí malou tečku (2×2 px) do textury minimapy, bezpečně v mezích.
+    void StampDot(int px, int py, Color c)
+    {
+        for (int dx = 0; dx <= 1; dx++)
+            for (int dy = 0; dy <= 1; dy++)
+            {
+                int x = px + dx, y = py + dy;
+                if (x >= 0 && x < size && y >= 0 && y < size)
+                    tex.SetPixel(x, y, c);
+            }
     }
 
     // Ořízne minimapu do kruhu (rohy zprůhlední) a po obvodu nakreslí rámeček.

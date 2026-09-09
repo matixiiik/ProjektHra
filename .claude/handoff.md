@@ -22,6 +22,30 @@ v `.claude/story-plan.md`. **NIC se z toho zatím nestaví** — bude se dělat 
 kouskách do maturity. Až se začne: první milník = "Infra" + "Ostrov 1 — obrana"
 (viz plán sekce 6).
 
+### 📦 DÁVKA FEATUR 2026-09-10 (jiná session, commity `271186c..e762bb0`, NEpushnuto — čeká na playtest)
+Ověřeno compile-checkem + MCP Console (bez chyb), NEProklikáno v editoru.
+- **1 ryba = 2 mince** (EconomyConfig.FishPrice), **víc vraků** (0,06→0,10 %),
+  velká mapa jde i **pěšky**, konzole **`exit`** ji zavře
+- **ostrov na velké mapě od 50 políček** (TileStatus.mapped, GameData.mappedIslands,
+  GridManager.MapNearbyIslands throttle 10; MapScreen kreslí i .mapped)
+- **zvuk soubojů** (SoundManager PlayCannon/PlayHit/PlaySink, procedurální) +
+  **pěna za pirátskými loděmi** (BoatWake.BindShip)
+- **feedback zásahu** (nový DamageFeedback: červený záblesk / cuknutí kamery /
+  žbluňk částic, volá se z DamageBoat/DamagePlayer)
+- **piráti + nepřátelské ostrovy na minimapě** (červené tečky, MinimapUIRenderer,
+  throttle refresh 0,25 s) + **červená vlajka** na majáku nepřátelského ostrova
+  (GridManager.AddHostileFlag — rozměry vlajky ve světových j., DOLAĎ v editoru)
+- **regenerace HP panáčka** pěšky v bezpečí (2 HP/s po 6 s bez zásahu)
+- **SoloPause** — v sólu pauza při obchodu/dialogu/mapě; v coopu hráč s otevřeným
+  oknem nedostane zásah (PlayerController.ModalOpen)
+- **vrak po rozbité lodi** (WreckDebris) — 50 % nákladu plave ~18 s, doplaveš = vrátí se
+- **nápověda ovládání** na startu (děda krok 0 + ~9s toast)
+- **Kenney Mini Characters (CC0)** staženo do `Assets/Resources/Characters/`
+  (character-male-a/c/e + colormap). `CharacterModel.TryBuild` (colormap, vypne
+  Animator, fallback=null). **Děda** teď = model `character-male-e` (fallback primitivy).
+  **ZBÝVÁ:** model HRÁČE (`headDot` ve scéně) — ruční práce v editoru; zvážit i
+  piráty na palubě. Měřítko `CharacterModel.DEFAULT_SCALE = 0.55` dolaď.
+
 ### ⚙️ STRUKTURNÍ ÚKLID 2026-09-09 večer (jiná session, pushnuto `99efd2c..d26249b`)
 **Skripty se PŘESUNULY: `Assets/TutorialInfo/Scripts/` → `Assets/Scripts/`.**
 Taky: `TutorialInfo/Materials` → `Assets/Materials`, `TutorialInfo/Resources` →

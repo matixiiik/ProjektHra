@@ -121,6 +121,8 @@ public class GameConsole : MonoBehaviour
                 Log("<color=#ffff88>upgrade</color> speed/rod/mining      odemkne upgrade");
                 Log("<color=#ffff88>tp</color> <x> <y>                   teleport");
                 Log("<color=#ffff88>explore</color> [radius]             odhalí mapu");
+                Log("<color=#ffff88>locate</color> [fish/treasure/chest/island/quest]  najde nejbližší");
+                Log("<color=#ffff88>respawn</color>                       oživí hráče u nejbližšího ostrova");
                 Log("<color=#ffff88>reset money</color>                   vynuluje mince");
                 Log("<color=#ffff88>clear</color>                         vymaže konzoli");
                 Log("──────────────────────────────");
@@ -130,6 +132,8 @@ public class GameConsole : MonoBehaviour
             case "upgrade": HandleUpgrade(p); break;
             case "tp":      HandleTp(p);      break;
             case "explore": HandleExplore(p); break;
+            case "locate":  HandleLocate(p);  break;
+            case "respawn": HandleRespawn();  break;
             case "reset":   HandleReset(p);   break;
             case "clear":   log.Clear();      break;
 
@@ -217,6 +221,66 @@ public class GameConsole : MonoBehaviour
         if (p.Length >= 2) int.TryParse(p[1], out radius);
         grid.MarkAreaExplored(grid.gameData.playerGridX, grid.gameData.playerGridY, radius);
         Log($"Odkryto oblast {radius * 2 + 1}×{radius * 2 + 1}");
+    }
+
+    // locate [typ] — vypíše, kde je nejbližší hledaná věc (směr + vzdálenost)
+    void HandleLocate(string[] p)
+    {
+        int px = grid.gameData.playerGridX;
+        int py = grid.gameData.playerGridY;
+
+        // Bez argumentu → vypiš nejbližší od každého druhu.
+        if (p.Length < 2)
+        {
+            ReportNearest("ryby",    grid.NearestTileOfType(px, py, TileType.Water_Fish), px, py);
+            ReportNearest("poklad",  grid.NearestTileOfType(px, py, TileType.Treasure),   px, py);
+            ReportNearest("bedna",   grid.NearestTileOfType(px, py, TileType.Chest),      px, py);
+            ReportNearest("ostrov",  grid.NearestTileOfType(px, py, TileType.Harbor),     px, py);
+            return;
+        }
+
+        switch (p[1])
+        {
+            case "fish":     ReportNearest("ryby",   grid.NearestTileOfType(px, py, TileType.Water_Fish), px, py); break;
+            case "treasure": ReportNearest("poklad", grid.NearestTileOfType(px, py, TileType.Treasure),   px, py); break;
+            case "chest":    ReportNearest("bedna",  grid.NearestTileOfType(px, py, TileType.Chest),      px, py); break;
+            case "island":   ReportNearest("ostrov", grid.NearestTileOfType(px, py, TileType.Harbor),     px, py); break;
+            case "quest":
+                var mq = grid.gameData.megaQuest;
+                if (mq != null && mq.active && !mq.dug)
+                    ReportNearest("poklad z mapy", new Vector2Int(mq.targetX, mq.targetY), px, py);
+                else
+                    Log("<color=#ffcc66>Žádný rozdělaný mega quest.</color>");
+                break;
+            default:
+                Log("Použití: locate <fish/treasure/chest/island/quest>");
+                break;
+        }
+    }
+
+    // Vypíše jeden řádek "název: směr, vzdálenost" (nebo že nic není).
+    void ReportNearest(string name, Vector2Int? target, int px, int py)
+    {
+        if (target == null) { Log($"<color=#888888>{name}: nic v okolí není</color>"); return; }
+
+        int dx = target.Value.x - px;
+        int dy = target.Value.y - py;
+        int dist = Mathf.Max(Mathf.Abs(dx), Mathf.Abs(dy));
+
+        // Světová strana (S = +Y nahoru na mapě).
+        string ns = dy > 0 ? "S" : dy < 0 ? "J" : "";
+        string ew = dx > 0 ? "V" : dx < 0 ? "Z" : "";
+        string dir = (ns + ew) == "" ? "tady" : ns + ew;
+
+        Log($"<color=#88ddff>{name}</color>: {dir}, {dist} políček  <color=#888888>[{target.Value.x}, {target.Value.y}]</color>");
+    }
+
+    // respawn — oživí hráče u nejbližšího ostrova (jako tlačítko na obrazovce smrti)
+    void HandleRespawn()
+    {
+        grid.RespawnPlayerAtNearestIsland(0);
+        if (player != null) player.ReloadFromData();
+        Log("<color=#44ff44>Respawn</color> — veslice u nejbližšího ostrova (kořist a vylepšení pryč, mince zůstaly).");
     }
 
     // reset money — vynuluje mince

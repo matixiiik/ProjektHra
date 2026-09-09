@@ -11,6 +11,59 @@ sem Claude píše, kde se přestalo, aby se dalo pokračovat i z notebooku.
 ## STAV 2026-09-09 — vše commitnuté a pushnuté, working tree čistý
 (kromě `Napady.txt`, který si edituje uživatel — necommitovat za něj)
 
+### VELKÁ DÁVKA UI/UX (2026-09-09) — HOTOVO, OTESTOVÁNO přes MCP
+
+Uživatelův seznam po kouskách. Vše ověřeno v play mode (screenshoty), 0 chyb.
+
+1. **Prodavači v majáku.** `LighthouseInteriorDecor` teď z modré/oranžové kostky
+   pultu (`Counter_Upgrade`/`Counter_Quest`) udělá dřevěný pult + stojícího
+   panáčka v tričku barvy obchodu (modrá = vylepšení, oranžová = questy).
+   Původní kostka se jen schová (`MeshRenderer.enabled=false`), `InteriorInteractable`
+   zůstává → interakce beze změny. `CounterDressing` se srovná na podlahu
+   (`root.position.y = 0`, pult měl počátek ~0.5 nad zemí).
+2. **Chození jen po koberci.** `LighthouseInteriorDecor.ClampWalkArea()` nastaví
+   všem `InteriorPlayer.areaRadius = 2.6` (kobereček) a bodům zájmu `range = 2.2`,
+   ať na ně hráč z kraje koberce dosáhne. Nedá se vejít do krbu ani do pultu.
+3. **Scroll v obchodech.** `UpgradeShopManager`/`QuestShopManager` — sortiment je
+   v `GUILayout.BeginScrollView` (kolečko funguje samo). `ShopUI.HandleDragScroll`
+   navíc: podrž levé tlačítko a táhni myší = scroll. Panel se navíc zmenší, když
+   je obrazovka nízká (`h = Min(…, Screen.height - 24)`), takže spodek nabídky
+   půjde vždycky vidět.
+4. **Mrtvá zóna kolem ostrova 50 → 25** (`GridManager.SPAWN_ISLAND_CLEARANCE`).
+5. **Konzole: `locate`** [fish/treasure/chest/island/quest] — vypíše směr
+   (S/J/V/Z) + vzdálenost + souřadnice nejbližší věci. Bez argumentu vypíše
+   nejbližší od každého druhu. **`respawn`** — jako tlačítko na obrazovce smrti
+   (veslice u nejbližšího ostrova, kořist pryč, mince zůstanou).
+6. **Mapa přes M.** NOVÝ `MapScreen.cs`. V lodi (`!isOnFoot && !boatWrecked`)
+   s koupenou mapou (`hasMap`): **M** (P1) / **Numpad 2** (P2) otevře velkou mapu
+   přes celou obrazovku (ve split screenu půlku). Uprostřed jsi ty, kreslí se
+   prozkoumané okolí jako na minimapě (mlha = šedá). Táhnutí myší = posun,
+   kolečko = zoom, klik = waypoint (klik na stávající waypoint ho zruší). Mapa
+   NEpauzuje hru (kvůli coopu) — `MapScreen.IsOpenFor(idx)` mrazí jen toho hráče.
+   - `GameData`: `hasWaypoint/waypointX/waypointY` (+ player2). Ukládá se.
+   - `MinimapUIRenderer`: azurová šipka (dřív "k nejbližšímu ostrovu") teď vede
+     **k waypointu**; waypoint se navíc kreslí jako azurový bod na minimapě.
+   - `PlayerController.ClearWaypointIfReached` — u waypointu (±1) se cíl splní/zmizí.
+   - `PauseMenu` má guard `if (MapScreen.IsOpen) return;` (Esc zavírá mapu).
+   - Obchod: řádek "Mapa" má nový popis.
+7. **Postava menší.** `HeadDot` ve `SampleScene` má `localScale 0.82` (P2 klon to
+   zdědí), `localPosition.y -0.44` (nohy na zemi). Jen hlavní postava, ne děda.
+8. **Kulatá minimapa.** `MinimapUIRenderer.MaskCircle()` — rohy textury
+   zprůhlední, po obvodu nakreslí kruhový rámeček. `borderColor` teplá mosaz.
+9. **Hezčí HUD.** NOVÝ `HudSkin.cs` — procedurálně (Texture2D v kódu, jako
+   SoundManager u zvuků) generuje: zaoblený 9-slice panel (tmavé dřevo + mosazný
+   lem) a ikonky (mince/ryba/poklad/náboj/srdce/kotva). `HUDCounter` a health bary
+   v `MinimapUIRenderer` je používají. Styl laděný ke Kenney grafice hry.
+   Žádné externí soubory.
+
+### PŘÍPADNÉ DOLADĚNÍ
+- Prodavači v majáku jsou trochu schovaní za pultem — dalo by se je zvednout.
+- Minimapa má nízké rozlišení (`viewRadius 25` → 51px), kruh je "kostičkovaný".
+- Mapa přes M: waypoint se dá dát i do neprozkoumané mlhy (schválně — plánuješ
+  trasu). Bez zoomu na celý svět (jen okolí + posun).
+
+---
+
 ### ZÚTULNĚNÍ MAJÁKU + VZHLED OSTROVA + DĚDOVO POLÍČKO (2026-09-09) — HOTOVO, OTESTOVÁNO přes MCP
 
 Uživatel: "zútulni interiér majáku a i jak vypadá ostrov, na políčku kde je děda

@@ -39,6 +39,9 @@ public class PauseMenu : MonoBehaviour
         // Když je vidět hlavní menu, pauza se neřeší.
         if (MainMenuManager.IsVisible) return;
 
+        // Když je otevřená velká mapa, Esc patří jí (zavře ji), ne pauze.
+        if (MapScreen.IsOpen) return;
+
         // Esc vždy; Enter na numpadu jen v multiplayeru (P2 nemá Esc po ruce).
         bool pausePressed = Input.GetKeyDown(KeyCode.Escape)
                          || (MultiplayerManager.IsMultiplayer && Input.GetKeyDown(KeyCode.KeypadEnter));

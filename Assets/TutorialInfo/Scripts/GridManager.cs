@@ -327,7 +327,7 @@ public class GridManager : MonoBehaviour
         || type == (int)TileType.Lighthouse || type == (int)TileType.Chest;
 
     // Jak daleko od ostrova nesmí vzniknout poklad / ryby / pirát (klidná zóna).
-    public const int SPAWN_ISLAND_CLEARANCE = 50;
+    public const int SPAWN_ISLAND_CLEARANCE = 25;
 
     /// <summary>Je políčko [x,y] blíž než `radius` k nějakému ostrovnímu políčku?</summary>
     public bool IsNearIsland(int x, int y, int radius)
@@ -1038,7 +1038,8 @@ public class GridManager : MonoBehaviour
     /// <summary>Nejbližší molo (Pier) k bodu — pro přemístění lodě po opravě.</summary>
     public Vector2Int? NearestPierTile(int fromX, int fromY) => NearestTileOfType(fromX, fromY, TileType.Pier);
 
-    private Vector2Int? NearestTileOfType(int fromX, int fromY, TileType type)
+    /// <summary>Nejbližší vygenerovaná dlaždice daného typu k bodu (nebo null). Pro konzoli "locate".</summary>
+    public Vector2Int? NearestTileOfType(int fromX, int fromY, TileType type)
     {
         Vector2Int best = default;
         bool found = false;

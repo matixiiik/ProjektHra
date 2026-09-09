@@ -21,12 +21,21 @@ public class LighthouseInteriorDecor : MonoBehaviour
     // Kulatá místnost má poloměr ~4, mezera (dollhouse pohled) je vepředu (−Z).
     private const float WALL_R = 3.8f;
 
-    private Material wood, woodDark, stone, cloth, leaf, ember, metal;
+    // Poloměr, ve kterém se smí hráč pohybovat = zhruba kobereček (ať nevleze
+    // do krbu, do pultu ani do zdi). Nastaví se všem InteriorPlayer ve scéně.
+    private const float WALK_RADIUS = 2.6f;
+
+    // Barvy trička prodavačů = barvy pultů (modrá = vylepšení, oranžová = questy).
+    private static readonly Color UpgradeShirt = new Color(0.28f, 0.45f, 0.68f);
+    private static readonly Color QuestShirt   = new Color(0.86f, 0.52f, 0.16f);
+
+    private Material wood, woodDark, stone, cloth, leaf, ember, metal, skin;
 
     void Start()
     {
         BuildMaterials();
         WarmUpSceneLights();
+        ClampWalkArea();
 
         BuildHearth(new Vector3(0f, 0f, 3.3f), 180f);     // krb u zadní stěny mezi pulty
         BuildHangingLamp(new Vector3(0f, 0f, 0.4f));      // lampa nad středem
@@ -35,6 +44,72 @@ public class LighthouseInteriorDecor : MonoBehaviour
         BuildPlant(new Vector3(-2.9f, 0f, -1.4f));        // květina vlevo vepředu
         BuildWallSconce(115f);                            // lucerna na pravé stěně
         BuildWallSconce(245f);                            // lucerna na levé stěně
+
+        // Z modré/oranžové kostky udělej dřevěný pult + prodavače v tričku.
+        DressCounter("Counter_Upgrade", UpgradeShirt);
+        DressCounter("Counter_Quest",   QuestShirt);
+    }
+
+    // Omez pochozí plochu na kobereček (a případným bodům zájmu přidej dosah,
+    // ať na ně hráč z kraje koberce dosáhne).
+    private void ClampWalkArea()
+    {
+        foreach (var ip in FindObjectsByType<InteriorPlayer>(FindObjectsSortMode.None))
+            if (ip.gameObject.scene == gameObject.scene) ip.areaRadius = WALK_RADIUS;
+
+        foreach (var it in FindObjectsByType<InteriorInteractable>(FindObjectsSortMode.None))
+            if (it.gameObject.scene == gameObject.scene && it.range < 2.2f) it.range = 2.2f;
+    }
+
+    // Vezme původní barevnou kostku pultu, schová její mesh a postaví na její
+    // místo dřevěný pult + stojícího prodavače v tričku dané barvy.
+    private void DressCounter(string counterName, Color shirt)
+    {
+        var counter = FindInScene(counterName);
+        if (counter == null) return;
+
+        // Schovej původní kostku (necháme objekt kvůli InteriorInteractable + poloze).
+        foreach (var mr in counter.GetComponentsInChildren<MeshRenderer>(true))
+            mr.enabled = false;
+
+        var root = new GameObject("CounterDressing");
+        root.transform.SetParent(counter.transform, false);
+        // Původní kostka pultu má počátek ~0.5 nad podlahou → srovnej na zem.
+        root.transform.position      = new Vector3(counter.transform.position.x, 0f, counter.transform.position.z);
+        root.transform.localRotation = Quaternion.identity;
+
+        // Dřevěný pult (deska + čelo + nožky).
+        Box(root.transform, "Top",   new Vector3(0f, 0.62f, 0f),   new Vector3(1.9f, 0.14f, 0.8f),  wood);
+        Box(root.transform, "Front", new Vector3(0f, 0.3f, -0.32f), new Vector3(1.9f, 0.62f, 0.16f), woodDark);
+        Box(root.transform, "Side1", new Vector3(-0.85f, 0.3f, 0.1f), new Vector3(0.14f, 0.62f, 0.7f), woodDark);
+        Box(root.transform, "Side2", new Vector3(0.85f, 0.3f, 0.1f),  new Vector3(0.14f, 0.62f, 0.7f), woodDark);
+
+        // Prodavač stojí za pultem (dál od středu → +Z), čelem do místnosti.
+        BuildShopkeeper(root.transform, new Vector3(0f, 0f, 0.55f), shirt);
+    }
+
+    // Panáček prodavače — stejné díly jako hráč (tělo + hlava + klobouk + nos),
+    // tričko v barvě obchodu.
+    private void BuildShopkeeper(Transform parent, Vector3 pos, Color shirt)
+    {
+        var g = new GameObject("Shopkeeper");
+        g.transform.SetParent(parent, false);
+        g.transform.localPosition    = pos;
+        g.transform.localEulerAngles = new Vector3(0f, 180f, 0f); // čelem do místnosti (−Z)
+
+        Material shirtMat = Mat(shirt);
+        Box(g.transform,    "Legs", new Vector3(0f, 0.22f, 0f), new Vector3(0.34f, 0.44f, 0.3f), woodDark);
+        Cyl(g.transform,    "Body", new Vector3(0f, 0.62f, 0f), new Vector3(0.44f, 0.32f, 0.44f), Vector3.zero, shirtMat);
+        Sphere(g.transform, "Head", new Vector3(0f, 0.98f, 0f), new Vector3(0.32f, 0.32f, 0.32f), skin);
+        Box(g.transform,    "Hat",  new Vector3(0f, 1.16f, 0f), new Vector3(0.5f, 0.12f, 0.5f),  woodDark);
+        Box(g.transform,    "Nose", new Vector3(0f, 0.96f, 0.18f), new Vector3(0.07f, 0.07f, 0.12f), skin);
+    }
+
+    private GameObject FindInScene(string name)
+    {
+        foreach (var t in FindObjectsByType<Transform>(FindObjectsSortMode.None))
+            if (t.name == name && t.gameObject.scene == gameObject.scene) return t.gameObject;
+        return null;
     }
 
     // ── Materiály ─────────────────────────────────────────────────────────
@@ -46,6 +121,7 @@ public class LighthouseInteriorDecor : MonoBehaviour
         cloth    = Mat(new Color(0.60f, 0.22f, 0.20f)); // teplá červená (kobereček)
         leaf     = Mat(new Color(0.30f, 0.52f, 0.26f));
         metal    = Mat(new Color(0.24f, 0.23f, 0.22f));
+        skin     = Mat(new Color(0.85f, 0.68f, 0.55f)); // kůže prodavače
 
         // Žhavý oheň / plamínek — svítí i bez světla (emise).
         ember = Mat(new Color(1f, 0.55f, 0.18f));

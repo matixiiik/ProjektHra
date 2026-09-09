@@ -11,6 +11,23 @@ public static class ShopUI
 {
     private static GUIStyle xStyle;
 
+    /// <summary>
+    /// Posouvání sortimentu obchodu myší: kolečko řeší sám ScrollView, tohle
+    /// navíc umožní scrollovat i tažením (podrž levé tlačítko a táhni myší
+    /// nahoru/dolů). Volá se uvnitř OnGUI obchodu, `scroll` je pozice ScrollView.
+    /// </summary>
+    public static void HandleDragScroll(ref Vector2 scroll)
+    {
+        Event e = Event.current;
+        if (e == null) return;
+
+        if (e.type == EventType.MouseDrag && e.button == 0)
+        {
+            scroll.y += e.delta.y; // táhneš myš dolů → posuneš se na spodek nabídky
+            e.Use();
+        }
+    }
+
     /// <summary>Nakreslí zavírací křížek v pravém horním rohu panelu obchodu
     /// (panel je Rect(panelX, panelY, panelW, ...)). Vrací true, když se klikne.</summary>
     public static bool CloseButton(float panelX, float panelY, float panelW)

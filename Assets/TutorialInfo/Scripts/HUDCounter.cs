@@ -73,11 +73,11 @@ public class HUDCounter : MonoBehaviour
 
         canvasGO.AddComponent<GraphicRaycaster>();
 
-        // Tři řádky ukazatelů v pravém horním rohu.
-        fishText     = MakeRow(canvasGO.transform, 0, new Color(0.3f, 0.8f, 1f));
-        treasureText = MakeRow(canvasGO.transform, 1, new Color(1f, 0.85f, 0.2f));
-        coinsText    = MakeRow(canvasGO.transform, 2, new Color(0.9f, 0.7f, 0.1f));
-        ammoText     = MakeRow(canvasGO.transform, 3, new Color(0.85f, 0.85f, 0.9f));
+        // Čtyři řádky ukazatelů v pravém horním rohu (ikonka + hodnota).
+        fishText     = MakeRow(canvasGO.transform, 0, HudSkin.FishBlue,    HudSkin.IconKind.Fish);
+        treasureText = MakeRow(canvasGO.transform, 1, HudSkin.TreasureTan, HudSkin.IconKind.Treasure);
+        coinsText    = MakeRow(canvasGO.transform, 2, HudSkin.Gold,        HudSkin.IconKind.Coin);
+        ammoText     = MakeRow(canvasGO.transform, 3, HudSkin.AmmoGrey,    HudSkin.IconKind.Ammo);
 
         BuildCoordLabel(canvasGO.transform);
 
@@ -104,10 +104,12 @@ public class HUDCounter : MonoBehaviour
         var bgRt = bg.AddComponent<RectTransform>();
         bgRt.anchorMin = Vector2.zero; bgRt.anchorMax = Vector2.one;
         bgRt.offsetMin = bgRt.offsetMax = Vector2.zero;
-        bg.AddComponent<Image>().color = new Color(0, 0, 0, 0.45f);
+        var coordBg = bg.AddComponent<Image>();
+        coordBg.sprite = HudSkin.Panel();
+        coordBg.type   = Image.Type.Sliced;
 
         coordText = MakeText(go.transform,
-            new Vector2(8, 2), new Vector2(-8, -2),
+            new Vector2(12, 2), new Vector2(-10, -2),
             Vector2.zero, Vector2.one,
             22f, Color.white, FontStyle.Bold, TextAnchor.MiddleLeft);
     }
@@ -126,21 +128,24 @@ public class HUDCounter : MonoBehaviour
         questPanelRT.anchoredPosition = new Vector2(0, -16f);
         questPanelRT.sizeDelta        = new Vector2(280f, 38f);
 
-        // Tmavé pozadí panelu.
+        // Dřevěný panel na pozadí.
         var bg = new GameObject("BG");
         bg.transform.SetParent(questPanel.transform, false);
         var bgRt = bg.AddComponent<RectTransform>();
         bgRt.anchorMin = Vector2.zero; bgRt.anchorMax = Vector2.one;
         bgRt.offsetMin = bgRt.offsetMax = Vector2.zero;
-        bg.AddComponent<Image>().color = new Color(0, 0, 0, 0.52f);
+        var qBg = bg.AddComponent<Image>();
+        qBg.sprite = HudSkin.Panel();
+        qBg.type   = Image.Type.Sliced;
 
-        // Oranžový proužek nahoře.
+        // Oranžový proužek nahoře (kousek pod horním lemem panelu).
         var accent = new GameObject("Accent");
         accent.transform.SetParent(questPanel.transform, false);
         var acRt = accent.AddComponent<RectTransform>();
         acRt.anchorMin = new Vector2(0, 1); acRt.anchorMax = new Vector2(1, 1);
         acRt.pivot     = new Vector2(0.5f, 1f);
-        acRt.sizeDelta = new Vector2(0, 3);
+        acRt.offsetMin = new Vector2(10f, -7f);
+        acRt.offsetMax = new Vector2(-10f, -4f);
         accent.AddComponent<Image>().color = new Color(1f, 0.6f, 0.1f);
 
         // Text questu.
@@ -174,8 +179,8 @@ public class HUDCounter : MonoBehaviour
         return t;
     }
 
-    // Pomocná: vytvoří jeden řádek ukazatele (pozadí + text) v pravém horním rohu.
-    Text MakeRow(Transform parent, int index, Color color)
+    // Pomocná: vytvoří jeden řádek ukazatele (dřevěný panel + ikonka + hodnota).
+    Text MakeRow(Transform parent, int index, Color color, HudSkin.IconKind icon)
     {
         var go = new GameObject($"HUDRow{index}");
         go.transform.SetParent(parent, false);
@@ -183,29 +188,46 @@ public class HUDCounter : MonoBehaviour
         var rt = go.AddComponent<RectTransform>();
         rt.anchorMin = rt.anchorMax = Vector2.one; // pravý horní roh
         rt.pivot     = Vector2.one;
-        rt.anchoredPosition = new Vector2(-20f, -20f - index * 40f); // každý řádek o 40 px níž
-        rt.sizeDelta = new Vector2(240f, 34f);
+        rt.anchoredPosition = new Vector2(-20f, -18f - index * 44f); // každý řádek o kus níž
+        rt.sizeDelta = new Vector2(210f, 38f);
         rowRTs.Add(rt);
 
+        // Zaoblený dřevěný panel na pozadí.
         var bg = new GameObject("BG");
         bg.transform.SetParent(go.transform, false);
         var bgRt = bg.AddComponent<RectTransform>();
         bgRt.anchorMin = Vector2.zero;
         bgRt.anchorMax = Vector2.one;
         bgRt.offsetMin = bgRt.offsetMax = Vector2.zero;
-        bg.AddComponent<Image>().color = new Color(0, 0, 0, 0.45f);
+        var bgImg = bg.AddComponent<Image>();
+        bgImg.sprite = HudSkin.Panel();
+        bgImg.type   = Image.Type.Sliced;
+        bgImg.color  = Color.white;
+
+        // Ikonka vlevo.
+        var iconGO = new GameObject("Icon");
+        iconGO.transform.SetParent(go.transform, false);
+        var iconRt = iconGO.AddComponent<RectTransform>();
+        iconRt.anchorMin = new Vector2(0f, 0.5f);
+        iconRt.anchorMax = new Vector2(0f, 0.5f);
+        iconRt.pivot     = new Vector2(0f, 0.5f);
+        iconRt.anchoredPosition = new Vector2(7f, 0f);
+        iconRt.sizeDelta = new Vector2(24f, 24f);
+        var iconImg = iconGO.AddComponent<Image>();
+        iconImg.sprite = HudSkin.Icon(icon);
+        iconImg.raycastTarget = false;
 
         var textGO = new GameObject("Label");
         textGO.transform.SetParent(go.transform, false);
         var trt = textGO.AddComponent<RectTransform>();
         trt.anchorMin = Vector2.zero;
         trt.anchorMax = Vector2.one;
-        trt.offsetMin = new Vector2(8, 2);
-        trt.offsetMax = new Vector2(-8, -2);
+        trt.offsetMin = new Vector2(36, 2);
+        trt.offsetMax = new Vector2(-12, -2);
 
         var text = textGO.AddComponent<Text>();
         text.font      = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-        text.fontSize  = 22;
+        text.fontSize  = 21;
         text.fontStyle = FontStyle.Bold;
         text.color     = color;
         text.alignment = TextAnchor.MiddleRight;
@@ -232,7 +254,7 @@ public class HUDCounter : MonoBehaviour
         {
             rowRTs[i].anchorMin = rowRTs[i].anchorMax = new Vector2(rowAnchorX, 1f);
             rowRTs[i].pivot     = Vector2.one;
-            rowRTs[i].anchoredPosition = new Vector2(-20f, -20f - i * 40f);
+            rowRTs[i].anchoredPosition = new Vector2(-20f, -18f - i * 44f);
         }
 
         if (questPanelRT != null)

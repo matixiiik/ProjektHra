@@ -29,6 +29,9 @@ public class UpgradeShopManager : MonoBehaviour
     private readonly bool[] openFor = new bool[2];
     private int             buyerIndex;
 
+    // Pozice posuvníku sortimentu pro každého hráče (kolečko + tažení myší).
+    private readonly Vector2[] scroll = new Vector2[2];
+
     public bool IsOpen => openFor[0] || openFor[1];
 
     /// <summary>Je obchod otevřený zrovna pro TOHOHLE hráče? (obchod jednoho hráče nemá mrazit druhého)</summary>
@@ -180,7 +183,10 @@ public class UpgradeShopManager : MonoBehaviour
         GUI.DrawTexture(new Rect(sx, 0, sw, Screen.height), Texture2D.whiteTexture);
         GUI.color = Color.white;
 
-        float w = 560, h = 624;
+        // Panel se vejde na obrazovku i ve split screenu — jinak by spodek nešel
+        // vidět. Zbytek sortimentu se doscrolluje kolečkem / tažením myši.
+        float w = 560;
+        float h = Mathf.Min(624f, Screen.height - 24f);
         float px = sx + (sw - w) / 2f;
         float py = (Screen.height - h) / 2f;
 
@@ -193,6 +199,9 @@ public class UpgradeShopManager : MonoBehaviour
 
         // Zavírací křížek vpravo nahoře.
         if (ShopUI.CloseButton(px, py, w)) { openFor[who] = false; return; }
+
+        // Tažení myší = scroll (kolečko řeší ScrollView samo).
+        ShopUI.HandleDragScroll(ref scroll[who]);
 
         GUILayout.BeginArea(new Rect(px + 25, py + 20, w - 50, h - 40));
 
@@ -207,6 +216,9 @@ public class UpgradeShopManager : MonoBehaviour
         string priceTag = pct == 0 ? "ceny jako jinde" : pct > 0 ? $"ceny +{pct}%" : $"ceny {pct}%";
         GUILayout.Label($"( {priceTag} na tomhle ostrove )", rowStyle);
         GUILayout.Space(10);
+
+        // Sortiment ve scrollovatelném okně (kolečko / tažení myší).
+        scroll[who] = GUILayout.BeginScrollView(scroll[who], GUILayout.Height(h - 40f - 110f));
 
         DrawRow("Rychlost lodi  —  pohyb 2x rychleji",  PriceOf(EconomyConfig.SpeedUpgrade),  GetUpgrade(0), () => TryBuyUpgrade(0, PriceOf(EconomyConfig.SpeedUpgrade)));
         GUILayout.Space(8);
@@ -226,7 +238,9 @@ public class UpgradeShopManager : MonoBehaviour
         GUILayout.Space(8);
         DrawRepairRow();
 
-        GUILayout.Space(14);
+        GUILayout.EndScrollView();
+
+        GUILayout.Space(10);
         GUILayout.Label($"Mince: {Coins()}", coinsStyle);
         GUILayout.EndArea();
     }
@@ -286,10 +300,11 @@ public class UpgradeShopManager : MonoBehaviour
         GUILayout.EndHorizontal();
     }
 
-    // Mapa — jednorázový nákup, na minimapě pak ukazuje šipku k nejbližšímu ostrovu.
+    // Mapa — jednorázový nákup. Pak v lodi klávesa M otevře velkou mapu, kde si
+    // klikneš cíl a na minimapě tě k němu vede šipka.
     private void DrawMapRow()
     {
-        DrawRow("Mapa  —  na minimape sipka k nejblizsimu ostrovu",
+        DrawRow("Mapa  —  v lodi klavesa M: velka mapa + cil (waypoint)",
             PriceOf(EconomyConfig.MapItem), HasMap(), () =>
             {
                 int cost = PriceOf(EconomyConfig.MapItem);

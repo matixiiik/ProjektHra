@@ -36,8 +36,8 @@ public class MinimapUIRenderer : MonoBehaviour
     public Color otherPlayerColor = new Color(1f, 0.5f, 0f, 1f);        // bod druhého hráče (oranžová)
 
     [Header("Okraj minimapy")]
-    public int   borderPixels = 2;
-    public Color borderColor  = new Color(0.2f, 0.2f, 0.2f, 1f);
+    public int   borderPixels = 3;
+    public Color borderColor  = new Color(0.72f, 0.55f, 0.30f, 1f); // teplý mosazný lem (ladí s HUD)
 
     [Header("Kompas k mega questu")]
     public Color compassColor = new Color(1f, 0.85f, 0.1f, 1f); // zlatá šipka k pokladu z mapy
@@ -46,17 +46,17 @@ public class MinimapUIRenderer : MonoBehaviour
     private Texture2D   tex;  // samotná textura minimapy
     private int         size; // šířka i výška textury v pixelech
 
-    private RectTransform compassRT;    // zlatá šipka — směr k cíli mega questu
-    private RectTransform islandArrowRT; // azurová šipka — směr k nejbližšímu ostrovu (koupená mapa)
-    private static readonly Color IslandArrowColor = new Color(0.3f, 0.9f, 0.9f, 1f);
+    private RectTransform compassRT;      // zlatá šipka — směr k cíli mega questu
+    private RectTransform waypointArrowRT; // azurová šipka — směr k cíli z velké mapy (waypoint)
+    private static readonly Color WaypointArrowColor = new Color(0.3f, 0.9f, 0.9f, 1f);
 
     // Health bary (loď + panáček) — děti minimapy, sedí přesně nad ní a jsou
     // stejně široké (takže se centrují na minimapu bez ohledu na škálování canvasu).
     private RectTransform boatHpFillRT, playerHpFillRT;
     private Text          boatHpLabel,  playerHpLabel;
-    private static readonly Color HpBoatColor   = new Color(0.35f, 0.75f, 1f);
-    private static readonly Color HpPlayerColor = new Color(0.4f,  0.85f, 0.4f);
-    private static readonly Color HpLowColor    = new Color(0.9f,  0.3f,  0.25f);
+    private static readonly Color HpBoatColor   = HudSkin.HpBoat;
+    private static readonly Color HpPlayerColor = HudSkin.HpPlayer;
+    private static readonly Color HpLowColor    = HudSkin.HpLow;
 
     void Start()
     {
@@ -84,7 +84,7 @@ public class MinimapUIRenderer : MonoBehaviour
         minimapImage.uvRect  = new Rect(0, 0, 1, 1);
 
         CreateCompass();
-        CreateIslandArrow();
+        CreateWaypointArrow();
         CreateHealthBars();
 
         // Překresli minimapu při každé změně světa.
@@ -157,7 +157,8 @@ public class MinimapUIRenderer : MonoBehaviour
         bgRt.anchorMin = Vector2.zero; bgRt.anchorMax = Vector2.one;
         bgRt.offsetMin = bgRt.offsetMax = Vector2.zero;
         var bgImg = bg.AddComponent<Image>();
-        bgImg.color = new Color(0f, 0f, 0f, 0.6f);
+        bgImg.sprite = HudSkin.Panel();
+        bgImg.type   = Image.Type.Sliced;
         bgImg.raycastTarget = false;
 
         var fill = new GameObject("Fill");
@@ -231,44 +232,43 @@ public class MinimapUIRenderer : MonoBehaviour
         arrowGO.SetActive(false);
     }
 
-    // Azurová šipka k nejbližšímu ostrovu — ukáže se, jen když má hráč koupenou mapu.
-    void CreateIslandArrow()
+    // Azurová šipka k cíli (waypointu), který si hráč klikl na velké mapě.
+    void CreateWaypointArrow()
     {
-        var go = new GameObject("IslandMapArrow");
+        var go = new GameObject("WaypointArrow");
         go.transform.SetParent(minimapImage.transform, false);
 
-        islandArrowRT = go.AddComponent<RectTransform>();
-        islandArrowRT.sizeDelta   = new Vector2(15f, 15f);
-        islandArrowRT.anchorMin   = islandArrowRT.anchorMax = new Vector2(0.5f, 0.5f);
-        islandArrowRT.pivot       = new Vector2(0.5f, 0.5f);
-        islandArrowRT.anchoredPosition = Vector2.zero;
+        waypointArrowRT = go.AddComponent<RectTransform>();
+        waypointArrowRT.sizeDelta   = new Vector2(15f, 15f);
+        waypointArrowRT.anchorMin   = waypointArrowRT.anchorMax = new Vector2(0.5f, 0.5f);
+        waypointArrowRT.pivot       = new Vector2(0.5f, 0.5f);
+        waypointArrowRT.anchoredPosition = Vector2.zero;
 
         var img = go.AddComponent<Image>();
         img.sprite        = MakeArrowSprite();
-        img.color         = IslandArrowColor;
+        img.color         = WaypointArrowColor;
         img.raycastTarget = false;
 
         go.SetActive(false);
     }
 
-    // Natočí a umístí azurovou šipku podle směru k nejbližšímu ostrovu.
-    void UpdateIslandArrow(bool hasMap, int cx, int cy)
+    // Natočí a umístí azurovou šipku podle směru k waypointu z velké mapy.
+    void UpdateWaypointArrow(bool hasWp, int wpX, int wpY, int cx, int cy)
     {
-        if (islandArrowRT == null) return;
+        if (waypointArrowRT == null) return;
 
-        Vector2Int? target = hasMap ? grid.NearestHarborTile(cx, cy) : null;
-        bool show = target != null && (target.Value.x != cx || target.Value.y != cy);
-        islandArrowRT.gameObject.SetActive(show);
+        bool show = hasWp && (wpX != cx || wpY != cy);
+        waypointArrowRT.gameObject.SetActive(show);
         if (!show) return;
 
-        int dx = target.Value.x - cx;
-        int dy = target.Value.y - cy;
+        int dx = wpX - cx;
+        int dy = wpY - cy;
         float bearing = Mathf.Atan2(dx, dy) * Mathf.Rad2Deg;
-        islandArrowRT.localEulerAngles = new Vector3(0f, 0f, -bearing);
+        waypointArrowRT.localEulerAngles = new Vector3(0f, 0f, -bearing);
 
         float radius = minimapImage.rectTransform.rect.width * 0.5f - 22f; // o kousek blíž středu než kompas
         Vector2 dir = new Vector2(dx, dy).normalized;
-        islandArrowRT.anchoredPosition = dir * radius;
+        waypointArrowRT.anchoredPosition = dir * radius;
     }
 
     // Vytvoří jednoduchou trojúhelníkovou šipku (mířící nahoru) jako sprite.
@@ -326,13 +326,25 @@ public class MinimapUIRenderer : MonoBehaviour
         int cy = playerIndex == 0 ? d.playerGridY : d.player2GridY;
 
         UpdateCompass(playerIndex == 0 ? d.megaQuest : d.player2MegaQuest, cx, cy);
-        UpdateIslandArrow(playerIndex == 0 ? d.hasMap : d.player2HasMap, cx, cy);
+        bool hasWp = playerIndex == 0 ? d.hasWaypoint : d.player2HasWaypoint;
+        int  wpX   = playerIndex == 0 ? d.waypointX   : d.player2WaypointX;
+        int  wpY   = playerIndex == 0 ? d.waypointY   : d.player2WaypointY;
+        UpdateWaypointArrow(hasWp, wpX, wpY, cx, cy);
         RefreshHealthBars();
 
         // Projdi všechny pixely a obarvi je podle políčka, které leží pod nimi.
         for (int px = 0; px < size; px++)
             for (int py = 0; py < size; py++)
                 tex.SetPixel(px, py, GetTileColor(cx + (px - viewRadius), cy + (py - viewRadius)));
+
+        // Cíl z mapy (waypoint) — azurový bod, když je v dohledu minimapy.
+        if (hasWp)
+        {
+            int wxp = wpX - cx + viewRadius;
+            int wyp = wpY - cy + viewRadius;
+            if (wxp >= 0 && wxp < size && wyp >= 0 && wyp < size)
+                tex.SetPixel(wxp, wyp, WaypointArrowColor);
+        }
 
         // Vlastní hráč — bílý bod přesně uprostřed.
         tex.SetPixel(viewRadius, viewRadius, playerColor);
@@ -348,30 +360,25 @@ public class MinimapUIRenderer : MonoBehaviour
                 tex.SetPixel(rx, ry, otherPlayerColor);
         }
 
-        DrawBorder();
+        MaskCircle();     // kulatá minimapa místo čtverce + kruhový rámeček
         tex.Apply(false); // promítni změny do textury
     }
 
-    // Nakreslí rámeček po obvodu minimapy.
-    void DrawBorder()
+    // Ořízne minimapu do kruhu (rohy zprůhlední) a po obvodu nakreslí rámeček.
+    void MaskCircle()
     {
-        int b = Mathf.Clamp(borderPixels, 0, 10);
-        if (b <= 0) return;
+        float c  = (size - 1) * 0.5f;
+        float rOuter = c;                              // vnější poloměr = okraj textury
+        float rBorder = rOuter - Mathf.Clamp(borderPixels, 1, 8);
 
-        // Horní a dolní okraj.
         for (int x = 0; x < size; x++)
-            for (int y = 0; y < b; y++)
+            for (int y = 0; y < size; y++)
             {
-                tex.SetPixel(x, y, borderColor);
-                tex.SetPixel(x, size - 1 - y, borderColor);
-            }
-
-        // Levý a pravý okraj.
-        for (int y = b; y < size - b; y++)
-            for (int x = 0; x < b; x++)
-            {
-                tex.SetPixel(x, y, borderColor);
-                tex.SetPixel(size - 1 - x, y, borderColor);
+                float d = Mathf.Sqrt((x - c) * (x - c) + (y - c) * (y - c));
+                if (d > rOuter)                         // roh mimo kruh → průhledné
+                    tex.SetPixel(x, y, new Color(0, 0, 0, 0));
+                else if (d > rBorder)                   // mezikruží → rámeček
+                    tex.SetPixel(x, y, borderColor);
             }
     }
 

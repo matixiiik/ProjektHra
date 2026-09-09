@@ -92,7 +92,10 @@ public class GameData
     public bool boatWrecked;       // loď je rozbitá → hráč plave ve vodě, dokud ji neopraví v obchodě
     public bool boatNeedsRehome;   // po opravě rozbité lodě: přemístit ji k nejbližšímu molu
     public int  ammo;              // náboje do děla na lodi (kupují se v obchodě)
-    public bool hasMap;            // koupená mapa → na minimapě šipka k nejbližšímu ostrovu
+    public bool hasMap;            // koupená mapa → klávesa M v lodi otevře velkou mapu
+    public bool hasWaypoint;       // hráč si na mapě klikl cíl (navádí šipka na minimapě)
+    public int  waypointX;         // souřadnice cíle (X)
+    public int  waypointY;         // souřadnice cíle (Y)
     public ActiveQuest activeQuest = new ActiveQuest();
     public MegaQuest   megaQuest   = new MegaQuest();
     public List<string> openedChests   = new List<string>(); // klíče "x,y" už otevřených beden
@@ -120,6 +123,9 @@ public class GameData
     public bool player2BoatNeedsRehome;
     public int  player2Ammo;
     public bool player2HasMap;
+    public bool player2HasWaypoint;
+    public int  player2WaypointX;
+    public int  player2WaypointY;
     public ActiveQuest player2ActiveQuest = new ActiveQuest();
     public MegaQuest   player2MegaQuest   = new MegaQuest();
     public List<string> player2OpenedChests = new List<string>();

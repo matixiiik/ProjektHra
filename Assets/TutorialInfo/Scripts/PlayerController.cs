@@ -116,6 +116,7 @@ public class PlayerController : MonoBehaviour
         get => playerIndex == 0 ? gridManager.gameData.boatNeedsRehome : gridManager.gameData.player2BoatNeedsRehome;
         set { if (playerIndex == 0) gridManager.gameData.boatNeedsRehome = value; else gridManager.gameData.player2BoatNeedsRehome = value; }
     }
+    bool PHasMap => playerIndex == 0 ? gridManager.gameData.hasMap : gridManager.gameData.player2HasMap;
 
     /// <summary>Je hráč zrovna v lodi na vodě? (pro soubojový systém)</summary>
     public bool IsSailing  => !isOnFoot && !PBoatWrecked && enabled && gameObject.activeInHierarchy;
@@ -201,12 +202,23 @@ public class PlayerController : MonoBehaviour
         // až nasedne) — řeší i načtení save uprostřed vylodění.
         SyncParkedBoat();
 
-        // Když je otevřený MŮJ obchod / konzole / menu, hráč se neovládá.
-        // (Ve split screenu obchod druhého hráče tohohle hráče nemrazí.)
+        // Velká mapa — jen v lodi (ne pěšky / plavání) a jen s koupenou mapou.
+        // M (P1) / Numpad 2 (P2). Řeší otevření i zavření (Toggle), proto je to
+        // nad "zámkem" ovládání níž.
+        if (KeyDown(KeyCode.M, KeyCode.Keypad2) && !isOnFoot && !PBoatWrecked && PHasMap
+            && !GameConsole.IsOpen && !MainMenuManager.IsVisible && !DeathScreen.IsOpen)
+        {
+            MapScreen.Toggle(playerIndex, gridManager);
+            return;
+        }
+
+        // Když je otevřený MŮJ obchod / konzole / menu / mapa, hráč se neovládá.
+        // (Ve split screenu obchod/mapa druhého hráče tohohle hráče nemrazí.)
         bool myShopOpen = (upgradeShopManager != null && upgradeShopManager.IsOpenForBuyer(playerIndex))
                        || (questShopManager   != null && questShopManager.IsOpenForBuyer(playerIndex));
         bool myTalkOpen = storyNpc != null && storyNpc.IsTalkingWith(playerIndex);
-        if (isMoving || isWorking || myShopOpen || myTalkOpen || GameConsole.IsOpen || MainMenuManager.IsVisible || DeathScreen.IsOpen) return;
+        if (isMoving || isWorking || myShopOpen || myTalkOpen || MapScreen.IsOpenFor(playerIndex)
+            || GameConsole.IsOpen || MainMenuManager.IsVisible || DeathScreen.IsOpen) return;
 
         // E / Numpad1 → nastup/vystup z lodě, nebo vejdi do sousední budovy (maják).
         if (KeyDown(KeyCode.E, KeyCode.Keypad1))
@@ -510,8 +522,27 @@ public class PlayerController : MonoBehaviour
             }
         }
 
+        // Doplul jsi k cíli z mapy (waypoint) → zruš ho.
+        ClearWaypointIfReached(tx, ty);
+
         gridManager.GenerateWorld(tx, ty);
         ExploreCurrentPosition();
+    }
+
+    // Když je hráč u svého waypointu (±1 políčko), cíl se splní a zmizí.
+    void ClearWaypointIfReached(int tx, int ty)
+    {
+        var d = gridManager.gameData;
+        bool has = playerIndex == 0 ? d.hasWaypoint : d.player2HasWaypoint;
+        if (!has) return;
+
+        int wx = playerIndex == 0 ? d.waypointX : d.player2WaypointX;
+        int wy = playerIndex == 0 ? d.waypointY : d.player2WaypointY;
+        if (Mathf.Abs(tx - wx) > 1 || Mathf.Abs(ty - wy) > 1) return;
+
+        if (playerIndex == 0) d.hasWaypoint = false; else d.player2HasWaypoint = false;
+        if (CombatDirector.Instance != null) CombatDirector.Instance.Toast("Dorazil jsi k cíli z mapy.");
+        gridManager.Save();
     }
 
     // Řekne světu, kde teď hráč je, a spustí krátký plynulý přesun — používá

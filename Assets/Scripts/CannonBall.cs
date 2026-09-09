@@ -80,10 +80,10 @@ public class CannonBall : MonoBehaviour
         if (dir == null) return;
 
         PirateShip pirate = dir.PirateNear(transform.position, HIT_RADIUS);
-        if (pirate != null) { pirate.TakeHit(damage); Destroy(gameObject); return; }
+        if (pirate != null) { pirate.TakeHit(damage); SoundManager.PlayHit(); Destroy(gameObject); return; }
 
         HostileIslandCannon cannon = dir.CannonNear(transform.position, HIT_RADIUS);
-        if (cannon != null) { cannon.TakeHit(damage); Destroy(gameObject); return; }
+        if (cannon != null) { cannon.TakeHit(damage); SoundManager.PlayHit(); Destroy(gameObject); return; }
     }
 
     // Nepřátelská koule → hráč, který pluje NEBO plave (rozbitá loď). DamageBoat
@@ -96,6 +96,7 @@ public class CannonBall : MonoBehaviour
             if ((pc.transform.position - transform.position).sqrMagnitude <= HIT_RADIUS * HIT_RADIUS)
             {
                 pc.DamageBoat(Mathf.RoundToInt(damage));
+                SoundManager.PlayHit();
                 Destroy(gameObject);
                 return;
             }

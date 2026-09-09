@@ -276,7 +276,7 @@ public class PlayerController : MonoBehaviour
         CombatDirector.Ensure();
         CannonBall.Fire(from, dir, BoatStats.CannonDamage(PShipLevel), CannonBall.Side.Player);
 
-        SoundManager.PlaySplash();
+        SoundManager.PlayCannon();
         gridManager.NotifyWorldChanged(); // překresli munici v HUD
     }
 
@@ -330,7 +330,7 @@ public class PlayerController : MonoBehaviour
         }
 
         ShowBoatOrFoot();
-        SoundManager.PlaySplash();
+        SoundManager.PlaySink();
         gridManager.Save();
         gridManager.NotifyWorldChanged();
     }

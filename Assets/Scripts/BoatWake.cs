@@ -6,7 +6,8 @@ using UnityEngine;
 //  lodí daného hráče. Pokaždé, co se loď kus posune, přidá pár částic — takže
 //  když loď stojí, nic se neděje, a když pluje, táhne se za ní stopa, co mizí.
 //
-//  Objekt si vytváří PlayerController.Start() (jeden na hráče). Není potřeba
+//  Objekt si vytváří PlayerController.Start() (jeden na hráče) a taky
+//  PirateShip.Spawn() (jeden na pirátskou loď — přes BindShip). Není potřeba
 //  nic zapojovat ve scéně. Materiál částice = jemná bílá tečka generovaná v kódu.
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -14,27 +15,43 @@ public class BoatWake : MonoBehaviour
 {
     private const float WATER_Y = -0.12f; // zhruba výška hladiny (OceanSurface.seaLevel)
 
-    private PlayerController player;
+    private PlayerController player;       // režim "za hráčovou lodí"
+    private Transform        shipOverride; // režim "za libovolnou lodí" (piráti)
     private ParticleSystem   ps;
 
     private Vector3 lastPos;
     private bool    hasLast;
 
-    /// <summary>Zavolá PlayerController hned po AddComponent.</summary>
+    /// <summary>Pěna za hráčovou lodí. Zavolá PlayerController hned po AddComponent.</summary>
     public void Bind(PlayerController owner) => player = owner;
+
+    /// <summary>Pěna za libovolnou lodí (pirát). ship = kořen modelu lodě.</summary>
+    public void BindShip(Transform ship) => shipOverride = ship;
 
     void Start() => BuildParticles();
 
     void LateUpdate()
     {
-        if (player == null) { Destroy(gameObject); return; } // hráč zmizel (konec split-screenu)
+        // Vlastník zmizel (konec split-screenu / potopený pirát) → ukliď se.
+        if (player == null && shipOverride == null) { Destroy(gameObject); return; }
         if (ps == null) return;
 
-        bool sailing = !player.IsOnFoot && player.enabled && player.gameObject.activeInHierarchy;
+        // Loď, za kterou pěnu táhneme, a jestli se zrovna "pluje".
+        Transform boat;
+        bool sailing;
+        if (player != null)
+        {
+            boat    = player.boatModel;
+            sailing = !player.IsOnFoot && player.enabled && player.gameObject.activeInHierarchy;
+        }
+        else
+        {
+            boat    = shipOverride;
+            sailing = true; // pirátská loď pluje pořád
+        }
 
         // Drž se kousek za lodí, na hladině.
-        Transform boat = player.boatModel;
-        Vector3 p    = boat != null ? boat.position : player.transform.position;
+        Vector3 p    = boat != null ? boat.position : transform.position;
         Vector3 back = boat != null ? -boat.forward : Vector3.back;
         Vector3 pos  = new Vector3(p.x + back.x * 0.5f, WATER_Y, p.z + back.z * 0.5f);
         transform.position = pos;

@@ -53,6 +53,9 @@ public class PirateShip : MonoBehaviour
         if (!BuildKenneyModel(root.transform, size))
             BuildPrimitiveModel(root.transform, size);
 
+        // Pěna za lodí (jede za ní sama, ukliší se, až pirát zmizí).
+        new GameObject("PirateWake").AddComponent<BoatWake>().BindShip(root.transform);
+
         var ps = root.AddComponent<PirateShip>();
         ps.size  = size;
         ps.maxHp = size == 0 ? 2.5f : size == 1 ? 5f : 9f;
@@ -60,7 +63,7 @@ public class PirateShip : MonoBehaviour
         return ps;
     }
 
-    // Kenney loď: Assets/TutorialInfo/Resources/PirateShips/ship-pirate-{small,medium,large}.fbx
+    // Kenney loď: Assets/Resources/PirateShips/ship-pirate-{small,medium,large}.fbx
     private static bool BuildKenneyModel(Transform root, int size)
     {
         string name = size == 0 ? "ship-pirate-small" : size == 1 ? "ship-pirate-medium" : "ship-pirate-large";
@@ -197,7 +200,7 @@ public class PirateShip : MonoBehaviour
             nextShot = Time.time + RELOAD;
             float dmg = size == 0 ? 5f : size == 1 ? 8f : 12f;
             CannonBall.Fire(transform.position + Vector3.up * 0.4f, dir, dmg, CannonBall.Side.Enemy);
-            SoundManager.PlaySplash();
+            SoundManager.PlayCannon();
         }
     }
 
@@ -225,6 +228,7 @@ public class PirateShip : MonoBehaviour
 
     void Sink()
     {
+        SoundManager.PlaySink();
         if (CombatDirector.Instance != null) CombatDirector.Instance.OnPirateSunk(this);
         Destroy(gameObject);
     }

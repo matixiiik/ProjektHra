@@ -74,7 +74,7 @@ public class HostileIslandCannon : MonoBehaviour
             nextShot = Time.time + RELOAD;
             Vector3 from = transform.position + Vector3.up * 0.35f;
             CannonBall.Fire(from, to, DAMAGE, CannonBall.Side.Enemy);
-            SoundManager.PlaySplash();
+            SoundManager.PlayCannon();
         }
     }
 
@@ -84,6 +84,7 @@ public class HostileIslandCannon : MonoBehaviour
         hp -= dmg;
         if (hp <= 0f)
         {
+            SoundManager.PlaySink();
             if (CombatDirector.Instance != null) CombatDirector.Instance.OnIslandCannonDestroyed(islandKey);
             Destroy(gameObject);
         }

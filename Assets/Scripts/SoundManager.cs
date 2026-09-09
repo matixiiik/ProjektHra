@@ -28,6 +28,9 @@ public class SoundManager : MonoBehaviour
     private AudioClip splashClip;
     private AudioClip doorClip;
     private AudioClip waveClip;
+    private AudioClip cannonClip;
+    private AudioClip hitClip;
+    private AudioClip sinkClip;
 
     // Najde existující SoundManager ve scéně, nebo si ho (i s AudioSource) vytvoří.
     public static SoundManager Ensure()
@@ -55,6 +58,9 @@ public class SoundManager : MonoBehaviour
         splashClip = MakeSplashClip();
         doorClip   = MakeDoorClip();
         waveClip   = MakeWaveClip();
+        cannonClip = MakeCannonClip();
+        hitClip    = MakeHitClip();
+        sinkClip   = MakeSinkClip();
     }
 
     void OnDestroy()
@@ -67,6 +73,9 @@ public class SoundManager : MonoBehaviour
     public static void PlayCoin()   { SoundManager m = Ensure(); m.PlayOneShotInternal(m.coinClip); }
     public static void PlaySplash() { SoundManager m = Ensure(); m.PlayOneShotInternal(m.splashClip); }
     public static void PlayDoor()   { SoundManager m = Ensure(); m.PlayOneShotInternal(m.doorClip); }
+    public static void PlayCannon() { SoundManager m = Ensure(); m.PlayOneShotInternal(m.cannonClip, 0.9f); }
+    public static void PlayHit()    { SoundManager m = Ensure(); m.PlayOneShotInternal(m.hitClip); }
+    public static void PlaySink()   { SoundManager m = Ensure(); m.PlayOneShotInternal(m.sinkClip, 0.85f); }
 
     // Spustí smyčku hukotu moře (jednou, další volání nic nedělá, pokud už hraje).
     public static void StartWaves()
@@ -86,9 +95,9 @@ public class SoundManager : MonoBehaviour
         return pressed;
     }
 
-    void PlayOneShotInternal(AudioClip clip)
+    void PlayOneShotInternal(AudioClip clip, float scale = 1f)
     {
-        if (clip != null) sfxSource.PlayOneShot(clip, sfxVolume);
+        if (clip != null) sfxSource.PlayOneShot(clip, sfxVolume * scale);
     }
 
     // ── Generování klipů (matematicky, žádné soubory) ─────────────────────────
@@ -169,6 +178,72 @@ public class SoundManager : MonoBehaviour
             data[i] = Mathf.Sin(phase) * env;
         }
         return MakeClip("DoorSfx", data, sr);
+    }
+
+    // Dělová rána — tvrdý útok, hluboké dunění (nízká sinusovka) + prásknutí šumu,
+    // rychlý útlum.
+    AudioClip MakeCannonClip()
+    {
+        int sr = 22050;
+        int n  = Mathf.RoundToInt(sr * 0.4f);
+        float[] data = new float[n];
+        System.Random rng = new System.Random(11);
+        float prev = 0f;
+        for (int i = 0; i < n; i++)
+        {
+            float u   = i / (float)n;
+            float t   = i / (float)sr;
+            float env = Mathf.Exp(-7f * u);                     // rychle dozní
+            float boom = Mathf.Sin(2f * Mathf.PI * Mathf.Lerp(85f, 45f, u) * t); // klesající dunění
+            float noise = (float)(rng.NextDouble() * 2.0 - 1.0);
+            prev = prev * 0.6f + noise * 0.4f;                  // prásknutí (jasnější šum na začátku)
+            float crack = prev * Mathf.Exp(-30f * u);
+            data[i] = (boom * 0.8f + crack * 0.5f) * env;
+        }
+        return MakeClip("CannonSfx", data, sr);
+    }
+
+    // Zásah ("thunk") — krátký dřevěný úder: střední sinusovka s velmi rychlým
+    // útlumem + drobné cvaknutí šumu.
+    AudioClip MakeHitClip()
+    {
+        int sr = 22050;
+        int n  = Mathf.RoundToInt(sr * 0.14f);
+        float[] data = new float[n];
+        System.Random rng = new System.Random(12);
+        for (int i = 0; i < n; i++)
+        {
+            float u   = i / (float)n;
+            float t   = i / (float)sr;
+            float env = Mathf.Exp(-22f * u);
+            float body = Mathf.Sin(2f * Mathf.PI * 165f * t);
+            float tick = (float)(rng.NextDouble() * 2.0 - 1.0) * Mathf.Exp(-60f * u);
+            data[i] = (body * 0.7f + tick * 0.4f) * env * 0.9f;
+        }
+        return MakeClip("HitSfx", data, sr);
+    }
+
+    // Potopení — pomalý klesající sten (sinusovka 200→55 Hz) + bublavý šum,
+    // hlasitost nejdřív naroste a pak odezní.
+    AudioClip MakeSinkClip()
+    {
+        int sr = 22050;
+        int n  = Mathf.RoundToInt(sr * 1.15f);
+        float[] data = new float[n];
+        System.Random rng = new System.Random(13);
+        float prev = 0f;
+        for (int i = 0; i < n; i++)
+        {
+            float u    = i / (float)n;
+            float t    = i / (float)sr;
+            float freq = Mathf.Lerp(200f, 55f, u * u);
+            float tone = Mathf.Sin(2f * Mathf.PI * freq * t);
+            float noise = (float)(rng.NextDouble() * 2.0 - 1.0);
+            prev = prev * 0.85f + noise * 0.15f;               // dolní propust = bublání
+            float env = Mathf.Sin(Mathf.PI * Mathf.Clamp01(u * 1.1f)) * 0.9f;
+            data[i] = (tone * 0.6f + prev * 0.5f) * env;
+        }
+        return MakeClip("SinkSfx", data, sr);
     }
 
     // Hukot moře na pozadí — filtrovaný šum s pomalým "dýcháním" hlasitosti, smyčka.

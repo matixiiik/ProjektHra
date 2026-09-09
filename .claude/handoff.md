@@ -11,6 +11,36 @@ sem Claude píše, kde se přestalo, aby se dalo pokračovat i z notebooku.
 ## STAV 2026-09-09 — vše commitnuté a pushnuté, working tree čistý
 (kromě `Napady.txt`, který si edituje uživatel — necommitovat za něj)
 
+### ZÚTULNĚNÍ MAJÁKU + VZHLED OSTROVA + DĚDOVO POLÍČKO (2026-09-09) — HOTOVO, OTESTOVÁNO přes MCP
+
+Uživatel: "zútulni interiér majáku a i jak vypadá ostrov, na políčku kde je děda
+nic nesmí být." Vše čistě vizuál + drobná logika, nulový dopad na hratelnost.
+
+1. **Ostrov má trávu.** `IslandTerrain.BuildGrass()` — druhý mesh navrch písku,
+   jen ve vnitřku ostrova (u pláže se plynule zaryje pod písek, žádná hrana).
+   `GridManager.EnsureIslandTerrain` k pískovému meshi přidá dítě "IslandGrass"
+   se zeleným materiálem (odvozený jednou z `islandTerrainMaterial`, jen zelený —
+   `IslandGrassMaterial()`). Ladí se `GRASS_INSET 0.5` / `GRASS_FEATHER 1.1` /
+   `GRASS_LIFT 0.05` v `IslandTerrain.cs`.
+2. **Dědovo políčko je holé.** `GridManager.npcClearTile` + `ReserveNpcTile(x,y)` +
+   `StripTileDecor()` (vypne `Decor_*`, zničí `DecorExtra`). `StoryNpc.TryPlace`
+   po usazení zavolá `ReserveNpcTile` — platí i po opětovném vygenerování dlaždice.
+   Navíc: `StoryNpc` čeká 12 snímků, než dědu poprvé postaví, a pak 3 s po startu
+   6× kontroluje (`TileStillGood`), že mu políčko nezůstalo na vodě — jinak ho
+   přesadí (`ClearFigure` + nový `TryPlace`). Řešilo to, že se děda občas usadil
+   na okraji, který se dogeneroval na vodu.
+3. **Interiér majáku zútulněn.** NOVÝ `LighthouseInteriorDecor.cs` — sedí na
+   objektu "InteriorManagers" ve scéně `LighthouseInterior` (přidán + scéna
+   uložena). V `Start()` staví z primitivů: krb s mihotavým ohněm (u zadní stěny
+   mezi pulty), závěsná lampa nad středem, 2 nástěnné lucerny, 2 květiny
+   v květináči, kobereček u vchodu. Taky zteplí studené modré výplňové světlo
+   scény + přidá teplý přísvit. `Flicker` (vnořená třída) = Perlin mihotání ohně.
+   V coopu se propíše sám (děti posouvaného rootu, staví se až v Start()).
+   Pozn.: Unity při uložení scény vyhodil staré serializované `…Cost` pole
+   z obou shopů (zbytek po EconomyConfig dávce — pole už v kódu nejsou).
+
+---
+
 ### PLAY-TEST + OPRAVY dávek 1 a 2 (2026-09-09, MCP zase jede) — HOTOVO, OTESTOVÁNO
 Projeto přes MCP (reflexe + screenshoty). Kompilace 0 chyb/varování.
 

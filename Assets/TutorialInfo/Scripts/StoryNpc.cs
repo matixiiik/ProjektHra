@@ -69,15 +69,48 @@ public class StoryNpc : MonoBehaviour
     }
 
     // Startovní ostrov je vygenerovaný hned v GridManager.Awake(), ale pro jistotu
-    // (pořadí Awake/Start) zkusíme umístění i pár snímků po sobě.
+    // (pořadí Awake/Start) zkusíme umístění i pár snímků po sobě. Navíc se okraj
+    // ostrova občas dorovná až dodatečně — tak po chvíli zkontrolujeme, že dědovi
+    // políčko nezůstalo na vodě, a případně ho přesadíme.
     private IEnumerator PlaceWhenWorldReady()
     {
+        // Nech generaci startovního ostrova po startu doběhnout.
+        for (int i = 0; i < 12; i++) yield return null;
+
         for (int tries = 0; tries < 120 && !placed; tries++)
         {
             TryPlace();
-            if (placed) yield break;
+            if (placed) break;
             yield return null;
         }
+
+        // Kontrola po usazení světa: první ~3 s po startu se okraj ostrova může
+        // ještě dorovnat — kdyby dědovi políčko skončilo na vodě, přesadíme ho.
+        for (int check = 0; check < 6; check++)
+        {
+            yield return new WaitForSeconds(0.5f);
+            if (!placed || TileStillGood(tilePos)) continue;
+
+            ClearFigure();
+            placed = false;
+            yield return null; // nech starou postavičku zmizet
+            for (int tries = 0; tries < 60 && !placed; tries++)
+            {
+                TryPlace();
+                if (placed) break;
+                yield return null;
+            }
+        }
+    }
+
+    // Je políčko pořád dost "na ostrově" (obklopené pevninou, nebo aspoň 3 sousedi)?
+    private bool TileStillGood(Vector2Int t)
+        => SurroundedByLand(t) || LandNeighbourCount(t) >= 3;
+
+    // Zahodí díly postavičky (před přesazením).
+    private void ClearFigure()
+    {
+        foreach (Transform child in transform) Destroy(child.gameObject);
     }
 
     private void TryPlace()
@@ -116,6 +149,11 @@ public class StoryNpc : MonoBehaviour
 
         tilePos = best;
         placed  = true;
+
+        // Na dědově políčku nesmí být žádná dekorace (kámen / palma) — ať trčí
+        // ze země panáček, ne trs trávy. GridManager to zařídí i po opětovném
+        // vygenerování dlaždice.
+        gridManager.ReserveNpcTile(tilePos.x, tilePos.y);
 
         BuildFigure();
     }

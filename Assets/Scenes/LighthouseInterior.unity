@@ -1842,6 +1842,7 @@ GameObject:
   - component: {fileID: 889095619}
   - component: {fileID: 889095618}
   - component: {fileID: 889095617}
+  - component: {fileID: 889095621}
   m_Layer: 0
   m_Name: InteriorManagers
   m_TagString: Untagged
@@ -1873,8 +1874,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d32529247d823f8429ef925cefce3855, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::QuestShopManager
-  fishSellPrice: 10
-  treasureSellPrice: 30
 --- !u!114 &889095619
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1887,11 +1886,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 7be313b5d37af2443a58690658d8c0d2, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::UpgradeShopManager
-  speedUpgradeCost: 150
-  rodUpgradeCost: 100
-  miningUpgradeCost: 120
-  shipMediumCost: 300
-  shipLargeCost: 800
 --- !u!4 &889095620
 Transform:
   m_ObjectHideFlags: 0
@@ -1907,6 +1901,18 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &889095621
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 889095616}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 316174b4bd7d2b240b0dfcc3caa74c56, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::LighthouseInteriorDecor
 --- !u!1 &939022258
 GameObject:
   m_ObjectHideFlags: 0

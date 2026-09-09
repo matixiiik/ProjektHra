@@ -18,6 +18,13 @@ public static class IslandTerrain
     private const float RES    = 0.5f;    // rozteč vrcholů mřížky (jemnější = hladší)
     private const float BEACH  = 1.25f;   // šířka svahu pláže (kolik za pevninu mesh sahá)
 
+    // ── Travnatý povrch (druhý mesh navrch písku) ──────────────────────────
+    // Tráva roste jen ve vnitřku ostrova — u pláže se plynule "zaryje" pod
+    // písek, takže mezi pískem a trávou není žádná hrana.
+    private const float GRASS_INSET   = 0.5f;   // jak daleko od kraje tráva začíná
+    private const float GRASS_FEATHER = 1.1f;   // šířka měkkého přechodu písek→tráva
+    private const float GRASS_LIFT    = 0.05f;  // o kolik je tráva nad pískem
+
     /// <summary>Postaví mesh terénu pro daný ostrov.</summary>
     public static Mesh Build(HashSet<Vector2Int> land)
     {
@@ -94,11 +101,118 @@ public static class IslandTerrain
         return mesh;
     }
 
+    /// <summary>
+    /// Postaví mesh travnatého povrchu ostrova (leží těsně nad pískovým meshem).
+    /// Pokrývá jen vnitřek — u pláže se svažuje pod písek, ať přechod není vidět.
+    /// </summary>
+    public static Mesh BuildGrass(HashSet<Vector2Int> land)
+    {
+        int minX = int.MaxValue, minY = int.MaxValue, maxX = int.MinValue, maxY = int.MinValue;
+        foreach (var c in land)
+        {
+            if (c.x < minX) minX = c.x;
+            if (c.y < minY) minY = c.y;
+            if (c.x > maxX) maxX = c.x;
+            if (c.y > maxY) maxY = c.y;
+        }
+
+        // Tráva nikdy nepřesahuje pevninu, stačí malý okraj na měkký sešup.
+        float m  = 1f;
+        float x0 = minX - m, x1 = maxX + 1 + m;
+        float z0 = minY - m, z1 = maxY + 1 + m;
+
+        int nx = Mathf.CeilToInt((x1 - x0) / RES) + 1;
+        int nz = Mathf.CeilToInt((z1 - z0) / RES) + 1;
+
+        var grid   = new Vector3[nx, nz];
+        var hasGr  = new bool[nx, nz]; // je v tomhle vrcholu vůbec tráva?
+
+        for (int i = 0; i < nx; i++)
+        {
+            for (int j = 0; j < nz; j++)
+            {
+                float wx = x0 + i * RES;
+                float wz = z0 + j * RES;
+
+                float onLand = NearestLandDist(land, wx, wz);   // 0 = na pevnině
+                float toEdge = NearestNonLandDist(land, wx, wz); // vzdálenost k nejbližší vodě/kraji
+
+                // Tráva jen tam, kde JSME na pevnině a zároveň dost daleko od kraje.
+                float t = Mathf.Clamp01((toEdge - GRASS_INSET) / GRASS_FEATHER);
+                if (onLand > 0.01f) t = 0f;
+
+                hasGr[i, j] = t > 0.001f;
+
+                // Výška: stejný podklad jako písek (LAND_Y + jemný šum), navrch
+                // zvednutá o GRASS_LIFT. U kraje (t→0) se schová pod písek.
+                float bump = (Mathf.PerlinNoise(wx * 0.55f + 11.3f, wz * 0.55f + 4.7f) - 0.5f) * 0.14f;
+                float top  = LAND_Y + bump + GRASS_LIFT;
+                float h    = Mathf.Lerp(LAND_Y - 0.06f, top, t);
+
+                grid[i, j] = new Vector3(wx, h, wz);
+            }
+        }
+
+        var verts = new List<Vector3>();
+        var tris  = new List<int>();
+
+        for (int i = 0; i < nx - 1; i++)
+        {
+            for (int j = 0; j < nz - 1; j++)
+            {
+                // Čtverec kreslíme jen když má tráva ve všech 4 rozích.
+                if (!hasGr[i, j] || !hasGr[i + 1, j] || !hasGr[i, j + 1] || !hasGr[i + 1, j + 1])
+                    continue;
+
+                Vector3 a = grid[i, j];
+                Vector3 b = grid[i + 1, j];
+                Vector3 c = grid[i, j + 1];
+                Vector3 d = grid[i + 1, j + 1];
+
+                AddTri(verts, tris, a, c, b);
+                AddTri(verts, tris, b, c, d);
+            }
+        }
+
+        var mesh = new Mesh { name = "IslandGrass" };
+        if (verts.Count > 65000)
+            mesh.indexFormat = UnityEngine.Rendering.IndexFormat.UInt32;
+        mesh.SetVertices(verts);
+        mesh.SetTriangles(tris, 0);
+        mesh.RecalculateNormals();
+        mesh.RecalculateBounds();
+        return mesh;
+    }
+
     private static void AddTri(List<Vector3> verts, List<int> tris, Vector3 a, Vector3 b, Vector3 c)
     {
         int i = verts.Count;
         verts.Add(a); verts.Add(b); verts.Add(c);
         tris.Add(i); tris.Add(i + 1); tris.Add(i + 2);
+    }
+
+    // Vzdálenost bodu [wx,wz] k nejbližšímu NEpevninovému políčku (voda / mimo
+    // ostrov). Velká hodnota = jsme hluboko ve vnitrozemí.
+    private static float NearestNonLandDist(HashSet<Vector2Int> land, float wx, float wz)
+    {
+        int cx = Mathf.FloorToInt(wx);
+        int cz = Mathf.FloorToInt(wz);
+        float best = float.MaxValue;
+
+        for (int dx = -3; dx <= 3; dx++)
+        {
+            for (int dy = -3; dy <= 3; dy++)
+            {
+                var cell = new Vector2Int(cx + dx, cz + dy);
+                if (land.Contains(cell)) continue; // hledáme jen NEpevninu
+
+                float px = Mathf.Clamp(wx, cell.x, cell.x + 1f);
+                float pz = Mathf.Clamp(wz, cell.y, cell.y + 1f);
+                float d = Mathf.Sqrt((wx - px) * (wx - px) + (wz - pz) * (wz - pz));
+                if (d < best) best = d;
+            }
+        }
+        return best == float.MaxValue ? 99f : best;
     }
 
     // Vzdálenost bodu [wx,wz] k nejbližšímu pevninovému políčku (0 = uvnitř).

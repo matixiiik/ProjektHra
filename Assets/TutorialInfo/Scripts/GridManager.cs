@@ -51,6 +51,11 @@ public class GridManager : MonoBehaviour
     // Právě existující 3D objekty políček. Klíč "x,y" → objekt ve scéně.
     private Dictionary<string, GameObject> activeTiles = new Dictionary<string, GameObject>();
 
+    // Políčko, na kterém sedí příběhové NPC (děda) — nesmí na něm být žádná
+    // dekorace. Zamluví si ho StoryNpc, jakmile se usadí (a znovu při každém
+    // vygenerování té dlaždice, když se hráč vrátí).
+    private Vector2Int? npcClearTile;
+
     // Hladké terénní meshe ostrovů. Klíč = "minX,minY" ostrova.
     private class IslandRec { public GameObject go; public List<string> tileKeys; }
     private Dictionary<string, IslandRec> islandTerrains = new Dictionary<string, IslandRec>();
@@ -685,6 +690,11 @@ public class GridManager : MonoBehaviour
         GameObject newTile = Instantiate(prefab, pos, Quaternion.identity, transform);
         activeTiles.Add(GridKey(x, y), newTile);
 
+        // Dědovo políčko musí zůstat holé — sundej z něj dekoraci, kterou si
+        // HarborPrefab (IslandDecor) právě přidal ve svém Awake.
+        if (npcClearTile.HasValue && npcClearTile.Value.x == x && npcClearTile.Value.y == y)
+            StripTileDecor(newTile);
+
         // Rybí dlaždice: zruš vlastní pohupování — sedí napevno v hladině.
         if ((TileType)status.type == TileType.Water_Fish)
         {
@@ -744,6 +754,28 @@ public class GridManager : MonoBehaviour
         }
     }
 
+    /// <summary>
+    /// Zamluví políčko [x,y] jako "bez dekorace" — volá StoryNpc, když se děda
+    /// usadí. Když ta dlaždice právě existuje ve scéně, dekoraci z ní hned sundá.
+    /// </summary>
+    public void ReserveNpcTile(int x, int y)
+    {
+        npcClearTile = new Vector2Int(x, y);
+        if (activeTiles.TryGetValue(GridKey(x, y), out GameObject tile))
+            StripTileDecor(tile);
+    }
+
+    // Sundá z dlaždice všechnu ozdobu: vestavěné děti "Decor_*" vypne,
+    // doplněné Kenney "DecorExtra" zničí.
+    private static void StripTileDecor(GameObject tile)
+    {
+        foreach (Transform child in tile.transform)
+        {
+            if (child.name.StartsWith("Decor_")) child.gameObject.SetActive(false);
+            else if (child.name == "DecorExtra") Destroy(child.gameObject);
+        }
+    }
+
     // Políčka, pod která patří hladký terénní mesh ostrova (ne molo — to je nad vodou).
     private static bool IsMeshLandTile(TileType t)
         => t == TileType.Harbor || t == TileType.Lighthouse || t == TileType.Chest;
@@ -792,7 +824,35 @@ public class GridManager : MonoBehaviour
         mr.sharedMaterial  = islandTerrainMaterial;
         mr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.On;
 
+        // Travnatý povrch navrch písku (jen vnitřek ostrova). Stejný materiál
+        // jako písek, jen obarvený do zelena → sedí do světla scény.
+        var grass = new GameObject("IslandGrass " + islandKey);
+        grass.transform.SetParent(go.transform, false);
+        var gmf = grass.AddComponent<MeshFilter>();
+        var gmr = grass.AddComponent<MeshRenderer>();
+        gmf.sharedMesh       = IslandTerrain.BuildGrass(land);
+        gmr.sharedMaterial   = IslandGrassMaterial();
+        gmr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.On;
+
         islandTerrains[islandKey] = new IslandRec { go = go, tileKeys = keys };
+    }
+
+    // Zelený materiál pro trávu — odvozený jednou z pískového materiálu, ať má
+    // stejný shader a reaguje na světlo scény stejně jako zbytek ostrova.
+    private Material grassMaterialCache;
+    private Material IslandGrassMaterial()
+    {
+        if (grassMaterialCache != null) return grassMaterialCache;
+
+        grassMaterialCache = islandTerrainMaterial != null
+            ? new Material(islandTerrainMaterial)
+            : new Material(Shader.Find("Universal Render Pipeline/Lit"));
+        grassMaterialCache.name = "IslandGrass (runtime)";
+
+        Color green = new Color(0.36f, 0.55f, 0.28f);
+        if (grassMaterialCache.HasProperty("_BaseColor")) grassMaterialCache.SetColor("_BaseColor", green);
+        if (grassMaterialCache.HasProperty("_Color"))     grassMaterialCache.SetColor("_Color", green);
+        return grassMaterialCache;
     }
 
     // Smaže terénní meshe ostrovů, ze kterých už nezůstalo žádné aktivní políčko.

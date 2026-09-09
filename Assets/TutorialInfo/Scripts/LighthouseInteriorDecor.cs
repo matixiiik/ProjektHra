@@ -7,7 +7,7 @@ using UnityEngine;
 //   • zadní stěna: JEDEN dlouhý dřevěný stůl ROVNOBĚŽNÝ SE DVEŘMI, za ním tři
 //     prodavači (vylepšení / questy / výkupna) v tričku barvy obchodu
 //   • na zdi nad stolem velká mapa
-//   • uprostřed: nízký sloup + závěsná lampa, kolem kruhový kobereček
+//   • uprostřed: kruhový kobereček + závěsná lampa
 //   • po stranách: ohřívadlo + lucerna + květina + bedny (dekorace — nemusí být)
 //  Původní barevné kostky pultů se schovají, náhodné bedny/sudy ze scény taky.
 //
@@ -159,13 +159,9 @@ public class LighthouseInteriorDecor : MonoBehaviour
         Box(g.transform,    "Nose", new Vector3(0f, 1.32f, -0.22f), new Vector3(0.09f, 0.09f, 0.14f), skin);
     }
 
-    // ── Střed: nízký sloup + kruhový kobereček ──────────────────────────
+    // ── Střed: kruhový kobereček + závěsná lampa ────────────────────────
     private void BuildCentre()
     {
-        Cyl(transform, "Pillar",     new Vector3(0f, 0.6f, 0f),  new Vector3(1.3f, 0.6f, 1.3f), Vector3.zero, stone);
-        Cyl(transform, "PillarTop",  new Vector3(0f, 1.24f, 0f), new Vector3(1.5f, 0.12f, 1.5f), Vector3.zero, woodDark);
-
-        // Velký kruhový kobereček kolem sloupu.
         var rug = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
         rug.name = "CentreRug";
         Destroy(rug.GetComponent<Collider>());
@@ -276,7 +272,7 @@ public class LighthouseInteriorDecor : MonoBehaviour
             if (ip.gameObject.scene == gameObject.scene)
             {
                 ip.areaRadius  = WALK_RADIUS;
-                ip.innerRadius = 0.95f; // sloup uprostřed
+                ip.innerRadius = 0f; // uprostřed nic není
             }
 
         foreach (var it in FindObjectsByType<InteriorInteractable>(FindObjectsSortMode.None))

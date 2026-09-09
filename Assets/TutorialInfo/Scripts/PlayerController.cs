@@ -705,8 +705,10 @@ public class PlayerController : MonoBehaviour
     private bool    headDotHomeSaved;
 
     // O kolik posadit panáčka pod hladinu, když plave (rozbitá loď) — tak, aby
-    // z vody koukala jen hlava. Postavička je ~1,1 vysoká, hladina cca -0.22.
-    private const float SWIM_SINK = 0.66f;
+    // z vody koukala jen hlava. Počátek modelu je u nohou, tělo (kapsle) je ~1,1
+    // vysoké a hlava sedí kolem lokální výšky 0.9–1.3; hladina je cca −0.22, takže
+    // aby byl trup pod vodou, musí panáček dolů skoro o celou svoji výšku.
+    private const float SWIM_SINK = 1.3f;
 
     // Zapne loď / panáčka podle stavu (loď / pěšky / plave).
     void ShowBoatOrFoot()

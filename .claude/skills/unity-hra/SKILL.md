@@ -3,7 +3,7 @@ name: unity-hra
 description: >-
   Pracovní postup pro Game1 — Unity hru "Lodní dobrodružství" (maturitní projekt).
   POUŽIJ VŽDY, když se v tomhle repu přidává nebo mění herní funkce, opravuje bug,
-  edituje jakýkoli skript v Assets/TutorialInfo/Scripts, řeší se chování ve scéně,
+  edituje jakýkoli skript v Assets/Scripts, řeší se chování ve scéně,
   save systém, multiplayer, obchody, minimapa, konzole nebo když si uživatel není
   jistý, co má naklikat v Unity. Skill drží maturitní pravidla (české komentáře,
   jednoduchý obhajitelný kód, opatrnost s referencemi ve scéně), umí ověřit

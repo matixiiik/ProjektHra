@@ -13,7 +13,7 @@ Když vrátí „No Unity Editor instances found" → Unity není připojené, j
 |---|---|---|
 | Přeložit po úpravě | `refresh_unity` `compile: request`, `wait_for_ready: true` | počká, než je editor „ready" |
 | Chyby a varování | `read_console` `types: ["error"]` / `["warning"]` `format: plain` | `count` posílej jako text `"20"` |
-| Rychlá validace jednoho skriptu | `validate_script` `uri: "Assets/TutorialInfo/Scripts/X.cs"` `level: standard` | nespoléhej jen na tohle, nedělá cross-file kontrolu |
+| Rychlá validace jednoho skriptu | `validate_script` `uri: "Assets/Scripts/X.cs"` `level: standard` | nespoléhej jen na tohle, nedělá cross-file kontrolu |
 | Vyčistit konzoli před testem | `read_console` `action: clear` | jen UI stav, nic v projektu |
 
 ## Testování za běhu

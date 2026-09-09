@@ -317,7 +317,7 @@ public class GameConsole : MonoBehaviour
                 var h = NearestHostileIsland(px, py);
                 if (h == null)
                     Log("<color=#ffcc66>Žádný nepřátelský ostrov jsi zatím neobjevil. Pluj dál od startu — " +
-                        "zhruba 1 z 5 ostrovů je nepřátelský (červená vlajka na majáku, červená tečka na minimapě).</color>");
+                        "zhruba 2 z 5 ostrovů jsou nepřátelské (červená vlajka na majáku, červená tečka na minimapě).</color>");
                 else
                     ReportNearest("nepřátelský ostrov", h, px, py);
                 break;
@@ -337,7 +337,7 @@ public class GameConsole : MonoBehaviour
 
     // Nejbližší nepřátelský ostrov, který hráč už objevil (má dělo, ještě ho nezničil).
     // Nepřátelské ostrovy se nedají předpovědět dopředu — do seznamu se přidají,
-    // až k nim hráč jednou dopluje. ~20 % všech ostrovů je nepřátelských.
+    // až k nim hráč jednou dopluje. ~40 % všech ostrovů je nepřátelských.
     Vector2Int? NearestHostileIsland(int px, int py)
     {
         Vector2Int? best = null;

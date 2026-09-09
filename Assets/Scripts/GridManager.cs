@@ -522,9 +522,9 @@ public class GridManager : MonoBehaviour
         ClearSpawnsNearIsland(land); // klidná zóna: smaž poklady/ryby, co vznikly dřív, než tu byl ostrov
         AssignIslandDecor(land);     // dekorace se vygeneruje jednou a uloží se do dlaždic
 
-        // ~20 % ostrovů je nepřátelských — mají dělo, co po hráči střílí
+        // ~40 % ostrovů je nepřátelských — mají dělo, co po hráči střílí
         // (klíč = bod, kolem kterého ostrov vznikl; ten je stabilní).
-        if (UnityEngine.Random.value < 0.20f)
+        if (UnityEngine.Random.value < 0.40f)
         {
             string key = GridKey(startX, startY);
             if (!gameData.hostileIslands.Contains(key)) gameData.hostileIslands.Add(key);

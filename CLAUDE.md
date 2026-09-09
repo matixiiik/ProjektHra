@@ -63,7 +63,7 @@ ostrově). Podporuje lokální split-screen pro dva hráče.
   **40** políček s **30 %** šancí, min. rozestup **200**. Každý ostrov: molo
   (`PlaceEdgePier` — dvoupolíčkový výběžek do vody), maják 2×2 (`PlaceLighthouse`
   — nesmí ostrov rozdělit ani stát u mola), s 25 % šancí bedna, klidná zóna
-  `SPAWN_ISLAND_CLEARANCE=25` (žádné ryby/vraky/piráti blízko). ~20 % ostrovů je
+  `SPAWN_ISLAND_CLEARANCE=25` (žádné ryby/vraky/piráti blízko). ~40 % ostrovů je
   **nepřátelských** (`gameData.hostileIslands`) — mají dělo (`HostileIslandCannon`).
 - Hladký terén ostrova = generovaný mesh (`IslandTerrain.Build` + `BuildGrass`).
 - `OnWorldChanged` event → překreslení HUD, minimapy.

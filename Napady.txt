@@ -2,13 +2,9 @@ predelej tresuery (co jsou na mori na grafiku ship-wreck, aby to vypadalo jako z
 
 predel to ze kdyz vejdes do majaku je to ctverec - uprav to nejak aby to bylo kolo a tam ty shopy oka atd (kdyz to je kulaty majak tak je napicu kdyz to vypada pak jako ctverec), nikde nesmi fungovat na player 1 sipky na chozeni (jenom na pyer 2 jenom ve split screenu)
 
-
-
 predelej aby to more nebyli nejlip tyle ale jedna velka voda a pridat tam nejak vlny (aby to nevypadlo jako ze tam glitchuje textura), udelej jeste aby kdyz natocis kameru tak to vypada ze ta lod lita tak ji dej vic do vody aby to vypadalo jako ze fakt pluje, uber spawn rate pokladu aby nebyli tak caste a ty pole s rybama taky (ale porad nejvic basic jsou ryby pak poklady pak ostrovy pak mege quest bedny atd...) + ty poklady maji trosku tmavsi barvu nez more dej tam stejnou barvu kdyz tam je takovahle extra textura vraku, kdyz uz se jednou otevre bedna s mega questem tak uz nikdy potom nupujde otevrit znova (ani ve split screenu muze ji otevrti jenom jeden clovek bud player 2 nebo player 1
 
-
-
-pridej npc stejne postavicky jako ja jenom sede ale jenom na ten zakladni ostrov (chtel bych z tehle hry udelat alespon kratkou pribehovku a tadyta postava, deda, to zacne jakoze bude rikat ze si schoval pokald a ze je to jeho posldni prani abych ho nasel (ale to pak jeste nejak doladime zatim nacrt)), zmensi ty postavičky na ostrove (i když hrajou 2 hraci) aby nebyli stejne vysoci jako majak aby to vypadalo vic realisticky
+pridej 1 npc stejne postavicky jako ja jenom sede ale jenom na ten zakladni ostrov (chtel bych z tehle hry udelat alespon kratkou pribehovku a tadyta postava, deda, to zacne jakoze bude rikat ze si schoval pokald a ze je to jeho posldni prani abych ho nasel (ale to pak jeste nejak doladime zatim nacrt))
 
 pridej jeste ze se nebude zacinat se small boat ale s boat row small a pak se to teprve zacne dokupat na ty lepsi v shopu, pridej kazde lodi at ma nejake vylepseni oproti ty posledni
 
@@ -16,9 +12,26 @@ udelej ze lod se da opravovat v pristavu a kdyz se vystou pi z lodi tak misto to
 
 dale pridame na ostovy dela a 20% z ostovu bude nejdriv nepratelsky a kdyz se dostanes na dostrel ostrovu tak na tebe zacne strilet, stejne udelej aby se dalo strilet z lode a v upgrade shopu se bude dat dokupovat munice, bude se strilet levym tlacitkem na mysi, potom jeste pridej ze se nekde na lodi budou objevovat pirati od small az large lodi a podle toho je bude tezky zabit, kdyz na ne narazis tak je muzes potopit a dostat za to odmenu nebo udejt a po nejaky dobe te nechajhi byt, kdyz prijedes k nim tak se oprostred nahode objevi jejich helth bar (takovej boss fight type)
 
-pridej toto na ostrov aby to vypadalo lip: rocks-a/b/c (kameny v trávě), rocks-sand-b/c (další varianty — používáš jen -a)
+stary namornik sedi mimo ostrov (podminka ze musi byt kolem nej jeste ostrov, veslici jeste o malilinko nad hladinu ale jenom malinko, 1 ryba = 1 peniz, 1 poklad = 5 penez, pridej krizky kteryma se zavrou obchody (prava nahore), pridej tu grafiku na ty piratske lode, nejak shrn podle toho co sem ti psal ze stoji ryby  a treasury jeste bude stat large lod za 1000 tak slad ostatni veci co davaji penize a utracis to za to aby to bylo vyvazene, + shop nech torsku drazsi ale na kazdem ostrove budou mit rozmezi 1 - 20 (pokud to neni vykup pouze prodej) aby to bylo nekde levnejsi o trochu a nekde drazsi, zvec ty palmy na ostrovech (palma bude tak 0.5 majaku a ze 4x4 basic ostorv bude min 5x5, dale sniz spawnrate ostrovu aby byli minimalne 200 blocku od sebe, porad sniz spawn rate vraku jeste trochu vic, v shopu si budes moct koupit mapu a bude to delat to ze to jinou barvou nez questy bude ukazovat na minimape sipku kde je nejblizsi ostrov, pridej toto na ostrov aby to vypadalo lip: rocks-a/b/c (kameny v trávě), rocks-sand-b/c (další varianty — používáš jen -a)
 grass, grass-plant (drobné trsy), palm-bend, palm-straight (lehčí palmy, víc druhů)
-patch-grass-foliage, patch-sand-foliage (záplaty terénu s křovím rovnou v modelu — rychlé oživení)
+patch-grass-foliage, patch-sand-foliage (záplaty terénu s křovím rovnou v modelu — rychlé oživení) + zvec dekorace na ostrove vuci majaku a panackovy a lodi a pristavu (ty nech stejne a ostatni prizpusob), jeste udelej to ze kdyz umres tak ti to hodi obrazovku kde budes mit tlacitko respawn nebo main menu - kdyz das respawn tak te to vzdy spawne s veslici na nejblizsim ostrove od mista umrti, penize ti zustanou ale korist -  jako naboje poklady ryby a vsechna vylepseni ti zmizi (zustane jenom lod a penize), jeste na tom zacatecnim ostrove nebude truhla s mega questem
+kdyby te neco zajimalo tak se me zeptej ale zapni remote sesion at mi to prijde (upozorneni na mobil)
 
+predelej minimapu na kruhovou, je tam strasne moc stromu kamenu atd, vybalancuj to trochu aby tam toho nebylo moc ani malo
+
+udelat extremne vzacne mega ostrovy (zatim pouze velka plocha ale at budes ready az ti reknu ze tam budeme pridavat hodne veci) kam vas bude zavadet pribeh kazdej mega ostrov bude jiny (to se ´potom napoji na pribeh), zacatek prihebu je ze ti stary namornik na zcatku rekne at nemas vor a koupis si alespon small boat a pak te vyda na cestu - bude si te jeste potrebovat proverit a tak ti rekne at mu das 1000 minci a historicky poklad (to pridas jako moznost co pada z mega questu tak 20% sance nato) nekde se to bude psat abys vedel ze ho mas, potom az bude vedet ze si ready tak ti da souradnice ostrova ktere se ti objevi nahore a na minimape bude sipka jaky smerem to je, bude to dost daleko a povede te to na prave ten jeden z mega ostrovu, ale az udels vse na tom ostrove (jesete pak dodelam co vse tam musis udelat) zjistis ze ho uz nekdo vykopal ale nechal ti tam napovedu kde nebo jak ho najit a pak to pokracuje dal ale zatim udelej toto
+
+
+
+Nápady, jak to vylepšit
+pridej prikaz get item jako treba mapu nebo naboje atd
+Zvuk soubojů — dělová rána, „thunk" zásahu, zvuk potopení. SoundManager je procedurální, přidat pár synth zvuků je rychlé. Teď je boj skoro němý.
+Feedback zásahu — krátký červený záblesk / lehké cuknutí kamery / žbluňk částic při trefě. Teď se hýbe jen HP bar.
+Piráti a nepřátelské ostrovy na minimapě (červené tečky) + červená vlajka na majáku nepřátelského ostrova — teď zjistíš že je ostrov nepřátelský, až když po tobě začne pálit.
+Regenerace zdraví panáčka — když jsi dlouho pěšky v bezpečí, pomalu se léčí. Teď je každý zásah trvalá ztráta až do smrti.
+Vrak po rozbité lodi zůstane chvíli na hladině — doplaveš k němu a zachráníš část nákladu, než klesne. Přidá to drama místo „náklad prostě zmizel".
+Pauza při otevřeném obchodu/dialogu — teď hra běží dál a pirát tě může sejmout, když nakupuješ v majáku (pokud to není záměr).
+Krátká nápověda na startu (třeba od dědy): LMB = střelba, E = maják/přístav, R = oprava. Nový hráč ovládání netuší.
+Pěna i za pirátskými loděmi — teď kloužou po vodě bez stopy, působí staticky.
 
 

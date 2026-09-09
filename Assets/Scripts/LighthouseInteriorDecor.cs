@@ -34,7 +34,7 @@ public class LighthouseInteriorDecor : MonoBehaviour
     private const float TABLE_Z    = 1.95f; // jak daleko dozadu je stůl (o kus dopředu, ať se za něj vejdou prodavači)
     private const float SLOT_X     = 1.3f;  // rozestup 3 obchodů podél stolu
     private const float COUNTER_Z  = 1.65f; // kde je bod interakce (před stolem)
-    private const float KEEPER_Z   = 2.40f; // kde stojí prodavač (za stolem)
+    private const float KEEPER_Z   = 2.78f; // kde stojí prodavač (kus ZA stolem, ať nevypadá zaražený v desce)
     private static readonly Vector3 SceneQuestPos = new Vector3(2.6f, 0.5f, 2.5f); // původní poloha kostky (coop)
 
     private Material wood, woodDark, stone, cloth, leaf, ember, metal, skin;
@@ -208,13 +208,14 @@ public class LighthouseInteriorDecor : MonoBehaviour
     // ── Závěsná lampa (přesně uprostřed) ─────────────────────────────────
     private void BuildHangingLamp(Vector3 pos)
     {
+        // Výš, ať lampa neprotíná obličej prostředního prodavače v pohledu od dveří.
         var root = NewChild("HangingLamp", pos);
-        Box(root.transform, "Chain", new Vector3(0f, 3.4f, 0f), new Vector3(0.04f, 1.4f, 0.04f), metal);
-        Box(root.transform, "Cage",  new Vector3(0f, 2.5f, 0f), new Vector3(0.28f, 0.4f, 0.28f), metal);
-        var glow = Sphere(root.transform, "Glow", new Vector3(0f, 2.5f, 0f), Vector3.one * 0.22f, ember);
+        Box(root.transform, "Chain", new Vector3(0f, 3.75f, 0f), new Vector3(0.04f, 0.9f, 0.04f), metal);
+        Box(root.transform, "Cage",  new Vector3(0f, 3.2f, 0f), new Vector3(0.28f, 0.4f, 0.28f), metal);
+        var glow = Sphere(root.transform, "Glow", new Vector3(0f, 3.2f, 0f), Vector3.one * 0.22f, ember);
         glow.GetComponent<MeshRenderer>().shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
 
-        var lightGo = NewChild("LampGlow", pos + new Vector3(0f, 2.5f, 0f));
+        var lightGo = NewChild("LampGlow", pos + new Vector3(0f, 3.2f, 0f));
         var pl = lightGo.AddComponent<Light>();
         pl.type      = LightType.Point;
         pl.color     = new Color(1f, 0.86f, 0.62f);

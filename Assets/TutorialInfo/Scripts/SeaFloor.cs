@@ -14,6 +14,9 @@ using UnityEngine;
 //  hladinu) — vypadá to jako přírodní mělčina/útes, na kterém vrak uvázl, ne
 //  jako umělá kupka uprostřed ničeho. Souřadnice vraků dodává GridManager.
 //
+//  Stejně tak kolem ostrovů se dno zvedne až k jejich úpatí, aby ostrov
+//  "vyrůstal ze dna" a nekončil pod vodou uříznutý.
+//
 //  Objekt vytváří GridManager (viz CreateSeaWorld). Nemá kolizi ani vliv na hru.
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -28,7 +31,10 @@ public class SeaFloor : MonoBehaviour
 
     private const float SHOAL_Y      = -2.7f; // jak vysoko se dno zvedne pod vrakem
     private const float SHOAL_RADIUS = 9f;    // do jaké vzdálenosti od vraku se dno zvedá
-    private const int   SCAN_RADIUS  = 44;    // v kolika políčkách kolem hledat vraky
+    private const int   SCAN_RADIUS  = 44;    // v kolika políčkách kolem hledat vraky/ostrovy
+
+    private const float SHELF_Y      = -0.8f; // kam se dno zvedne u ostrova (těsně pod úpatí ostrovního meshe)
+    private const float SHELF_RADIUS = 9f;    // jak daleko od ostrova se dno zvedá do mělčiny
 
     private Transform   p1;
     private Transform   p2;
@@ -40,7 +46,8 @@ public class SeaFloor : MonoBehaviour
     private Vector3[]  verts;
     private Vector2Int lastSnap = new Vector2Int(int.MaxValue, int.MaxValue);
 
-    private readonly List<Vector2Int> wrecks = new List<Vector2Int>();
+    private readonly List<Vector2Int> wrecks      = new List<Vector2Int>();
+    private readonly List<Vector2Int> islandTiles = new List<Vector2Int>();
 
     /// <summary>Zavolá GridManager hned po vytvoření objektu.</summary>
     public void Init(Material sandMaterial, Transform player1, GridManager gridManager)
@@ -139,9 +146,15 @@ public class SeaFloor : MonoBehaviour
         float oz = transform.position.z;
 
         if (grid != null)
+        {
             grid.CollectTreasureTilesNear(Mathf.RoundToInt(ox), Mathf.RoundToInt(oz), SCAN_RADIUS, wrecks);
+            grid.CollectIslandTilesNear(Mathf.RoundToInt(ox), Mathf.RoundToInt(oz), SCAN_RADIUS, islandTiles);
+        }
         else
+        {
             wrecks.Clear();
+            islandTiles.Clear();
+        }
 
         for (int k = 0; k < verts.Length; k++)
         {
@@ -162,6 +175,19 @@ public class SeaFloor : MonoBehaviour
                 if (s > shoal) shoal = s;
             }
             if (shoal > 0f) floorY = Mathf.Max(floorY, Mathf.Lerp(floorY, SHOAL_Y, shoal));
+
+            // Okolí ostrova → dno se zvedne až k jeho úpatí, ať ostrov "vyrůstá
+            // ze dna" a nekončí pod vodou uříznutý (stejný princip jako u vraků).
+            float shelf = 0f;
+            for (int t = 0; t < islandTiles.Count; t++)
+            {
+                float dx = wx - (islandTiles[t].x + 0.5f);
+                float dz = wz - (islandTiles[t].y + 0.5f);
+                float s  = Mathf.Clamp01(1f - Mathf.Sqrt(dx * dx + dz * dz) / SHELF_RADIUS);
+                s = s * s * (3f - 2f * s); // smoothstep
+                if (s > shelf) shelf = s;
+            }
+            if (shelf > 0f) floorY = Mathf.Max(floorY, Mathf.Lerp(floorY, SHELF_Y, shelf));
 
             verts[k].y = floorY;
         }

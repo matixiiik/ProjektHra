@@ -758,6 +758,18 @@ public class GridManager : MonoBehaviour
                     outList.Add(new Vector2Int(x, y));
     }
 
+    // Nasbírá souřadnice pevninových políček ostrova (souš / maják / bedna) v
+    // okolí středu. Používá SeaFloor, aby kolem ostrova zvedl dno až k jeho
+    // úpatí — ostrov pak "vyrůstá ze dna" a nekončí pod vodou uříznutý.
+    public void CollectIslandTilesNear(int cx, int cz, int radius, List<Vector2Int> outList)
+    {
+        outList.Clear();
+        for (int x = cx - radius; x <= cx + radius; x++)
+            for (int y = cz - radius; y <= cz + radius; y++)
+                if (IsMeshLandTile(GetTileType(x, y)))
+                    outList.Add(new Vector2Int(x, y));
+    }
+
     // Vytvoří barevnou ikonku budovy (čtvereček nad ní) jen pro minimapu.
     private Transform CreateShopMapIcon(GameObject tile, TileType type)
     {

@@ -29,6 +29,7 @@ public class PlayerController : MonoBehaviour
     // Když hráč vystoupí na ostrov, loď nezmizí — nechá se plavat na svém místě
     // jako tenhle samostatný objekt (kopie modelu lodě). Zase se zničí při nasednutí.
     private GameObject parkedBoatGO;
+    private DamageFeedback damageFeedback; // červený záblesk / cuknutí kamery / žbluňk při zásahu
     private const int  REPAIR_COST_PER_HP = EconomyConfig.RepairCostPerHp; // mince za opravu 1 bodu zdraví lodě
 
     // Kamera, podle které se tenhle hráč hýbe (W = "kam kouká kamera").
@@ -205,6 +206,11 @@ public class PlayerController : MonoBehaviour
         var wakeGo = new GameObject("BoatWake_P" + (playerIndex + 1));
         wakeGo.AddComponent<BoatWake>().Bind(this);
 
+        // Reakce na zásah (červený záblesk / cuknutí kamery / žbluňk).
+        var fbGo = new GameObject("DamageFeedback_P" + (playerIndex + 1));
+        damageFeedback = fbGo.AddComponent<DamageFeedback>();
+        damageFeedback.Bind(this);
+
         ExploreCurrentPosition();
     }
 
@@ -294,6 +300,7 @@ public class PlayerController : MonoBehaviour
 
         PBoatHealth -= dmg;
         SoundManager.PlaySplash();
+        if (damageFeedback != null) damageFeedback.Play();
 
         // 25 % — kus střepin / vlna trefí i panáčka.
         if (Random.value < BoatStats.CannonSplashChance)
@@ -340,6 +347,7 @@ public class PlayerController : MonoBehaviour
     {
         if (dmg <= 0 || DeathScreen.IsOpen) return;
         PPlayerHealth -= dmg;
+        if (damageFeedback != null) damageFeedback.Play();
         gridManager.NotifyWorldChanged();
         if (PPlayerHealth <= 0) { PPlayerHealth = 0; gridManager.Save(); DeathScreen.Show(playerIndex); }
     }

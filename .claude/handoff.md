@@ -22,6 +22,12 @@ v `.claude/story-plan.md`. **NIC se z toho zatím nestaví** — bude se dělat 
 kouskách do maturity. Až se začne: první milník = "Infra" + "Ostrov 1 — obrana"
 (viz plán sekce 6).
 
+### 🔧 OPRAVY ANIMAČNÍ DÁVKY #3 2026-09-10 (commit `0167003`, PUSHNUTO — ověřeno screenshotem)
+- **"lampa ze stropu zasahuje do obličeje prostředního prodavače"** → `HangingLamp`
+  tělo lampy z y 2,5 na **3,2** (kratší řetěz). V pohledu od dveří už neprotíná.
+- **"prodavači vypadají že jsou v stole"** → `KEEPER_Z` **2,40 → 2,78** (za stolem
+  s mezerou; deska/zadní panel končí ~2,44).
+
 ### 🔧 OPRAVY ANIMAČNÍ DÁVKY #2 2026-09-10 (commit `1d2a3a2`, PUSHNUTO — ověřeno v Play módu přes MCP)
 Druhé kolo po playtestu:
 - **"děda je pořád v sudu, nesedí na něm"** → sud byl moc vysoký/tlustý (vršek 0,53,

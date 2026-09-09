@@ -10,7 +10,9 @@ using UnityEngine;
 //  InteriorPlayer si najde nejbližší takový objekt v dosahu a zavolá Trigger().
 // ─────────────────────────────────────────────────────────────────────────────
 
-public enum InteriorAction { UpgradeShop, QuestShop, Exit }
+// Pozn.: NOVÉ hodnoty přidávej jen NA KONEC — čísla se serializují do scény
+// (ExitDoor apod.), přeházení by rozbilo existující objekty.
+public enum InteriorAction { UpgradeShop, QuestShop, Exit, QuestShopSell }
 
 public class InteriorInteractable : MonoBehaviour
 {
@@ -34,7 +36,12 @@ public class InteriorInteractable : MonoBehaviour
 
             case InteriorAction.QuestShop:
                 var qs = FindInMyScene<QuestShopManager>();
-                if (qs != null) qs.Open(playerIndex);
+                if (qs != null) qs.Open(playerIndex, sellMode: false);
+                break;
+
+            case InteriorAction.QuestShopSell:
+                var qss = FindInMyScene<QuestShopManager>();
+                if (qss != null) qss.Open(playerIndex, sellMode: true);
                 break;
 
             case InteriorAction.Exit:

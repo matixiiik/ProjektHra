@@ -50,6 +50,9 @@ public class MinimapUIRenderer : MonoBehaviour
     private RectTransform waypointArrowRT; // azurová šipka — směr k cíli z velké mapy (waypoint)
     private static readonly Color WaypointArrowColor = new Color(0.3f, 0.9f, 0.9f, 1f);
 
+    private RectTransform    playerArrowRT; // šipka uprostřed = kam míří loď / panáček
+    private PlayerController  myPlayer;      // vlastní hráč (kvůli natočení šipky)
+
     // Health bary (loď + panáček) — děti minimapy, sedí přesně nad ní a jsou
     // stejně široké (takže se centrují na minimapu bez ohledu na škálování canvasu).
     private RectTransform boatHpFillRT, playerHpFillRT;
@@ -85,6 +88,8 @@ public class MinimapUIRenderer : MonoBehaviour
 
         CreateCompass();
         CreateWaypointArrow();
+        CreatePlayerArrow();
+        CreateCompassLabels();
         CreateHealthBars();
 
         // Překresli minimapu při každé změně světa.
@@ -271,6 +276,72 @@ public class MinimapUIRenderer : MonoBehaviour
         waypointArrowRT.anchoredPosition = dir * radius;
     }
 
+    // Šipka uprostřed minimapy — ukazuje, kam je natočená loď / panáček (dá se
+    // podle ní řídit). Otáčí ji Update().
+    void CreatePlayerArrow()
+    {
+        var go = new GameObject("PlayerHeadingArrow");
+        go.transform.SetParent(minimapImage.transform, false);
+
+        playerArrowRT = go.AddComponent<RectTransform>();
+        playerArrowRT.sizeDelta   = new Vector2(13f, 13f);
+        playerArrowRT.anchorMin   = playerArrowRT.anchorMax = new Vector2(0.5f, 0.5f);
+        playerArrowRT.pivot       = new Vector2(0.5f, 0.5f);
+        playerArrowRT.anchoredPosition = Vector2.zero;
+
+        var img = go.AddComponent<Image>();
+        img.sprite        = MakeArrowSprite();
+        img.color         = playerColor;
+        img.raycastTarget = false;
+    }
+
+    // Písmena světových stran (S / J / V / Z) při okraji minimapy zevnitř —
+    // minimapa je v rohu obrazovky, ven by se místy nevešla.
+    void CreateCompassLabels()
+    {
+        MakeCompassLabel("S", new Vector2(0.5f, 1f), new Vector2(0f,  -11f));
+        MakeCompassLabel("J", new Vector2(0.5f, 0f), new Vector2(0f,   11f));
+        MakeCompassLabel("V", new Vector2(1f, 0.5f), new Vector2(-11f,  0f));
+        MakeCompassLabel("Z", new Vector2(0f, 0.5f), new Vector2( 11f,  0f));
+    }
+
+    void MakeCompassLabel(string letter, Vector2 anchor, Vector2 offset)
+    {
+        var go = new GameObject("Compass_" + letter);
+        go.transform.SetParent(minimapImage.transform, false);
+        var rt = go.AddComponent<RectTransform>();
+        rt.anchorMin = rt.anchorMax = anchor;
+        rt.pivot     = new Vector2(0.5f, 0.5f);
+        rt.anchoredPosition = offset;
+        rt.sizeDelta = new Vector2(16f, 16f);
+
+        var txt = go.AddComponent<Text>();
+        txt.font      = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+        txt.fontSize  = 13;
+        txt.fontStyle = FontStyle.Bold;
+        txt.alignment = TextAnchor.MiddleCenter;
+        txt.color     = new Color(0.95f, 0.9f, 0.78f);
+        txt.raycastTarget = false;
+
+        var sh = go.AddComponent<Shadow>();
+        sh.effectColor    = new Color(0f, 0f, 0f, 0.9f);
+        sh.effectDistance = new Vector2(1f, -1f);
+        txt.text = letter;
+    }
+
+    void Update()
+    {
+        if (playerArrowRT == null) return;
+
+        if (myPlayer == null || !myPlayer)
+        {
+            foreach (var pc in FindObjectsByType<PlayerController>(FindObjectsSortMode.None))
+                if (pc.playerIndex == playerIndex) { myPlayer = pc; break; }
+        }
+        if (myPlayer != null)
+            playerArrowRT.localEulerAngles = new Vector3(0f, 0f, -myPlayer.HeadingDegrees);
+    }
+
     // Vytvoří jednoduchou trojúhelníkovou šipku (mířící nahoru) jako sprite.
     Sprite MakeArrowSprite()
     {
@@ -346,8 +417,8 @@ public class MinimapUIRenderer : MonoBehaviour
                 tex.SetPixel(wxp, wyp, WaypointArrowColor);
         }
 
-        // Vlastní hráč — bílý bod přesně uprostřed.
-        tex.SetPixel(viewRadius, viewRadius, playerColor);
+        // Vlastní hráč = otáčivá šipka uprostřed (kreslí ji PlayerHeadingArrow,
+        // ne textura) — sem jen ať střed nezůstane "prázdný" pod šipkou.
 
         // Druhý hráč — oranžový bod (jen v multiplayeru a jen když je na mapě vidět).
         if (MultiplayerManager.IsMultiplayer)

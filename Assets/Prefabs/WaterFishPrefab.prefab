@@ -13,6 +13,7 @@ GameObject:
   - component: {fileID: 1013553042776877715}
   - component: {fileID: 4893981119564129138}
   - component: {fileID: 8785979765124561007}
+  - component: {fileID: 8785979765124561008}
   m_Layer: 4
   m_Name: WaterFishPrefab
   m_TagString: Untagged
@@ -123,7 +124,19 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 46d53153725781148a1f5628ef299d41, type: 3}
-  m_Name: 
+  m_Name:
   m_EditorClassIdentifier: Assembly-CSharp::WaterWave
   amplitude: 0.04
   speed: 1.2
+--- !u!114 &8785979765124561008
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 9194086333320084037}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c69b7410bc6a83a4db1481b00093ae52, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: Assembly-CSharp::FishSpot

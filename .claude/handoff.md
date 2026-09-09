@@ -11,6 +11,42 @@ sem Claude píše, kde se přestalo, aby se dalo pokračovat i z notebooku.
 ## STAV 2026-09-09 — vše commitnuté a pushnuté, working tree čistý
 (kromě `Napady.txt`, který si edituje uživatel — necommitovat za něj)
 
+### DÁVKA UI/UX #2 (2026-09-09) — HOTOVO, OTESTOVÁNO přes MCP
+
+1. **Maják: 3 pulty + větší prodavači.** `LighthouseInteriorDecor` teď dělá TŘI
+   pulty vedle sebe podél zadní stěny + prodavače v tričku barvy pultu:
+   modrý (vylepšení), oranžový (questy), **nový ZELENÝ (výkupna)**. Prodavači
+   jsou větší a stojí ZA pultem (u zdi), pult je otočený čelem do místnosti a
+   posunutý víc do místnosti. Krb se kvůli tomu přesunul k levé stěně.
+   `WALK_RADIUS 2.3`.
+2. **Prodej má vlastní obchod.** `QuestShopManager` řídí OBA pulty jedním
+   skriptem přes `sellMode[2]`:
+   - `Open(idx, sellMode: true)` → **VÝKUPNA** (zelený proužek): prodej ryb/
+     pokladů + vyplacení mega questu.
+   - `Open(idx, sellMode: false)` → **OBCHOD S QUESTY** (oranžový): jen questy.
+   - `InteriorInteractable` má novou akci `QuestShopSell` (přidaná NA KONEC enumu
+     — pozor, `Exit` se serializuje jako číslo!). `Counter_Sell` je nový objekt
+     s touhle akcí, `LighthouseInteriorDecor` ho vytvoří (+ MoveGameObjectToScene
+     kvůli coopu).
+   - Starý QuestShop dílek ve SampleScene (staré savy) → `Open(idx)` = quest mód.
+3. **Minimapa: S/J/V/Z** — čtyři písmena při okraji zevnitř (`CreateCompassLabels`).
+4. **Minimapa: bílá tečka → šipka lodě.** `MinimapUIRenderer.playerArrowRT` +
+   `Update()` ji otáčí podle `PlayerController.HeadingDegrees` (natočení modelu
+   lodě / panáčka). Dá se podle ní řídit.
+5. **Postava ještě níž.** `HeadDot` ve SampleScene `localPosition.y -0.54`
+   (nohy trochu v zemi, ať nelítá).
+6. **Rybí dlaždice = hejno + kruhy.** NOVÝ `FishSpot.cs` na `WaterFishPrefab`
+   (komponenta přidaná do .prefab). Placatý čtverec → sotva znatelný kulatý
+   "hlubší" flek + 3 stříbřité rybky kroužící pod hladinou + 2 rozšiřující se
+   kruhy (LineRenderer). Vyrovnává zploštění prefabu přes pomocný `content`.
+   Vše procedurální, žádný externí soubor.
+
+### PŘÍPADNÉ DOLADĚNÍ
+- Krb u levé stěny je částečně schovaný za květinou/lucernou.
+- Rybí flek: kulatý disc je hodně jemný — dá se zvýraznit.
+
+---
+
 ### VELKÁ DÁVKA UI/UX (2026-09-09) — HOTOVO, OTESTOVÁNO přes MCP
 
 Uživatelův seznam po kouskách. Vše ověřeno v play mode (screenshoty), 0 chyb.

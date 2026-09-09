@@ -2,12 +2,12 @@ using UnityEngine;
 
 // ─────────────────────────────────────────────────────────────────────────────
 //  QuestShopManager.cs
-//  Obchod s questy + výkupna. Otevře se u budovy QuestShop klávesou E / Numpad1.
-//
-//  Dvě části:
-//   1) PRODEJ  — hráč tu prodá nalovené ryby a vytěžené poklady za mince.
-//   2) QUESTY  — hráč si koupí úkol ("Ulov 10 ryb"). Za jeho splnění dostane
-//                zpět víc, než zaplatil (cost * multiplier). Naráz jen 1 quest.
+//  Řídí DVA pulty v majáku (obojí kreslí tenhle jeden skript):
+//   • VÝKUPNA (zelený pult)  — prodej nalovených ryb / vytěžených pokladů za
+//                              mince + vyplacení mega questu (poklad z mapy).
+//   • OBCHOD S QUESTY (oranžový pult) — koupě úkolu ("Ulov 10 ryb"); za splnění
+//                              hráč dostane zpět víc, než zaplatil. Naráz 1 quest.
+//  Který se zobrazí, řídí sellMode (nastaví InteriorInteractable podle pultu).
 //
 //  Stejně jako UpgradeShop má "per-buyer" pomocné metody pro P1 / P2.
 // ─────────────────────────────────────────────────────────────────────────────
@@ -25,6 +25,10 @@ public class QuestShopManager : MonoBehaviour
 
     // Pozice posuvníku sortimentu pro každého hráče (kolečko + tažení myší).
     private readonly Vector2[] scroll = new Vector2[2];
+
+    // true = hráč otevřel VÝKUPNU (zelený pult, prodej), false = obchod s QUESTY
+    // (oranžový pult). Nastaví InteriorInteractable podle pultu.
+    private readonly bool[] sellMode = new bool[2];
 
     public bool IsOpen => openFor[0] || openFor[1];
 
@@ -74,15 +78,19 @@ public class QuestShopManager : MonoBehaviour
 
     void Start() { gridManager = FindFirstObjectByType<GridManager>(); }
 
-    /// <summary>Otevře obchod pro daného hráče a případně vygeneruje nabídku questů.</summary>
-    public void Open(int playerIndex = 0)
+    /// <summary>
+    /// Otevře obchod pro daného hráče. sellMode = true → VÝKUPNA (zelený pult:
+    /// prodej ryb/pokladů + vyplacení mega questu), false → QUESTY (oranžový pult).
+    /// </summary>
+    public void Open(int playerIndex = 0, bool sellMode = false)
     {
         if (playerIndex < 0 || playerIndex > 1) playerIndex = 0;
         buyerIndex = playerIndex;
-        openFor[playerIndex] = true;
+        openFor[playerIndex]  = true;
+        this.sellMode[playerIndex] = sellMode;
 
-        // Nabídku generuj jen když hráč zrovna žádný quest nemá.
-        if (!GetQuest().hasQuest) GenerateOffers();
+        // Nabídku questů generuj jen v quest módu a jen když hráč quest nemá.
+        if (!sellMode && !GetQuest().hasQuest) GenerateOffers();
     }
 
     // ── Per-buyer přístup k datům (P1 vs P2) ─────────────────────────────────
@@ -221,10 +229,12 @@ public class QuestShopManager : MonoBehaviour
         float px = sx + (sw - w) / 2f;
         float py = (Screen.height - h) / 2f;
 
-        // Panel + oranžový proužek.
+        bool sell = sellMode[who];
+
+        // Panel + barevný proužek (zelená = výkupna, oranžová = questy).
         GUI.color = new Color(0.12f, 0.14f, 0.18f, 1f);
         GUI.DrawTexture(new Rect(px, py, w, h), Texture2D.whiteTexture);
-        GUI.color = new Color(1f, 0.6f, 0.1f, 1f);
+        GUI.color = sell ? new Color(0.35f, 0.75f, 0.3f, 1f) : new Color(1f, 0.6f, 0.1f, 1f);
         GUI.DrawTexture(new Rect(px, py, w, 3), Texture2D.whiteTexture);
         GUI.color = Color.white;
 
@@ -239,24 +249,36 @@ public class QuestShopManager : MonoBehaviour
         string playerLabel = MultiplayerManager.IsMultiplayer
             ? (buyerIndex == 0 ? "  —  HRÁČ 1" : "  —  HRÁČ 2")
             : "";
-        GUILayout.Label($"OBCHOD S QUESTY{playerLabel}", titleStyle);
+        GUILayout.Label($"{(sell ? "VYKUPNA" : "OBCHOD S QUESTY")}{playerLabel}", titleStyle);
         GUILayout.Space(12);
 
         scroll[who] = GUILayout.BeginScrollView(scroll[who], GUILayout.Height(h - 40f - 96f));
 
-        // ── MEGA QUEST (poklad z mapy) ──────────────────────────────────────
+        if (sell) DrawSellContent();
+        else      DrawQuestContent();
+
+        GUILayout.EndScrollView();
+
+        GUILayout.Space(10);
+        GUILayout.Label($"Mince: {GetCoins()}", coinsStyle);
+        GUILayout.EndArea();
+    }
+
+    // ── Obsah VÝKUPNY (zelený pult) ─────────────────────────────────────────
+    private void DrawSellContent()
+    {
+        // Vyplacení mega questu (poklad z mapy) — mince + trvalý bonus na výkup.
         MegaQuest mq = GetMega();
         if (mq.active && mq.dug)
         {
-            GUILayout.Label("MEGA QUEST", sectionStyle);
-            GUILayout.Label("Poklad z mapy je vykopany!", rowStyle);
+            GUILayout.Label("POKLAD Z MAPY", sectionStyle);
+            GUILayout.Label("Vykopany poklad je pripraveny k vyplaceni.", rowStyle);
             if (SoundManager.Click(GUILayout.Button($"  VYPLATIT  {mq.rewardCoins} minci  +  trvaly bonus na vykup  !", claimStyle, GUILayout.Height(38))))
                 ClaimMega();
             GUILayout.Space(14);
         }
 
-        // ── PRODEJ ──────────────────────────────────────────────────────────
-        GUILayout.Label("PRODEJ", sectionStyle);
+        GUILayout.Label("PRODEJ KORISTI", sectionStyle);
 
         int fish     = GetFish();
         int treasure = GetTreasure();
@@ -271,9 +293,18 @@ public class QuestShopManager : MonoBehaviour
             treasure * tp, treasure > 0,
             () => { SetCoins(GetCoins() + treasure * tp); SetTreasure(0); Save(); SoundManager.PlayCoin(); });
 
-        GUILayout.Space(14);
+        if (fish == 0 && treasure == 0)
+        {
+            GUILayout.Space(6);
+            GUI.color = new Color(0.6f, 0.6f, 0.6f);
+            GUILayout.Label("( nic k prodeji — nalov ryby nebo vytez poklady )", rowStyle);
+            GUI.color = Color.white;
+        }
+    }
 
-        // ── QUESTY ──────────────────────────────────────────────────────────
+    // ── Obsah OBCHODU S QUESTY (oranžový pult) ──────────────────────────────
+    private void DrawQuestContent()
+    {
         GUILayout.Label("QUESTY", sectionStyle);
         ActiveQuest aq = GetQuest();
 
@@ -323,12 +354,6 @@ public class QuestShopManager : MonoBehaviour
                 }
             }
         }
-
-        GUILayout.EndScrollView();
-
-        GUILayout.Space(10);
-        GUILayout.Label($"Mince: {GetCoins()}", coinsStyle);
-        GUILayout.EndArea();
     }
 
     // Řádek prodeje: popis + celková částka + tlačítko "Prodat vse".

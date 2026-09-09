@@ -124,6 +124,18 @@ public class PlayerController : MonoBehaviour
     /// <summary>Plave hráč ve vodě (rozbitá loď)? Pořád je terč pro děla.</summary>
     public bool IsSwimming => !isOnFoot && PBoatWrecked && enabled && gameObject.activeInHierarchy;
 
+    /// <summary>Kam je natočený model hráče (loď / panáček) ve stupních (0 = sever).
+    /// Používá minimapa pro šipku, podle které se dá řídit.</summary>
+    public float HeadingDegrees
+    {
+        get
+        {
+            Transform m = (isOnFoot || IsSwimming) ? (headDot != null ? headDot.transform : transform)
+                                                   : (boatModel != null ? boatModel : transform);
+            return m.eulerAngles.y;
+        }
+    }
+
     private float nextShotTime;
     private const float SHOOT_COOLDOWN = 0.55f;
     private float damageGraceUntil; // krátká nezranitelnost po "potopení" lodě

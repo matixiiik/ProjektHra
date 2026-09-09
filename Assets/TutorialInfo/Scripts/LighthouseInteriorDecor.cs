@@ -23,11 +23,18 @@ public class LighthouseInteriorDecor : MonoBehaviour
 
     // Poloměr, ve kterém se smí hráč pohybovat = zhruba kobereček (ať nevleze
     // do krbu, do pultu ani do zdi). Nastaví se všem InteriorPlayer ve scéně.
-    private const float WALK_RADIUS = 2.6f;
+    private const float WALK_RADIUS = 2.3f;
 
-    // Barvy trička prodavačů = barvy pultů (modrá = vylepšení, oranžová = questy).
-    private static readonly Color UpgradeShirt = new Color(0.28f, 0.45f, 0.68f);
-    private static readonly Color QuestShirt   = new Color(0.86f, 0.52f, 0.16f);
+    // Barvy trička prodavačů = barvy pultů.
+    private static readonly Color UpgradeShirt = new Color(0.28f, 0.45f, 0.68f); // modrá — vylepšení
+    private static readonly Color QuestShirt   = new Color(0.86f, 0.52f, 0.16f); // oranžová — questy
+    private static readonly Color SellShirt    = new Color(0.30f, 0.62f, 0.30f); // zelená — výkupna
+
+    // Kam se pulty přesunou — tři vedle sebe podél zadní stěny, víc do místnosti
+    // než původní kostky (z=2.5). Krb se kvůli tomu přesune k levé stěně.
+    private static readonly Vector3 UpgradePos = new Vector3(-2.4f, 0.5f, 2.3f);
+    private static readonly Vector3 QuestPos   = new Vector3( 0.1f, 0.5f, 2.9f);
+    private static readonly Vector3 SellPos    = new Vector3( 2.6f, 0.5f, 2.3f);
 
     private Material wood, woodDark, stone, cloth, leaf, ember, metal, skin;
 
@@ -37,17 +44,47 @@ public class LighthouseInteriorDecor : MonoBehaviour
         WarmUpSceneLights();
         ClampWalkArea();
 
-        BuildHearth(new Vector3(0f, 0f, 3.3f), 180f);     // krb u zadní stěny mezi pulty
-        BuildHangingLamp(new Vector3(0f, 0f, 0.4f));      // lampa nad středem
-        BuildRug(new Vector3(0f, 0.02f, -0.4f));          // kobereček u vchodu
-        BuildPlant(new Vector3(2.9f, 0f, -1.4f));         // květina vpravo vepředu
-        BuildPlant(new Vector3(-2.9f, 0f, -1.4f));        // květina vlevo vepředu
-        BuildWallSconce(115f);                            // lucerna na pravé stěně
-        BuildWallSconce(245f);                            // lucerna na levé stěně
+        BuildHearth(new Vector3(-3.2f, 0f, 0.2f), 90f);   // krb u levé stěny (zadní stěna je pro pulty)
+        BuildHangingLamp(new Vector3(0f, 0f, -0.2f));     // lampa nad středem
+        BuildRug(new Vector3(0f, 0.02f, -0.6f));          // kobereček u vchodu
+        BuildPlant(new Vector3(2.9f, 0f, -1.6f));         // květina vpravo vepředu
+        BuildPlant(new Vector3(-2.7f, 0f, -1.9f));        // květina vlevo u vchodu
+        BuildWallSconce(125f);                            // lucerna vpravo u vchodu
+        BuildWallSconce(-125f);                           // lucerna vlevo u vchodu
 
-        // Z modré/oranžové kostky udělej dřevěný pult + prodavače v tričku.
-        DressCounter("Counter_Upgrade", UpgradeShirt);
-        DressCounter("Counter_Quest",   QuestShirt);
+        // Pulty: přesuň je víc do místnosti, z kostek udělej dřevěné pulty
+        // s prodavačem v tričku barvy obchodu. Přidej nový zelený pult výkupny.
+        // Pozor: v coopu je interiér posunutý o velký offset → hýbeme relativně
+        // (delta od původní polohy kostky ve scéně), ať offset nezrušíme.
+        var up = FindInScene("Counter_Upgrade");
+        var qu = FindInScene("Counter_Quest");
+        if (up != null) { up.transform.position += UpgradePos - SceneUpgradePos; DressCounter(up, UpgradeShirt); }
+        if (qu != null) { qu.transform.position += QuestPos   - SceneQuestPos;   DressCounter(qu, QuestShirt); }
+
+        if (qu != null) BuildSellCounter(qu);
+    }
+
+    // Původní polohy kostek pultu ve scéně LighthouseInterior.
+    private static readonly Vector3 SceneUpgradePos = new Vector3(-2.6f, 0.5f, 2.5f);
+    private static readonly Vector3 SceneQuestPos   = new Vector3( 2.6f, 0.5f, 2.5f);
+
+    // Nový zelený pult VÝKUPNY vedle oranžového (questy). Vlastní InteriorInteractable
+    // s akcí QuestShopSell → QuestShopManager.Open(idx, sellMode: true). Polohu bere
+    // relativně k oranžovému pultu (kvůli coop offsetu).
+    private void BuildSellCounter(GameObject questCounter)
+    {
+        var go = new GameObject("Counter_Sell");
+        // V coopu je aktivní scéna SampleScene → přesuň objekt do scény majáku,
+        // jinak by ho InteriorPlayer (hledá jen ve své scéně) neviděl.
+        UnityEngine.SceneManagement.SceneManager.MoveGameObjectToScene(go, gameObject.scene);
+        go.transform.position = questCounter.transform.position + (SellPos - QuestPos);
+
+        var it = go.AddComponent<InteriorInteractable>();
+        it.action = InteriorAction.QuestShopSell;
+        it.range  = 2.2f;
+        it.prompt = "E — vykupna (prodej korist)";
+
+        DressCounter(go, SellShirt);
     }
 
     // Omez pochozí plochu na kobereček (a případným bodům zájmu přidej dosah,
@@ -61,48 +98,49 @@ public class LighthouseInteriorDecor : MonoBehaviour
             if (it.gameObject.scene == gameObject.scene && it.range < 2.2f) it.range = 2.2f;
     }
 
-    // Vezme původní barevnou kostku pultu, schová její mesh a postaví na její
-    // místo dřevěný pult + stojícího prodavače v tričku dané barvy.
-    private void DressCounter(string counterName, Color shirt)
+    // Z objektu pultu (barevná kostka, nebo nový prázdný) udělá dřevěný pult
+    // otočený čelem do místnosti + za ním stojícího prodavače v tričku dané barvy.
+    private void DressCounter(GameObject counter, Color shirt)
     {
-        var counter = FindInScene(counterName);
-        if (counter == null) return;
-
-        // Schovej původní kostku (necháme objekt kvůli InteriorInteractable + poloze).
+        // Původní kostku (pokud je) schovej — objekt necháme kvůli InteriorInteractable.
         foreach (var mr in counter.GetComponentsInChildren<MeshRenderer>(true))
             mr.enabled = false;
 
         var root = new GameObject("CounterDressing");
         root.transform.SetParent(counter.transform, false);
-        // Původní kostka pultu má počátek ~0.5 nad podlahou → srovnej na zem.
-        root.transform.position      = new Vector3(counter.transform.position.x, 0f, counter.transform.position.z);
-        root.transform.localRotation = Quaternion.identity;
+        // Kostka pultu má počátek ~0.5 nad podlahou → srovnej na zem.
+        root.transform.position = new Vector3(counter.transform.position.x, 0f, counter.transform.position.z);
+        // Otoč pult čelem do místnosti: +Z míří od středu ke zdi, −Z (strana pro
+        // zákazníka) ke středu. Prodavač je pak za pultem (u zdi).
+        Vector3 outward = new Vector3(counter.transform.position.x, 0f, counter.transform.position.z);
+        if (outward.sqrMagnitude > 0.01f)
+            root.transform.rotation = Quaternion.LookRotation(outward.normalized, Vector3.up);
 
-        // Dřevěný pult (deska + čelo + nožky).
-        Box(root.transform, "Top",   new Vector3(0f, 0.62f, 0f),   new Vector3(1.9f, 0.14f, 0.8f),  wood);
-        Box(root.transform, "Front", new Vector3(0f, 0.3f, -0.32f), new Vector3(1.9f, 0.62f, 0.16f), woodDark);
-        Box(root.transform, "Side1", new Vector3(-0.85f, 0.3f, 0.1f), new Vector3(0.14f, 0.62f, 0.7f), woodDark);
-        Box(root.transform, "Side2", new Vector3(0.85f, 0.3f, 0.1f),  new Vector3(0.14f, 0.62f, 0.7f), woodDark);
+        // Dřevěný pult (deska + čelo + nožky). Deska trochu přečnívá ke středu.
+        Box(root.transform, "Top",   new Vector3(0f, 0.66f, -0.12f), new Vector3(2.0f, 0.14f, 0.95f), wood);
+        Box(root.transform, "Front", new Vector3(0f, 0.33f, -0.55f), new Vector3(2.0f, 0.66f, 0.16f), woodDark);
+        Box(root.transform, "Side1", new Vector3(-0.92f, 0.33f, -0.1f), new Vector3(0.14f, 0.66f, 0.8f), woodDark);
+        Box(root.transform, "Side2", new Vector3(0.92f, 0.33f, -0.1f),  new Vector3(0.14f, 0.66f, 0.8f), woodDark);
 
-        // Prodavač stojí za pultem (dál od středu → +Z), čelem do místnosti.
+        // Prodavač stojí ZA pultem (u zdi → +Z), čelem ke středu (−Z).
         BuildShopkeeper(root.transform, new Vector3(0f, 0f, 0.55f), shirt);
     }
 
     // Panáček prodavače — stejné díly jako hráč (tělo + hlava + klobouk + nos),
-    // tričko v barvě obchodu.
+    // tričko v barvě obchodu. Trochu větší, ať kouká přes pult.
     private void BuildShopkeeper(Transform parent, Vector3 pos, Color shirt)
     {
         var g = new GameObject("Shopkeeper");
         g.transform.SetParent(parent, false);
         g.transform.localPosition    = pos;
-        g.transform.localEulerAngles = new Vector3(0f, 180f, 0f); // čelem do místnosti (−Z)
+        g.transform.localEulerAngles = new Vector3(0f, 180f, 0f); // čelem ke středu (−Z rodiče)
 
         Material shirtMat = Mat(shirt);
-        Box(g.transform,    "Legs", new Vector3(0f, 0.22f, 0f), new Vector3(0.34f, 0.44f, 0.3f), woodDark);
-        Cyl(g.transform,    "Body", new Vector3(0f, 0.62f, 0f), new Vector3(0.44f, 0.32f, 0.44f), Vector3.zero, shirtMat);
-        Sphere(g.transform, "Head", new Vector3(0f, 0.98f, 0f), new Vector3(0.32f, 0.32f, 0.32f), skin);
-        Box(g.transform,    "Hat",  new Vector3(0f, 1.16f, 0f), new Vector3(0.5f, 0.12f, 0.5f),  woodDark);
-        Box(g.transform,    "Nose", new Vector3(0f, 0.96f, 0.18f), new Vector3(0.07f, 0.07f, 0.12f), skin);
+        Box(g.transform,    "Legs", new Vector3(0f, 0.30f, 0f),   new Vector3(0.42f, 0.60f, 0.36f), woodDark);
+        Cyl(g.transform,    "Body", new Vector3(0f, 0.86f, 0f),   new Vector3(0.56f, 0.42f, 0.56f), Vector3.zero, shirtMat);
+        Sphere(g.transform, "Head", new Vector3(0f, 1.34f, 0f),   new Vector3(0.40f, 0.40f, 0.40f), skin);
+        Box(g.transform,    "Hat",  new Vector3(0f, 1.56f, 0f),   new Vector3(0.62f, 0.14f, 0.62f), woodDark);
+        Box(g.transform,    "Nose", new Vector3(0f, 1.32f, 0.22f), new Vector3(0.09f, 0.09f, 0.14f), skin);
     }
 
     private GameObject FindInScene(string name)

@@ -94,6 +94,17 @@ public class GridManager : MonoBehaviour
 
         GenerateWorld(gameData.playerGridX, gameData.playerGridY);
         CreateSeaWorld();
+
+        // Po načtení save s už objeveným mega ostrovem obnov jeho obelisk.
+        if (gameData.storyIslandActive
+            && FindFirstObjectByType<MegaIslandMarker>() == null)
+        {
+            var markerGo = new GameObject("MegaIslandMarker");
+            markerGo.transform.SetParent(transform);
+            markerGo.transform.position = new Vector3(gameData.storyIslandX, 0f, gameData.storyIslandY);
+            markerGo.AddComponent<MegaIslandMarker>();
+        }
+
         OnWorldChanged?.Invoke();
 
         SoundManager.StartWaves(); // hukot moře na pozadí
@@ -245,6 +256,11 @@ public class GridManager : MonoBehaviour
                 string key = GridKey(x, y);
                 if (!gameData.tileData.ContainsKey(key)) CheckAndGenerateArea(x, y); // vytvoř data
                 if (!activeTiles.ContainsKey(key))       InstantiateTile(x, y, gameData.tileData[key]); // vytvoř objekt
+
+                // Mega ostrov nemá per-dlaždicový prefab (InstantiateTile ho přeskočí) —
+                // terénní mesh se mu tedy musí zajistit tady.
+                if ((TileType)gameData.tileData[key].type == TileType.MegaIsland)
+                    EnsureIslandTerrain(x, y);
             }
         }
     }
@@ -324,7 +340,8 @@ public class GridManager : MonoBehaviour
     private static bool IsIslandTile(int type)
         => type == (int)TileType.Harbor || type == (int)TileType.Pier
         || type == (int)TileType.UpgradeShop || type == (int)TileType.QuestShop
-        || type == (int)TileType.Lighthouse || type == (int)TileType.Chest;
+        || type == (int)TileType.Lighthouse || type == (int)TileType.Chest
+        || type == (int)TileType.MegaIsland;
 
     // Jak daleko od ostrova nesmí vzniknout poklad / ryby / pirát (klidná zóna).
     public const int SPAWN_ISLAND_CLEARANCE = 25;
@@ -778,7 +795,8 @@ public class GridManager : MonoBehaviour
 
     // Políčka, pod která patří hladký terénní mesh ostrova (ne molo — to je nad vodou).
     private static bool IsMeshLandTile(TileType t)
-        => t == TileType.Harbor || t == TileType.Lighthouse || t == TileType.Chest;
+        => t == TileType.Harbor || t == TileType.Lighthouse || t == TileType.Chest
+        || t == TileType.MegaIsland;
 
     // Zajistí, že ostrov obsahující políčko [x,y] má vygenerovaný hladký terén.
     private void EnsureIslandTerrain(int x, int y)
@@ -858,12 +876,22 @@ public class GridManager : MonoBehaviour
     // Smaže terénní meshe ostrovů, ze kterých už nezůstalo žádné aktivní políčko.
     private void CleanupIslandTerrains()
     {
+        int keep = ACTIVE_GRID_SIZE + 4;
         var dead = new List<string>();
         foreach (var kv in islandTerrains)
         {
             bool anyActive = false;
             foreach (string tk in kv.Value.tileKeys)
+            {
+                // Dlaždice buď má 3D objekt, nebo je aspoň blízko hráče (mega
+                // ostrov nemá per-dlaždicové objekty, tak se ptáme na souřadnice).
                 if (activeTiles.ContainsKey(tk)) { anyActive = true; break; }
+                var (tx, ty) = ParseGridKey(tk);
+                bool nearP1 = Mathf.Abs(tx - gameData.playerGridX) <= keep && Mathf.Abs(ty - gameData.playerGridY) <= keep;
+                bool nearP2 = MultiplayerManager.IsMultiplayer
+                           && Mathf.Abs(tx - gameData.player2GridX) <= keep && Mathf.Abs(ty - gameData.player2GridY) <= keep;
+                if (nearP1 || nearP2) { anyActive = true; break; }
+            }
 
             if (!anyActive)
             {
@@ -1070,6 +1098,65 @@ public class GridManager : MonoBehaviour
                     int gx = bx + dx * 40, gy = by + dy * 40;
                     if (CanPlaceIsland(gx, gy)) { GenerateIsland(gx, gy); return; }
                 }
+    }
+
+    // ── Příběhový mega ostrov ─────────────────────────────────────────────
+    /// <summary>
+    /// Vygeneruje příběhový "mega ostrov" — velkou plochu pevniny (typ MegaIsland)
+    /// se středem uprostřed. Zatím je to jen země + obelisk uprostřed; obsah se
+    /// bude přidávat později. Volá StoryNpc, když starý námořník dá souřadnice.
+    /// </summary>
+    public void PlaceMegaIsland(int centerX, int centerY)
+    {
+        const int R = 13; // poloměr plochy (→ ~26×26 políček)
+
+        // Organický kruhový blok — kruh + trochu šumu na okraji, ať to není přesný kruh.
+        for (int dx = -R - 2; dx <= R + 2; dx++)
+            for (int dy = -R - 2; dy <= R + 2; dy++)
+            {
+                float edge = R + (Mathf.PerlinNoise((centerX + dx) * 0.18f, (centerY + dy) * 0.18f) - 0.5f) * 5f;
+                if (dx * dx + dy * dy > edge * edge) continue;
+
+                string key = GridKey(centerX + dx, centerY + dy);
+                bool wasExplored = gameData.tileData.ContainsKey(key) && gameData.tileData[key].isExplored;
+                gameData.tileData[key] = new TileStatus((int)TileType.MegaIsland) { isExplored = wasExplored };
+
+                // Když už tam byla vygenerovaná dlaždice, zahoď její 3D objekt.
+                if (activeTiles.TryGetValue(key, out GameObject old)) { Destroy(old); activeTiles.Remove(key); }
+            }
+
+        // Molo na kraji přivráceném ke světu (odkud hráč připluje) — 2 dlaždice,
+        // ať se dá u mega ostrova zakotvit a vylodit.
+        Vector2 toWorld = new Vector2(-centerX, -centerY);
+        if (toWorld.sqrMagnitude < 1f) toWorld = Vector2.down;
+        toWorld.Normalize();
+        for (int step = R + 1; step > 2; step--)
+        {
+            int ex = centerX + Mathf.RoundToInt(toWorld.x * step);
+            int ey = centerY + Mathf.RoundToInt(toWorld.y * step);
+            string ek = GridKey(ex, ey);
+            if (gameData.tileData.TryGetValue(ek, out TileStatus es) && es.type == (int)TileType.MegaIsland)
+            {
+                gameData.tileData[ek] = new TileStatus((int)TileType.Pier) { isExplored = es.isExplored };
+                int fx = centerX + Mathf.RoundToInt(toWorld.x * (step + 1));
+                int fy = centerY + Mathf.RoundToInt(toWorld.y * (step + 1));
+                gameData.tileData[GridKey(fx, fy)] = new TileStatus((int)TileType.Pier);
+                break;
+            }
+        }
+
+        gameData.storyIslandActive = true;
+        gameData.storyIslandX      = centerX;
+        gameData.storyIslandY      = centerY;
+
+        // Obelisk uprostřed (marker + hák pro budoucí obsah).
+        var markerGo = new GameObject("MegaIslandMarker");
+        markerGo.transform.SetParent(transform);
+        markerGo.transform.position = new Vector3(centerX, 0f, centerY);
+        markerGo.AddComponent<MegaIslandMarker>();
+
+        Save();
+        NotifyWorldChanged();
     }
 
     /// <summary>

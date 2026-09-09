@@ -11,6 +11,51 @@ sem Claude píše, kde se přestalo, aby se dalo pokračovat i z notebooku.
 ## STAV 2026-09-09 — vše commitnuté a pushnuté, working tree čistý
 (kromě `Napady.txt`, který si edituje uživatel — necommitovat za něj)
 
+### DÁVKA: SYMETRICKÝ MAJÁK + ZAČÁTEK PŘÍBĚHU (2026-09-09) — HOTOVO, OTESTOVÁNO přes MCP
+
+**Vizuál:**
+- `LighthouseInteriorDecor` — kompletně přepsané na **symetrický** layout (vše
+  zrcadleno podle osy Z): 3 pulty (prostřední ve středu), 2 ohřívadla, 2 lucerny,
+  2 květiny, 2 bedny, kulatý kobereček + lampa uprostřed. Náhodné bedny/sudy/rug
+  ze scény se schovají (`HideSceneClutter`).
+- `MinimapUIRenderer` — **HP bary** přepsané na `Image.Type.Filled`, oba přesně
+  stejné rozměry → 100% zarovnané, užší než minimapa. `HudSkin.White()`.
+- Ostrovy: jádro **7–10** (min 7×7, dřív 5×5), `ISLAND_CANVAS 16→20`, guard 25→49.
+- `IslandDecor` — dekorace jen **šachovnicově** (každá druhá dlaždice) → nikdy dvě
+  u sebe; `decorChance 0.30`.
+
+**Příběh (starý námořník) — ZAČÁTEK, pokračování přidá uživatel:**
+- `GameData`: `storyStep` (0–4+), `hasHistoricalTreasure`, `storyIslandActive/X/Y`
+  (sdílené pro oba hráče). `MegaQuest.grantsHistoricalTreasure`.
+- `TileType.MegaIsland = 10` (na KONEC enumu). `IsMeshLandTile` + `IsIslandTile`
+  + `PlayerController.CanEnter` ho berou jako pevninu. Minimapa/mapa fialově.
+- `GridManager.PlaceMegaIsland(x,y)` — velká kruhová plocha (~R13, ~520 dlaždic)
+  + 2 dlaždice mola na kraji přivráceném ke světu + obelisk uprostřed
+  (`MegaIslandMarker` — hák pro budoucí obsah). Terén se staví přes IslandTerrain.
+  Obnova markeru po loadu v `GridManager.Awake`. `CleanupIslandTerrains` upraven,
+  ať mega ostrov (bez per-dlaždicových objektů) nemizí.
+- **`StoryNpc`** — state machine podle `storyStep`:
+  - 0: nemáš loď → "kup si aspoň malou"; máš loď → chce se prokázat → step 1
+  - 1: přines **1000 mincí + historický poklad**; když máš obojí → tlačítko
+    "Dát mu…" → `GiveToSailor()` odečte, `PlaceMegaIsland` na daleké deterministické
+    místo (340–467 políček), nastaví `storyStep=2` + waypoint na minimapě
+  - 2: připomíná souřadnice. Dopluješ do 16 políček od středu → `OnReachedStoryIsland()`
+    → `storyStep=3`, waypoint zmizí, toast "někdo tu už kopal, na obelisku vzkaz"
+  - 3: "poklad je pryč, nechal ti stopu" → `storyStep=4` (čeká na další obsah)
+- **Historický poklad**: `ChestManager` — 20 % mega questů má `grantsHistoricalTreasure`;
+  `QuestShopManager.ClaimMega` ho pak dá (`hasHistoricalTreasure=true`). Ve výkupně
+  se píše "Neses: HISTORICKY POKLAD".
+- **HUD**: `HUDCounter` nový příběhový panel nahoře uprostřed pod quest panelem
+  (`storyStep` 1/2/3 → text cíle; v kroku 2 souřadnice ostrova).
+- **Konzole**: `story` (stav), `story <0-9>`, `story island`, `story histtreasure`.
+
+### DALŠÍ KROK PŘÍBĚHU (čeká na zadání)
+- Co přesně musí hráč na mega ostrově splnit (teď je to jen země + obelisk).
+- Rozluštění "stopy" a kam vede dál. `MegaIslandMarker` je připravený hák.
+- Mega ostrovy mají být "každý jiný" — zatím je jeden, generovaný stejně.
+
+---
+
 ### DÁVKA UI/UX #2 (2026-09-09) — HOTOVO, OTESTOVÁNO přes MCP
 
 1. **Maják: 3 pulty + větší prodavači.** `LighthouseInteriorDecor` teď dělá TŘI

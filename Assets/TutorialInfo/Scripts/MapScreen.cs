@@ -260,6 +260,7 @@ public class MapScreen : MonoBehaviour
             case TileType.Pier:       return CPier;
             case TileType.Lighthouse: return CLight;
             case TileType.Chest:      return CChest;
+            case TileType.MegaIsland: return new Color(0.55f, 0.35f, 0.7f); // příběhový ostrov
             default:                  return CWater;
         }
     }

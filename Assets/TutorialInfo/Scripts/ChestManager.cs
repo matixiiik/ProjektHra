@@ -74,6 +74,8 @@ public class ChestManager : MonoBehaviour
         {
             AssignTreasureMap(mq, x, y);
             msg += "\nUvnitr byla MAPA! Dopluj na [" + mq.targetX + ", " + mq.targetY + "]\na vykopej poklad (mezernik na tom policku).";
+            if (mq.grantsHistoricalTreasure)
+                msg += "\nTahle mapa je stara... mozna vede k necemu vyjimecnemu.";
         }
         else
         {
@@ -99,6 +101,9 @@ public class ChestManager : MonoBehaviour
         mq.active      = true;
         mq.dug         = false;
         mq.rewardCoins = Random.Range(EconomyConfig.MegaQuestCoinsMin, EconomyConfig.MegaQuestCoinsMax + 1);
+
+        // ~20 % — tenhle poklad je "historický" a chce ho starý námořník (příběh).
+        mq.grantsHistoricalTreasure = Random.value < 0.20f;
     }
 
     private void AddCoins(int playerIndex, int amount)

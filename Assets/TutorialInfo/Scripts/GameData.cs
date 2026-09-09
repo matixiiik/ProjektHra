@@ -55,6 +55,7 @@ public class MegaQuest
     public int  targetY;      // kam doplout (Y)
     public bool dug;          // hráč doplul na místo a vykopal → jde vyplatit
     public int  rewardCoins;  // kolik mincí dá vyplacení
+    public bool grantsHistoricalTreasure; // ~20 % — vyplacení dá i "historický poklad" (pro příběh)
 
     public void Reset()
     {
@@ -63,6 +64,7 @@ public class MegaQuest
         targetY     = 0;
         dug         = false;
         rewardCoins = 0;
+        grantsHistoricalTreasure = false;
     }
 }
 
@@ -102,6 +104,13 @@ public class GameData
     public List<string> hostileIslands = new List<string>(); // klíče "x,y" (kotva majáku) nepřátelských ostrovů
     public List<string> clearedIslands = new List<string>(); // nepřátelské ostrovy, kterým hráč zničil dělo
     public int          pirateKills;                          // kolik pirátů hráč potopil (jen statistika)
+
+    // ── Příběh (starý námořník na startovním ostrově) — sdílené pro oba hráče ──
+    public int  storyStep;             // 0 = start, 1 = má loď/musí se prokázat, 2 = dostal souřadnice, 3 = našel stopu, 4+ = pokračování
+    public bool hasHistoricalTreasure; // "historický poklad" — padá z mega questu (~20 %), chce ho starý námořník
+    public bool storyIslandActive;     // příběhový mega ostrov je vygenerovaný a hráč zná jeho polohu
+    public int  storyIslandX;
+    public int  storyIslandY;
 
     // ── Hráč 2 — oddělená ekonomika (jen multiplayer) ─────────────────────────
     public int  player2GridX;

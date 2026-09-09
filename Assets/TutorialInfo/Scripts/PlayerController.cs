@@ -491,10 +491,10 @@ public class PlayerController : MonoBehaviour
     bool CanEnter(TileType t)
     {
         if (PBoatWrecked && !isOnFoot)
-            return IsBoatWater(t) || t == TileType.Harbor || t == TileType.Pier;
+            return IsBoatWater(t) || t == TileType.Harbor || t == TileType.Pier || t == TileType.MegaIsland;
         if (!isOnFoot)
             return IsBoatWater(t);
-        return t == TileType.Harbor || t == TileType.Pier;
+        return t == TileType.Harbor || t == TileType.Pier || t == TileType.MegaIsland;
     }
 
     // Vodní políčko, na které smí loď (obyčejná voda, ryby i vrak pokladu).
@@ -536,6 +536,12 @@ public class PlayerController : MonoBehaviour
 
         // Doplul jsi k cíli z mapy (waypoint) → zruš ho.
         ClearWaypointIfReached(tx, ty);
+
+        // Doplul jsi k příběhovému mega ostrovu (krok 2) → posuň příběh.
+        var d0 = gridManager.gameData;
+        if (d0.storyStep == 2 && d0.storyIslandActive
+            && Mathf.Max(Mathf.Abs(tx - d0.storyIslandX), Mathf.Abs(ty - d0.storyIslandY)) <= 16)
+            StoryNpc.OnReachedStoryIsland();
 
         gridManager.GenerateWorld(tx, ty);
         ExploreCurrentPosition();

@@ -4,44 +4,45 @@ using UnityEngine;
 
 // ─────────────────────────────────────────────────────────────────────────────
 //  StoryNpc.cs
-//  Příběhové NPC — starý námořník ("děda"), který sedí na základním (startovním)
-//  ostrově a kouká na moře. Když k němu hráč přijde pěšky a zmáčkne E (P1) /
-//  Numpad1 (P2), spustí se krátký dialog.
-//
-//  Zatím je to NÁČRT příběhu: děda říká, že kdysi schoval svůj poklad na jednom
-//  z ostrovů a je jeho poslední přání, aby ho hráč našel. (Navázání na skutečný
-//  úkol/odměnu doděláme později.)
+//  Příběhové NPC — starý námořník, který sedí na startovním ostrově. Vede hráče
+//  příběhem po krocích (gameData.storyStep):
+//    0 = start: řekne, ať si koupí aspoň malou loď a vrátí se
+//    1 = má loď: chce se prokázat — 1000 mincí + historický poklad
+//    2 = dostal souřadnice: navádí k příběhovému mega ostrovu (šipka na minimapě)
+//    3 = hráč tam byl: poklad už někdo vykopal, ale nechal stopu
+//    4+ = pokračování (doplní se později)
 //
 //  Objekt "StoryNpc" je v SampleScene. Panáčka i jeho umístění si vytvoří sám
-//  v Start() — nic se nezapojuje v inspektoru. V majáku / jiných scénách není.
+//  v Start(). V majáku / jiných scénách není.
 // ─────────────────────────────────────────────────────────────────────────────
 
 public class StoryNpc : MonoBehaviour
 {
-    // Repliky dědy (náčrt — text se bude ladit).
-    private static readonly string[] Lines =
-    {
-        "Á, návštěva. Pojď blíž, mladý námořníku.",
-        "Jsem starý a moře už mě dávno nechce.",
-        "Ale mám jedno poslední přání, než tu skončím.",
-        "Kdysi jsem na jednom z ostrovů schoval truhlu — celý svůj poklad.",
-        "Najdi ji pro mě. Ať po mně něco zůstane.",
-        "Víc ti teď neřeknu. Až budeš připravený, vrať se za mnou.",
-    };
-
     private const string NpcName   = "Starý námořník";
     private const float  HintRange = 2.4f; // na kolik políček se ukáže nápověda "zmáčkni E"
+
+    public static StoryNpc Instance { get; private set; }
+
+    private const int   PROVE_COST = 1000; // kolik mincí chce starý námořník
 
     private GridManager gridManager;
     private Vector2Int  tilePos;      // políčko, na kterém děda sedí
     private bool        placed;
     private int         talkingWith = -1; // 0 = P1, 1 = P2, -1 = nikdo
     private int         line;
-    private float       ignoreKeyUntil;  // aby E, kterým se dialog otevřel, hned nepřeskočilo první repliku
-    private float       reopenAllowedAt; // krátká pauza po konci dialogu, ať tentýž stisk E dialog hned neotevře znovu
+    private string[]    activeLines;  // repliky pro aktuální rozhovor (podle storyStep)
+    private bool        showGiveButton; // v kroku 1 se splněnými podmínkami
+    private float       ignoreKeyUntil;
+    private float       reopenAllowedAt;
 
-    private GUIStyle nameStyle, textStyle, hintStyle;
+    private GUIStyle nameStyle, textStyle, hintStyle, giveStyle;
     private bool     stylesReady;
+
+    void Awake()  { Instance = this; }
+    void OnDestroy() { if (Instance == this) Instance = null; }
+
+    private GameData Data => gridManager.gameData;
+    private int StoryStep => Data.storyStep;
 
     // ── Dotazy pro PlayerController ─────────────────────────────────────────
     /// <summary>Sedí děda na tomhle políčku?</summary>
@@ -57,8 +58,158 @@ public class StoryNpc : MonoBehaviour
         if (Time.time < reopenAllowedAt) return; // právě jsme dialog zavřeli — nech E "vyprchat"
         talkingWith    = playerIndex;
         line           = 0;
+        BuildDialogForStep();
         ignoreKeyUntil = Time.time + 0.25f;
         SoundManager.PlayClick();
+    }
+
+    // ── Příběhový dialog ───────────────────────────────────────────────────
+    // Sestaví repliky podle aktuálního kroku příběhu (a podmínek).
+    private void BuildDialogForStep()
+    {
+        showGiveButton = false;
+        int shipLevel  = talkingWith == 0 ? Data.shipLevel : Data.player2ShipLevel;
+        int coins      = talkingWith == 0 ? Data.coins     : Data.player2Coins;
+
+        switch (StoryStep)
+        {
+            case 0:
+                if (shipLevel <= 0)
+                    activeLines = new[]
+                    {
+                        "Á, návštěva. Vidím, že jsi vyplul na obyčejném voru.",
+                        "Takhle daleko se nedostaneš, chlapče.",
+                        "Kup si aspoň malou plachetnici v majáku a vrať se za mnou.",
+                    };
+                else
+                    activeLines = new[]
+                    {
+                        "Á, teď už máš pořádnou loď. Dobře.",
+                        "Než tě pošlu za tím, co hledám, musím vědět, že ti můžu věřit.",
+                        "Přines mi 1000 mincí a historický poklad.",
+                        "Historický poklad občas bývá v pokladech ze starých map — z beden.",
+                        "Vrať se, až budeš mít obojí.",
+                    };
+                break;
+
+            case 1:
+                if (coins >= PROVE_COST && Data.hasHistoricalTreasure)
+                {
+                    activeLines = new[]
+                    {
+                        "Tak co, máš pro mě 1000 mincí a ten historický poklad?",
+                    };
+                    showGiveButton = true;
+                }
+                else
+                {
+                    activeLines = new[]
+                    {
+                        "Ještě to nemáš. Chci 1000 mincí a historický poklad.",
+                        "Ten historický vyplať ve výkupně (zeleny pult v majáku) — poznáš ho.",
+                    };
+                }
+                break;
+
+            case 2:
+                activeLines = new[]
+                {
+                    $"Ostrov je na souřadnicích [{Data.storyIslandX}, {Data.storyIslandY}].",
+                    "Máš to nahoře na obrazovce a na minimapě šipku. Drž se jí.",
+                    "Je to daleko. Až tam budeš, poznáš to.",
+                };
+                break;
+
+            case 3:
+                activeLines = new[]
+                {
+                    "Vidím ti to na očích. Byl jsi tam.",
+                    "Někdo tě předběhl. Poklad je pryč.",
+                    "Ale ten, kdo kopal, nechal na obelisku vzkaz — stopu, kam dál.",
+                    "Nech mě přemýšlet. Řeknu ti víc, až tomu porozumím.",
+                };
+                break;
+
+            default:
+                activeLines = new[]
+                {
+                    "Ta stopa nás dovede dál. Buď trpělivý, námořníku.",
+                };
+                break;
+        }
+    }
+
+    // Volá se, když hráč dočte poslední repliku (nebo dialog ukončí).
+    private void OnDialogFinished()
+    {
+        if (StoryStep == 0)
+        {
+            int shipLevel = talkingWith == 0 ? Data.shipLevel : Data.player2ShipLevel;
+            if (shipLevel >= 1) { Data.storyStep = 1; gridManager.Save(); }
+        }
+        else if (StoryStep == 3)
+        {
+            Data.storyStep = 4;
+            gridManager.Save();
+        }
+    }
+
+    // Tlačítko "dát starému námořníkovi 1000 mincí + historický poklad" (krok 1).
+    private void GiveToSailor()
+    {
+        int coins = talkingWith == 0 ? Data.coins : Data.player2Coins;
+        if (coins < PROVE_COST || !Data.hasHistoricalTreasure) return;
+
+        if (talkingWith == 0) Data.coins        -= PROVE_COST;
+        else                  Data.player2Coins -= PROVE_COST;
+        Data.hasHistoricalTreasure = false;
+
+        // Vylosuj daleké místo pro příběhový mega ostrov (deterministicky podle
+        // pozice hráče, ať to má každá hra jinde).
+        int px = Data.playerGridX, py = Data.playerGridY;
+        int hsh = unchecked((px * 92821) ^ (py * 68917) ^ 0x5bd1e995);
+        float ang = ((hsh & 0xFFFF) / 65535f) * Mathf.PI * 2f;
+        int dist  = 340 + ((hsh >> 16) & 0x7F); // 340..467 políček
+        int sx = Mathf.RoundToInt(Mathf.Cos(ang) * dist);
+        int sy = Mathf.RoundToInt(Mathf.Sin(ang) * dist);
+
+        gridManager.PlaceMegaIsland(sx, sy);
+
+        Data.storyStep   = 2;
+        Data.hasWaypoint = true;   // šipka na minimapě povede k ostrovu
+        Data.waypointX   = sx;
+        Data.waypointY   = sy;
+        gridManager.Save();
+        gridManager.NotifyWorldChanged();
+        SoundManager.PlayCoin();
+
+        // Pokračuj rovnou navazujícími replikami.
+        activeLines = new[]
+        {
+            "Výborně. Přesně tohle jsem potřeboval.",
+            $"To, co hledám, je na ostrově na [{sx}, {sy}]. Daleko na moři.",
+            "Máš to nahoře na obrazovce a na minimapě šipku. Vydej se tam.",
+        };
+        line = 0;
+        showGiveButton = false;
+        ignoreKeyUntil = Time.time + 0.2f;
+    }
+
+    /// <summary>Volá PlayerController, když hráč vstoupí na příběhový mega ostrov.</summary>
+    public static void OnReachedStoryIsland()
+    {
+        var d = GameSession.Instance != null ? GameSession.Instance.Data : null;
+        if (d == null || d.storyStep != 2) return;
+
+        d.storyStep   = 3;
+        d.hasWaypoint = false; // cíl splněn
+        GameSession.Instance.Save();
+
+        var grid = FindFirstObjectByType<GridManager>();
+        if (grid != null) grid.NotifyWorldChanged();
+
+        if (CombatDirector.Instance != null)
+            CombatDirector.Instance.Toast("Někdo tu už kopal. Na obelisku je vzkaz — vrať se za starým námořníkem.");
     }
 
     // ───────────────────────────────────────────────────────────────────────
@@ -265,12 +416,16 @@ public class StoryNpc : MonoBehaviour
             ? Input.GetKeyDown(KeyCode.Escape)
             : Input.GetKeyDown(KeyCode.KeypadEnter);
 
-        if (close) { EndTalk(); return; }
+        if (close) { OnDialogFinished(); EndTalk(); return; }
         if (!advance) return;
+
+        // Na poslední replice s tlačítkem "dát" se klávesou dál neposouvá —
+        // hráč musí kliknout na tlačítko (nebo zavřít Escapem).
+        if (showGiveButton && line >= activeLines.Length - 1) return;
 
         line++;
         ignoreKeyUntil = Time.time + 0.12f;
-        if (line >= Lines.Length) { EndTalk(); return; }
+        if (line >= activeLines.Length) { OnDialogFinished(); EndTalk(); return; }
         SoundManager.PlayClick();
     }
 
@@ -322,11 +477,25 @@ public class StoryNpc : MonoBehaviour
         GUI.color = Color.white;
 
         GUI.Label(new Rect(box.x + 18f, box.y + 10f, box.width - 36f, 24f), NpcName, nameStyle);
-        GUI.Label(new Rect(box.x + 18f, box.y + 40f, box.width - 36f, 60f), Lines[Mathf.Clamp(line, 0, Lines.Length - 1)], textStyle);
+        string txt = activeLines != null && activeLines.Length > 0
+            ? activeLines[Mathf.Clamp(line, 0, activeLines.Length - 1)] : "";
+        GUI.Label(new Rect(box.x + 18f, box.y + 40f, box.width - 36f, 60f), txt, textStyle);
 
         string key = playerIndex == 0 ? "E" : "Numpad 1";
-        string more = line >= Lines.Length - 1 ? "[" + key + "] konec" : "[" + key + "] dál";
-        GUI.Label(new Rect(box.x + 18f, box.yMax - 24f, box.width - 36f, 20f), more, hintStyle);
+        bool lastLine = activeLines == null || line >= activeLines.Length - 1;
+
+        // Krok 1 se splněnými podmínkami: na poslední replice tlačítko "dát".
+        if (showGiveButton && lastLine)
+        {
+            var br = new Rect(box.x + box.width / 2f - 150f, box.yMax - 30f, 300f, 24f);
+            if (SoundManager.Click(GUI.Button(br, "Dát mu 1000 minci + historicky poklad", giveStyle)))
+                GiveToSailor();
+        }
+        else
+        {
+            string more = lastLine ? "[" + key + "] konec" : "[" + key + "] dál";
+            GUI.Label(new Rect(box.x + 18f, box.yMax - 24f, box.width - 36f, 20f), more, hintStyle);
+        }
     }
 
     // Obrazovka celá (sólo) nebo levá / pravá půlka (split screen).
@@ -357,6 +526,20 @@ public class StoryNpc : MonoBehaviour
             fontSize = 13, alignment = TextAnchor.MiddleCenter, fontStyle = FontStyle.Bold,
             normal = { textColor = new Color(0.85f, 0.85f, 0.7f) }
         };
+        giveStyle = new GUIStyle(GUI.skin.button)
+        {
+            fontSize = 14, fontStyle = FontStyle.Bold,
+            normal = { textColor = Color.white, background = Solid(new Color(0.2f, 0.5f, 0.25f)) },
+            hover  = { textColor = Color.white, background = Solid(new Color(0.3f, 0.65f, 0.35f)) }
+        };
         stylesReady = true;
+    }
+
+    private static Texture2D Solid(Color c)
+    {
+        var t = new Texture2D(1, 1);
+        t.SetPixel(0, 0, c);
+        t.Apply();
+        return t;
     }
 }

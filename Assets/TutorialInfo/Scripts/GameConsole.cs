@@ -123,6 +123,7 @@ public class GameConsole : MonoBehaviour
                 Log("<color=#ffff88>explore</color> [radius]             odhalí mapu");
                 Log("<color=#ffff88>locate</color> [fish/treasure/chest/island/quest]  najde nejbližší");
                 Log("<color=#ffff88>respawn</color>                       oživí hráče u nejbližšího ostrova");
+                Log("<color=#ffff88>story</color> [krok / island / histtreasure]   příběh (test)");
                 Log("<color=#ffff88>reset money</color>                   vynuluje mince");
                 Log("<color=#ffff88>clear</color>                         vymaže konzoli");
                 Log("──────────────────────────────");
@@ -134,6 +135,7 @@ public class GameConsole : MonoBehaviour
             case "explore": HandleExplore(p); break;
             case "locate":  HandleLocate(p);  break;
             case "respawn": HandleRespawn();  break;
+            case "story":   HandleStory(p);   break;
             case "reset":   HandleReset(p);   break;
             case "clear":   log.Clear();      break;
 
@@ -281,6 +283,40 @@ public class GameConsole : MonoBehaviour
         grid.RespawnPlayerAtNearestIsland(0);
         if (player != null) player.ReloadFromData();
         Log("<color=#44ff44>Respawn</color> — veslice u nejbližšího ostrova (kořist a vylepšení pryč, mince zůstaly).");
+    }
+
+    // story — testovací ovládání příběhu
+    void HandleStory(string[] p)
+    {
+        var d = grid.gameData;
+        if (p.Length < 2)
+        {
+            Log($"storyStep = {d.storyStep}, historicky poklad = {d.hasHistoricalTreasure}, "
+              + $"mega ostrov = {(d.storyIslandActive ? $"[{d.storyIslandX}, {d.storyIslandY}]" : "-")}");
+            return;
+        }
+
+        if (p[1] == "histtreasure")
+        {
+            d.hasHistoricalTreasure = true;
+            grid.Save(); grid.NotifyWorldChanged();
+            Log("Máš historický poklad.");
+        }
+        else if (p[1] == "island")
+        {
+            int sx = d.playerGridX + 60, sy = d.playerGridY + 40;
+            grid.PlaceMegaIsland(sx, sy);
+            d.storyStep = 2; d.hasWaypoint = true; d.waypointX = sx; d.waypointY = sy;
+            grid.Save(); grid.NotifyWorldChanged();
+            Log($"Mega ostrov na [{sx}, {sy}], storyStep=2, waypoint nastaven.");
+        }
+        else if (int.TryParse(p[1], out int step))
+        {
+            d.storyStep = Mathf.Clamp(step, 0, 9);
+            grid.Save(); grid.NotifyWorldChanged();
+            Log($"storyStep = {d.storyStep}");
+        }
+        else Log("Použití: story  |  story <krok 0-9>  |  story island  |  story histtreasure");
     }
 
     // reset money — vynuluje mince

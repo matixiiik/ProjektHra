@@ -488,6 +488,7 @@ public class MinimapUIRenderer : MonoBehaviour
             case TileType.Pier:       return pierColor;
             case TileType.Lighthouse: return lighthouseColor;
             case TileType.Chest:      return chestColor;
+            case TileType.MegaIsland: return new Color(0.55f, 0.35f, 0.7f, 1f); // příběhový ostrov — fialová
             default:                  return waterColor; // staré shopy apod. bereme jako vodu
         }
     }

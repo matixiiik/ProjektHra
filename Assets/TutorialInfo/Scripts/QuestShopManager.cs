@@ -109,7 +109,8 @@ public class QuestShopManager : MonoBehaviour
     int FishPrice()     => EconomyConfig.FishPrice     + (HasSellBonus() ? EconomyConfig.SellBonusPerItem : 0);
     int TreasurePrice() => EconomyConfig.TreasurePrice + (HasSellBonus() ? EconomyConfig.SellBonusPerItem : 0);
 
-    /// <summary>Vyplacení mega questu (poklad z mapy). Mince + trvalý bonus na výkup.</summary>
+    /// <summary>Vyplacení mega questu (poklad z mapy). Mince + trvalý bonus na výkup.
+    /// ~20 % pokladů je "historických" → hráč dostane i historický poklad (příběh).</summary>
     void ClaimMega()
     {
         MegaQuest mq = GetMega();
@@ -117,6 +118,10 @@ public class QuestShopManager : MonoBehaviour
 
         SetCoins(GetCoins() + mq.rewardCoins);
         GiveSellBonus();
+
+        // ~20 % pokladů dá i "historický poklad" — chce ho starý námořník (příběh).
+        if (mq.grantsHistoricalTreasure) Data.hasHistoricalTreasure = true;
+
         mq.Reset(); // hráč si teď může otevřít další bednu
         Save();
         SoundManager.PlayCoin();
@@ -267,13 +272,27 @@ public class QuestShopManager : MonoBehaviour
     // ── Obsah VÝKUPNY (zelený pult) ─────────────────────────────────────────
     private void DrawSellContent()
     {
+        // Máš historický poklad? (ať víš, že ho neseš starému námořníkovi.)
+        if (Data.hasHistoricalTreasure)
+        {
+            GUI.color = new Color(0.6f, 0.85f, 1f);
+            GUILayout.Label("Neses: HISTORICKY POKLAD  (chce ho stary namornik)", rowStyle);
+            GUI.color = Color.white;
+            GUILayout.Space(8);
+        }
+
         // Vyplacení mega questu (poklad z mapy) — mince + trvalý bonus na výkup.
         MegaQuest mq = GetMega();
         if (mq.active && mq.dug)
         {
             GUILayout.Label("POKLAD Z MAPY", sectionStyle);
-            GUILayout.Label("Vykopany poklad je pripraveny k vyplaceni.", rowStyle);
-            if (SoundManager.Click(GUILayout.Button($"  VYPLATIT  {mq.rewardCoins} minci  +  trvaly bonus na vykup  !", claimStyle, GUILayout.Height(38))))
+            GUILayout.Label(mq.grantsHistoricalTreasure
+                ? "Vykopany poklad je vyjimecny — HISTORICKY."
+                : "Vykopany poklad je pripraveny k vyplaceni.", rowStyle);
+            string btn = mq.grantsHistoricalTreasure
+                ? $"  VYPLATIT  {mq.rewardCoins} minci  +  HISTORICKY POKLAD  +  bonus  !"
+                : $"  VYPLATIT  {mq.rewardCoins} minci  +  trvaly bonus na vykup  !";
+            if (SoundManager.Click(GUILayout.Button(btn, claimStyle, GUILayout.Height(38))))
                 ClaimMega();
             GUILayout.Space(14);
         }

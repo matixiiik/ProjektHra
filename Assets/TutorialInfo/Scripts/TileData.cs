@@ -22,7 +22,8 @@ public enum TileType
     UpgradeShop = 6, // starý obchod s vylepšeními (2x2) — nové ostrovy už ho nestaví, drží se kvůli starým savům
     QuestShop   = 7, // starý obchod s questy (2x2) — dtto
     Lighthouse  = 8, // maják na ostrově — pěšky u něj `E` = vejít dovnitř (scéna s obchody)
-    Chest       = 9  // bedna na ostrově — pěšky u ní `E` = otevřít (mince + mega quest)
+    Chest       = 9, // bedna na ostrově — pěšky u ní `E` = otevřít (mince + mega quest)
+    MegaIsland  = 10 // příběhový "mega ostrov" — velká plocha, kam vede příběh (zatím jen země)
 }
 
 /// <summary>

@@ -26,10 +26,13 @@ public class HUDCounter : MonoBehaviour
     private Text        coordText;   // souřadnice hráče (levý horní roh)
     private GameObject  questPanel;
     private Text        questLine;
+    private GameObject  storyPanel;   // příběhový cíl (starý námořník) — nahoře uprostřed
+    private Text        storyLine;
 
     // Odkazy na RectTransformy prvků, abychom s nimi mohli hýbat při split screenu.
     private List<RectTransform> rowRTs = new List<RectTransform>();
     private RectTransform        questPanelRT;
+    private RectTransform        storyPanelRT;
     private RectTransform        coordRT;
 
     void Start()
@@ -83,6 +86,37 @@ public class HUDCounter : MonoBehaviour
 
         BuildQuestPanel(canvasGO.transform);
         questPanel.SetActive(false); // schovaný, dokud hráč nemá quest
+
+        BuildStoryPanel(canvasGO.transform);
+        storyPanel.SetActive(false); // schovaný, dokud není příběhový cíl
+    }
+
+    // Příběhový cíl — jeden řádek nahoře uprostřed pod quest panelem.
+    void BuildStoryPanel(Transform parent)
+    {
+        storyPanel = new GameObject("StoryPanel");
+        storyPanel.transform.SetParent(parent, false);
+
+        storyPanelRT = storyPanel.AddComponent<RectTransform>();
+        float ax = playerIndex == 1 ? 0.75f : 0.5f;
+        storyPanelRT.anchorMin = storyPanelRT.anchorMax = new Vector2(ax, 1f);
+        storyPanelRT.pivot     = new Vector2(0.5f, 1f);
+        storyPanelRT.anchoredPosition = new Vector2(0f, -62f);
+        storyPanelRT.sizeDelta        = new Vector2(360f, 32f);
+
+        var bg = new GameObject("BG");
+        bg.transform.SetParent(storyPanel.transform, false);
+        var bgRt = bg.AddComponent<RectTransform>();
+        bgRt.anchorMin = Vector2.zero; bgRt.anchorMax = Vector2.one;
+        bgRt.offsetMin = bgRt.offsetMax = Vector2.zero;
+        var bgImg = bg.AddComponent<Image>();
+        bgImg.sprite = HudSkin.Panel();
+        bgImg.type   = Image.Type.Sliced;
+
+        storyLine = MakeText(storyPanel.transform,
+            new Vector2(12, 0), new Vector2(-12, 0),
+            Vector2.zero, Vector2.one,
+            15f, new Color(1f, 0.9f, 0.65f), FontStyle.Bold, TextAnchor.MiddleCenter);
     }
 
     // (Health bary lodě a hráče kreslí MinimapUIRenderer — sedí nad minimapou.)
@@ -264,6 +298,13 @@ public class HUDCounter : MonoBehaviour
             questPanelRT.anchoredPosition = new Vector2(0, -16f);
         }
 
+        if (storyPanelRT != null)
+        {
+            storyPanelRT.anchorMin = storyPanelRT.anchorMax = new Vector2(questAnchorX, 1f);
+            storyPanelRT.pivot     = new Vector2(0.5f, 1f);
+            storyPanelRT.anchoredPosition = new Vector2(0, -62f);
+        }
+
         // Souřadnice: P1 vlevo nahoře (0), P2 při splitu na začátek pravé půlky (0.5).
         if (coordRT != null)
         {
@@ -298,6 +339,25 @@ public class HUDCounter : MonoBehaviour
         ammoText.text     = $"Naboje: {ammo}";
         coordText.text    = $"X: {gx}   Y: {gy}";
         RefreshQuest(q, mq);
+        RefreshStory(d);
+    }
+
+    // Příběhový cíl podle gameData.storyStep.
+    void RefreshStory(GameData d)
+    {
+        if (storyPanel == null) return;
+
+        string txt = "";
+        switch (d.storyStep)
+        {
+            case 1: txt = "Ukol: prines starymu namornikovi 1000 minci + historicky poklad"; break;
+            case 2: txt = $"Ukol: dopluj k ostrovu na  [{d.storyIslandX}, {d.storyIslandY}]"; break;
+            case 3: txt = "Ukol: vrat se za starym namornikem"; break;
+        }
+
+        bool show = txt != "";
+        storyPanel.SetActive(show);
+        if (show) storyLine.text = txt;
     }
 
     void RefreshQuest(ActiveQuest q, MegaQuest mq)

@@ -118,6 +118,7 @@ public class GameConsole : MonoBehaviour
                 Log("<color=#ffff88>get fish</color> <pocet>             přidá ryby");
                 Log("<color=#ffff88>get treasure</color> <pocet>         přidá poklady");
                 Log("<color=#ffff88>get boat</color> row/small/medium/large   změní loď");
+                Log("<color=#ffff88>get item</color> map/ammo/histtreasure/sellbonus/megamap");
                 Log("<color=#ffff88>upgrade</color> speed/rod/mining      odemkne upgrade");
                 Log("<color=#ffff88>tp</color> <x> <y>                   teleport");
                 Log("<color=#ffff88>explore</color> [radius]             odhalí mapu");
@@ -145,10 +146,10 @@ public class GameConsole : MonoBehaviour
         }
     }
 
-    // get money/fish/treasure/boat <hodnota>
+    // get money/fish/treasure/boat/item <hodnota>
     void HandleGet(string[] p)
     {
-        if (p.Length < 2) { Log("Použití: get <money/fish/treasure/boat> ..."); return; }
+        if (p.Length < 2) { Log("Použití: get <money/fish/treasure/boat/item> ..."); return; }
 
         switch (p[1])
         {
@@ -179,14 +180,72 @@ public class GameConsole : MonoBehaviour
                 Log($"Loď změněna na: <color=#44ff44>{p[2]}</color>");
                 break;
 
+            case "item":
+                if (!HandleGetItem(p)) return; // vypsalo si vlastní chybu
+                break;
+
             default:
-                Log($"Neznámý typ: {p[1]}");
+                Log($"Neznámý typ: {p[1]}  (money/fish/treasure/boat/item)");
                 return;
         }
 
         // Po každé úspěšné změně ulož a dej vědět HUD/minimapě.
         grid.Save();
         grid.NotifyWorldChanged();
+    }
+
+    // get item <map/ammo/histtreasure/sellbonus/megamap/map>
+    // Vrací false, když nic nepřidal (chybu si vypíše sám).
+    bool HandleGetItem(string[] p)
+    {
+        var d = grid.gameData;
+        if (p.Length < 3)
+        {
+            Log("Použití: get item <map / ammo [pocet] / histtreasure / sellbonus / megamap>");
+            return false;
+        }
+
+        switch (p[2])
+        {
+            case "map":
+                d.hasMap = true;
+                Log("<color=#44ddff>Mapa</color> — v lodi klávesa M otevře velkou mapu.");
+                return true;
+
+            case "ammo":
+                int n = 20;
+                if (p.Length >= 4) int.TryParse(p[3], out n);
+                d.ammo += n;
+                Log($"<color=#cccccc>+{n} nábojů</color>  (celkem: {d.ammo})");
+                return true;
+
+            case "histtreasure":
+            case "historicky":
+                d.hasHistoricalTreasure = true;
+                Log("<color=#88ddff>Historický poklad</color> — chce ho starý námořník (příběh).");
+                return true;
+
+            case "sellbonus":
+                d.sellBonus = true;
+                Log("<color=#66ff66>Trvalý bonus na výkup</color> odemčen.");
+                return true;
+
+            case "megamap":
+            case "megaquest":
+                if (d.megaQuest.active) { Log("Mega quest už máš rozdělaný."); return false; }
+                d.megaQuest.active      = true;
+                d.megaQuest.dug         = false;
+                d.megaQuest.targetX     = d.playerGridX + 20;
+                d.megaQuest.targetY     = d.playerGridY + 15;
+                d.megaQuest.rewardCoins = 600;
+                d.megaQuest.grantsHistoricalTreasure = true;
+                Log($"<color=#ffcc44>Mega quest (mapa)</color> — poklad na [{d.megaQuest.targetX}, {d.megaQuest.targetY}], historický.");
+                return true;
+
+            default:
+                Log($"Neznámá věc: {p[2]}  (map / ammo / histtreasure / sellbonus / megamap)");
+                return false;
+        }
     }
 
     // upgrade speed/rod/mining

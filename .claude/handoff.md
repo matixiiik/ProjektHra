@@ -31,9 +31,9 @@ kouskách do maturity. Až se začne: první milník = "Infra" + "Ostrov 1 — o
   ostrov. Nepřátelské ostrovy nejdou předpovědět dopředu (žádný seed, `Random.value`
   při generování) — do `gameData.hostileIslands` se přidá, až k němu hráč dopluje
   (v dosahu ACTIVE_GRID_SIZE 28). Prázdný případ vypíše nápovědu.
-  **Šance nepřátelského ostrova = 20 % ze všech vzniklých ostrovů** (`GridManager`
-  ř. ~527, `Random.value < 0.20f`). Ostrovy samotné: mřížka po 40, 30 % šance,
-  min. rozestup 200 → nepřátelský ostrov zhruba 1 z 5 potkaných.
+  **Šance nepřátelského ostrova = 40 % ze všech vzniklých ostrovů** (`GridManager`
+  ř. ~527, `Random.value < 0.40f`). Ostrovy samotné: mřížka po 40, 30 % šance,
+  min. rozestup 200 → nepřátelský ostrov zhruba 2 z 5 potkaných (změněno 2026-09-10 z 20 %).
 
 ### 🔧 OPRAVY ANIMAČNÍ DÁVKY #3 2026-09-10 (commit `0167003`, PUSHNUTO — ověřeno screenshotem)
 - **"lampa ze stropu zasahuje do obličeje prostředního prodavače"** → `HangingLamp`

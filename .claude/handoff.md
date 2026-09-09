@@ -11,6 +11,17 @@ sem Claude píše, kde se přestalo, aby se dalo pokračovat i z notebooku.
 ## STAV 2026-09-09 — vše commitnuté a pushnuté, working tree čistý
 (kromě `Napady.txt`, který si edituje uživatel — necommitovat za něj)
 
+### MAJÁK — PODKOVA PULTŮ (2026-09-09) — HOTOVO, OTESTOVÁNO přes MCP
+- `LighthouseInteriorDecor`: 3 pulty teď tvoří **podkovu ⊐** otevřenou ke dveřím:
+  prostřední (quest, oranžový) rovnoběžný se dveřmi, boční (upgrade / výkupna)
+  na jeho rozích otočené dovnitř (`DressCounter` bere explicitní `yaw`, nastavuje
+  se WORLD rotace — kostka ve scéně má vlastní rotaci). Hráč z jednoho místa
+  (~0, 2.2) dosáhne na všechny tři. `WALK_RADIUS 2.5`.
+- Prodavačům **sundán klobouk** (`BuildShopkeeper` — řádek "Hat" pryč).
+- Ohřívadla / lucerny / květiny / bedny rozmístěné víc do stran.
+
+---
+
 ### DÁVKA: SYMETRICKÝ MAJÁK + ZAČÁTEK PŘÍBĚHU (2026-09-09) — HOTOVO, OTESTOVÁNO přes MCP
 
 **Vizuál:**

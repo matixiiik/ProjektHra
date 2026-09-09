@@ -22,21 +22,23 @@ using UnityEngine;
 public class LighthouseInteriorDecor : MonoBehaviour
 {
     private const float WALL_R      = 3.8f;  // poloměr kulaté stěny
-    private const float WALK_RADIUS = 2.3f;  // kam smí hráč (zhruba kobereček)
+    private const float WALK_RADIUS = 2.5f;  // kam smí hráč (zhruba kobereček)
 
     // Barvy trička prodavačů = barvy pultů.
-    private static readonly Color UpgradeShirt = new Color(0.28f, 0.45f, 0.68f); // modrá — vylepšení
-    private static readonly Color QuestShirt   = new Color(0.86f, 0.52f, 0.16f); // oranžová — questy
-    private static readonly Color SellShirt    = new Color(0.30f, 0.62f, 0.30f); // zelená — výkupna
+    private static readonly Color QuestShirt   = new Color(0.86f, 0.52f, 0.16f); // oranžová — questy (prostřední)
+    private static readonly Color UpgradeShirt = new Color(0.28f, 0.45f, 0.68f); // modrá — vylepšení (levý)
+    private static readonly Color SellShirt    = new Color(0.30f, 0.62f, 0.30f); // zelená — výkupna (pravý)
 
-    // Cílové polohy pultů (symetricky: levý a pravý zrcadlově, prostřední ve středu).
-    private static readonly Vector3 UpgradePos = new Vector3(-2.6f, 0.5f, 2.3f);
-    private static readonly Vector3 QuestPos   = new Vector3( 0.0f, 0.5f, 2.9f);
-    private static readonly Vector3 SellPos    = new Vector3( 2.6f, 0.5f, 2.3f);
+    // Pulty tvoří "podkovu" ⊐ otevřenou ke dveřím (−Z): prostřední rovnoběžný se
+    // dveřmi, boční na jeho rozích, otočené dovnitř. (yaw: 0 = čelem ke dveřím,
+    // -90 = čelem doprava, +90 = čelem doleva.)
+    private static readonly Vector3 MidPos   = new Vector3( 0.00f, 0.5f, 3.15f);  private const float MidYaw   =   0f;
+    private static readonly Vector3 LeftPos  = new Vector3(-1.15f, 0.5f, 2.15f);  private const float LeftYaw  = -90f;
+    private static readonly Vector3 RightPos = new Vector3( 1.15f, 0.5f, 2.15f);  private const float RightYaw =  90f;
 
-    // Původní polohy kostek pultu ve scéně (kvůli relativnímu posunu).
-    private static readonly Vector3 SceneUpgradePos = new Vector3(-2.6f, 0.5f, 2.5f);
-    private static readonly Vector3 SceneQuestPos   = new Vector3( 2.6f, 0.5f, 2.5f);
+    // Původní poloha prostřední kostky pultu ve scéně (Counter_Quest) — od ní
+    // počítáme posun relativně (kvůli coop offsetu).
+    private static readonly Vector3 SceneQuestPos = new Vector3(2.6f, 0.5f, 2.5f);
 
     private Material wood, woodDark, stone, cloth, leaf, ember, metal, skin;
 
@@ -54,37 +56,43 @@ public class LighthouseInteriorDecor : MonoBehaviour
         // Zrcadlené prvky (levá / pravá strana).
         for (int s = -1; s <= 1; s += 2)
         {
-            BuildBrazier(new Vector3(s * (WALL_R - 0.55f), 0f, 0.1f));
-            BuildWallSconce(s * 122f);
-            BuildPlant(new Vector3(s * 2.7f, 0f, -1.9f));
-            BuildCrates(new Vector3(s * 2.9f, 0f, 1.0f), s);
+            BuildBrazier(new Vector3(s * (WALL_R - 0.5f), 0f, -0.3f));
+            BuildWallSconce(s * 118f);
+            BuildPlant(new Vector3(s * 3.0f, 0f, -1.7f));
+            BuildCrates(new Vector3(s * 3.1f, 0f, -0.6f), s);
         }
 
-        // Tři pulty u zadní stěny (levý/pravý zrcadlově, prostřední ve středu).
+        // Tři pulty do "podkovy" ⊐: prostřední rovnoběžný se dveřmi, boční na
+        // jeho rozích otočené dovnitř. Boční počítáme relativně od prostředního
+        // (kvůli coop offsetu). Prostřední = quest (oranžový).
         var up = FindInScene("Counter_Upgrade");
         var qu = FindInScene("Counter_Quest");
-        if (up != null) { up.transform.position += UpgradePos - SceneUpgradePos; DressCounter(up, UpgradeShirt); }
-        if (qu != null) { qu.transform.position += QuestPos   - SceneQuestPos;   DressCounter(qu, QuestShirt); }
+        if (qu != null) { qu.transform.position += MidPos  - SceneQuestPos;   DressCounter(qu, QuestShirt,   MidYaw); }
+        if (up != null && qu != null)
+        {
+            up.transform.position = qu.transform.position + (LeftPos - MidPos);
+            DressCounter(up, UpgradeShirt, LeftYaw);
+        }
         if (qu != null) BuildSellCounter(qu);
     }
 
     // ── Pulty ────────────────────────────────────────────────────────────
-    private void BuildSellCounter(GameObject questCounter)
+    private void BuildSellCounter(GameObject midCounter)
     {
         var go = new GameObject("Counter_Sell");
         UnityEngine.SceneManagement.SceneManager.MoveGameObjectToScene(go, gameObject.scene);
-        go.transform.position = questCounter.transform.position + (SellPos - QuestPos);
+        go.transform.position = midCounter.transform.position + (RightPos - MidPos);
 
         var it = go.AddComponent<InteriorInteractable>();
         it.action = InteriorAction.QuestShopSell;
         it.range  = 2.2f;
         it.prompt = "E — vykupna (prodej korist)";
 
-        DressCounter(go, SellShirt);
+        DressCounter(go, SellShirt, RightYaw);
     }
 
-    // Z objektu pultu udělá dřevěný pult otočený čelem do místnosti + prodavače.
-    private void DressCounter(GameObject counter, Color shirt)
+    // Z objektu pultu udělá dřevěný pult s daným natočením (yaw) + prodavače za ním.
+    private void DressCounter(GameObject counter, Color shirt, float yaw)
     {
         foreach (var mr in counter.GetComponentsInChildren<MeshRenderer>(true))
             mr.enabled = false;
@@ -92,18 +100,15 @@ public class LighthouseInteriorDecor : MonoBehaviour
         var root = new GameObject("CounterDressing");
         root.transform.SetParent(counter.transform, false);
         root.transform.position = new Vector3(counter.transform.position.x, 0f, counter.transform.position.z);
+        root.transform.rotation = Quaternion.Euler(0f, yaw, 0f); // SVĚTOVĚ; −Z = strana zákazníka
+        // (kostka pultu ve scéně může mít vlastní rotaci → nastavujeme world, ne local)
 
-        // Otoč čelem do místnosti: +Z ke zdi, −Z (strana zákazníka) ke středu.
-        Vector3 outward = new Vector3(counter.transform.position.x, 0f, counter.transform.position.z);
-        if (outward.sqrMagnitude > 0.01f)
-            root.transform.rotation = Quaternion.LookRotation(outward.normalized, Vector3.up);
+        Box(root.transform, "Top",   new Vector3(0f, 0.66f, -0.12f),   new Vector3(2.0f, 0.14f, 0.9f), wood);
+        Box(root.transform, "Front", new Vector3(0f, 0.33f, -0.52f),   new Vector3(2.0f, 0.66f, 0.16f), woodDark);
+        Box(root.transform, "Side1", new Vector3(-0.92f, 0.33f, -0.1f), new Vector3(0.14f, 0.66f, 0.75f), woodDark);
+        Box(root.transform, "Side2", new Vector3(0.92f, 0.33f, -0.1f),  new Vector3(0.14f, 0.66f, 0.75f), woodDark);
 
-        Box(root.transform, "Top",   new Vector3(0f, 0.66f, -0.12f),  new Vector3(2.0f, 0.14f, 0.95f), wood);
-        Box(root.transform, "Front", new Vector3(0f, 0.33f, -0.55f),  new Vector3(2.0f, 0.66f, 0.16f), woodDark);
-        Box(root.transform, "Side1", new Vector3(-0.92f, 0.33f, -0.1f), new Vector3(0.14f, 0.66f, 0.8f), woodDark);
-        Box(root.transform, "Side2", new Vector3(0.92f, 0.33f, -0.1f),  new Vector3(0.14f, 0.66f, 0.8f), woodDark);
-
-        BuildShopkeeper(root.transform, new Vector3(0f, 0f, 0.55f), shirt);
+        BuildShopkeeper(root.transform, new Vector3(0f, 0f, 0.42f), shirt);
     }
 
     private void BuildShopkeeper(Transform parent, Vector3 pos, Color shirt)
@@ -111,13 +116,12 @@ public class LighthouseInteriorDecor : MonoBehaviour
         var g = new GameObject("Shopkeeper");
         g.transform.SetParent(parent, false);
         g.transform.localPosition    = pos;
-        g.transform.localEulerAngles = new Vector3(0f, 180f, 0f); // čelem ke středu
+        g.transform.localEulerAngles = new Vector3(0f, 180f, 0f); // čelem k zákazníkovi
 
         Material shirtMat = Mat(shirt);
         Box(g.transform,    "Legs", new Vector3(0f, 0.30f, 0f),    new Vector3(0.42f, 0.60f, 0.36f), woodDark);
         Cyl(g.transform,    "Body", new Vector3(0f, 0.86f, 0f),    new Vector3(0.56f, 0.42f, 0.56f), Vector3.zero, shirtMat);
         Sphere(g.transform, "Head", new Vector3(0f, 1.34f, 0f),    new Vector3(0.40f, 0.40f, 0.40f), skin);
-        Box(g.transform,    "Hat",  new Vector3(0f, 1.56f, 0f),    new Vector3(0.62f, 0.14f, 0.62f), woodDark);
         Box(g.transform,    "Nose", new Vector3(0f, 1.32f, 0.22f), new Vector3(0.09f, 0.09f, 0.14f), skin);
     }
 

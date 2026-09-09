@@ -16,13 +16,18 @@ na moři mezi nimi.
 - **Zadavatel = DĚDA hráče** (dnešní `StoryNpc` "starý námořník" → přerámovat na
   dědu; text dialogů se upraví, třída zůstane `StoryNpc`). Hráč jede za pokladem,
   protože je to podle dědy **rodinné dědictví**.
-- **Sok = DĚDŮV STARŠÍ BRATR, o kterém děda ani nevěděl, že existuje** (jejich
-  otec ho zatajil / bratr zmizel dřív). Zloba bratra je vlastně vůči otci/rodině
-  — poklad je pro něj to, co mu bylo upřeno. Vzkazy = testuje, jestli si pro něj
-  rodina fakt přijde, nebo chce jen ten poklad.
-- **Vedlejší linka — dědův syn:** děda kdysi ztratil syna na moři (žal, který
-  nese). Bratr ho v jednom z finálních monologů zmíní (potkal ho / věděl o něm).
-  V endingu B děda pak hráči vypráví celý příběh o synovi (hořká kóda).
+- **Sok = DĚDŮV STARŠÍ BRATR, kterého má děda za dávno mrtvého.** Backstory:
+  když byl děda malý kluk, celá rodina (otec + oba synové) ztroskotala. **Otec
+  a malý děda se zachránili a dostali domů, staršího bratra nenašli** —
+  pohřbili ho jako utonulého, nikdo se pro něj nevrátil. Bratr ale přežil,
+  vyrostl a zestárl na moři. O pokladu ví, protože byl při ztroskotání dost
+  velký / otec o rodinném dědictví mluvil. **Jeho zloba: rodina ho odepsala,
+  nechala ho tam.** Vzkazy = testuje, jestli si pro něj teď rodina fakt přijde,
+  nebo jde zase jen po tom pokladu. (NENÍ to o tom, že by ho někdo tajil.)
+- **Vedlejší linka — dědův syn:** děda později ztratil na moři i vlastního syna
+  (rodinu jako by pronásledovalo moře — tohle je i důvod, proč děda posílá
+  hráče a sám nejede). Bratr syna v jednom z finálních monologů zmíní (potkal
+  ho / věděl o něm). V endingu B děda hráči vypráví celý příběh o synovi (kóda).
 
 ### Klíčová rozhodnutí
 - **Úkol na ostrově:** probojovat se přes obránce → uprostřed **trezor** s **puzzlem**
@@ -58,10 +63,12 @@ Opevněný úkryt bratrovy staré posádky. Zarostlé, děla, uzamčený trezor.
 3. **Trezor** uprostřed, zamčený. **Puzzle — TBD**, cíl ~10 min, řešitelné,
    férový feedback. Náčrt: po ostrově jsou vodítka, hráč je nasbírá a vyluští.
 4. Trezor otevřen → místo pokladu **vzkaz bratra + rovnou souřadnice ostrova 2**
-   → nastaví waypoint. Vzkaz: *"Přišel jsi pozdě. Našel jsem to první. Jestli
-   chceš, co je vaše, hledej mě dál."* — podepsáno iniciálou, zloba, náznak,
-   že zná dědu jako kapitána. `megaTask 2 → 3`; ve save `megaIndex++`, nový ostrov.
-5. **Volitelně doma:** děda pozná rukopis, zmlkne (denial — možná už tuší).
+   → nastaví waypoint. Vzkaz: *"Přišel jsi pozdě. Mám to já — měl jsem to celou
+   dobu. Jestli fakt chcete, co je rodiny, přijeď si pro to sám."* — podepsáno
+   iniciálou, hořkost, náznak, že pisatel zná dědu jménem z dětství. `megaTask
+   2 → 3`; ve save `megaIndex++`, nový ostrov.
+5. **Volitelně doma:** děda si vzkaz přečte, zarazí se — jméno/rukopis mu něco
+   říkají, ale zatím to nechce vyslovit. Není to brána.
    Není to brána — hráč může jet rovnou dál.
 
 ### Mezi 1 a 2 — mořská obluda
@@ -78,19 +85,20 @@ Vraky, mělčiny, jiná atmosféra.
 2. Puzzle **(líbí se)**: najdeš **3 kusy roztržené mapy** ve 3 vracích (kopání
    jako mega quest dig), složíš je → poloha/kód do podpalubí.
 3. Uvnitř bratrův **nedávno opuštěný tábor**. 2. vzkaz — teď osobnější:
-   pisatel viní **otce (= dědova a bratrova otce)**, že staršího syna zatajil /
-   nechal být. Hráč začíná tušit, že je to **dědův bratr**.
-4. **Volitelně doma:** děda otřesený — přizná, že o žádném starším bratrovi
-   nevěděl, ale rukopis a "věci, co ví" tomu odpovídají. Souřadnice ostrova 3
-   jsou už ve 2. vzkazu.
+   pisatel popisuje **ztroskotání z pohledu dítěte, co zůstalo na břehu** —
+   "vylezl jsem z vody a loď s vámi byla pryč; čekal jsem, nikdo nepřijel".
+   Hráč začíná tušit, že je to **dědův starší bratr, co ztroskotání přežil**.
+4. **Volitelně doma:** děda otřesený — potvrdí, že měl staršího bratra, co
+   "utonul", když byl děda malý, a že se pro něj tehdy nevrátili. Souřadnice
+   ostrova 3 jsou už ve 2. vzkazu.
 
 ### Ostrov 3 — "Kde to začalo" (bratr je tam). **Pořadí kroků TBD.**
 1. Bratrova loď hlídá příjezd — **boss fight**.
 2. Vylodíš se. **Bratr jako NPC** (`RivalNpc` — starý muž, vrstevník dědy).
-3. Konfrontace: monology bratra — jak ho otec zatajil, jak celý život žil na
-   moři, jak sledoval rodinu z dálky. **Zmíní dědova ztraceného syna** (potkal
-   ho / věděl o něm — nit do endingu B). "Poklad" = rodinné dědictví, které
-   bratr měl u sebe celou dobu.
+3. Konfrontace: monology bratra — jak přežil ztroskotání sám, jak čekal, že se
+   pro něj otec vrátí, jak vyrostl a zestárl na moři a rodinu sledoval z dálky.
+   **Zmíní dědova ztraceného syna** (potkal ho / věděl o něm — nit do endingu
+   B). "Poklad" = rodinné dědictví, které měl bratr u sebe celou dobu.
 4. **Hráč VOLÍ** (nová klávesa / IMGUI dvě tlačítka):
    - **A — ušetřit:** bratr jede s tebou + poklad → setkání dvou bratrů u dědy,
      teplejší konec.
@@ -185,8 +193,8 @@ odměna. **Čísla / feel TBD.**
 
 **Ostrov 2** (`BuildWreckGraveyard`): Holanďan hlídač (přesunout `ship-ghost.fbx`
 do `Assets/Resources/`). 3 kopací místa v mělčině → `DigRoutine`-styl z lodě.
-Po 3 kusech → kód do podpalubí → 2. vzkaz (viní otce, že staršího syna zatajil)
-+ souřadnice ostrova 3. Jiné hádanky než ostrov 1.
+Po 3 kusech → kód do podpalubí → 2. vzkaz (ztroskotání očima dítěte, co zůstalo
+na břehu — „nikdo pro mě nepřijel") + souřadnice ostrova 3. Jiné hádanky než ostrov 1.
 
 **Ostrov 3** (`BuildConfrontation`): boss loď na příjezd (= bratrova loď). Po
 potopení → vylodění → `RivalNpc.cs` (jako `StoryNpc`, **starý muž — vrstevník
@@ -198,21 +206,76 @@ Ending B: bratr zmizí, u dědy monolog o ztraceném synovi.
 
 ---
 
-## 6. Rozdělení na kousky
+## 6. Postup po kouskách (jak na to jít)
 
-1. **Infra** (`GameData` pole, `MegaIslandMarker` singleton + `TryInteract` hák,
-   `storyStep 3` podle `megaTask`, HUD/dialog cases; ostrov zatím prázdný,
-   `megaTask` jen konzolí).
-2. **Ostrov 1 — obrana** (děla + `LandGuard` + `megaTask 0→1`).
-3. **Ostrov 1 — trezor + puzzle** (až domyslíme puzzle; `megaTask 1→2`).
-4. **Ostrov 1 — vzkaz + další souřadnice** (svitek dá waypoint na ostrov 2;
-   reakce dědy volitelná; `megaTask 2→3`).
-5. **Mořská obluda** (`SeaMonster`) — feel prototypovat co nejdřív.
-6. **Ostrov 2** (Holanďan + dig 3 kusy + puzzle + 2. vzkaz).
-7. **Ostrov 3** (boss + `RivalNpc` bratr + monology + **volba A/B** →
-   `storyDone` + `storyEnding`).
-8. **Obě koncovky u dědy** (`storyEnding` větve v `StoryNpc` dialogu + odměna).
-9. **Doladění** (texty, tempo, dekorace ostrovů, odměna hráči).
+Pravidlo: **každý krok se dá dohrát, otestovat a nechat na gitu, aniž by
+rozbil hru.** Když dojde čas, poslední hotový krok = obhajitelný konec.
+Každý krok = malý commit + „co proklikat v Unity" pro uživatele.
+
+**Krok 0 — příprava (bez herního dopadu)**
+- `GameData` pole na konec: `megaIndex, megaTask, megaCode, megaCluesMask,
+  ambush1Done, ambush2Done, storyDone, storyEnding`. Staré savy je načtou 0.
+- Konzole: `story megatask <n>`, `story ending <n>`, `story nextisland` (aby
+  šlo testovat bez hraní celého oblouku).
+- Ověřit: hra běží stejně, save/load projde, `RespawnPlayerAtNearestIsland`
+  příběhová pole nemaže. **Safe stop.**
+
+**Krok 1 — kostra ostrova (`MegaIslandMarker` mozek)**
+- `MegaIslandMarker.Instance` (Awake), `TryInteract(x,y,playerIndex)` hák =
+  jeden řádek na začátek `PlayerController.TryInteractAdjacentBuilding()`.
+- `Start()` → `switch (megaIndex)` na `BuildFortress/BuildWreckGraveyard/
+  BuildConfrontation` (zatím jen obelisk + placeholder cedule „TODO ostrov N").
+- `HUDCounter.RefreshStory` + `StoryNpc` case 3 čtou `megaTask` (zatím obecné
+  texty). Dialog `StoryNpc` přerámovat „námořník" → „děda".
+- Ověřit: `story island` → doplout → marker naběhne, hák nerozbil ostatní
+  interakce (maják, bedna, NPC). **Safe stop** (ostrov je prázdný, ale funguje).
+
+**Krok 2 — ostrov 1, obrana** (`BuildFortress` část 1)
+- 2–3× `HostileIslandCannon.Spawn(tile,"mega")` + 1 hlídkující `PirateShip` +
+  nový `LandGuard.cs` (2–3 ks u středu). Marker `Update()` počítá zničené →
+  `megaTask 0→1` + toast.
+- Ověřit: sejmu obranu z lodě + pěšky → `megaTask` naskočí na 1. **Safe stop.**
+
+**Krok 3 — ostrov 1, trezor + puzzle** (`BuildFortress` část 2)
+- Trezor (primitiva) + ~6 kamenných cedulí s vodítky + IMGUI zadání kódu na
+  trezoru. **Nejdřív s uživatelem dohodnout konkrétní puzzle** (viz §3 varianty).
+  `megaCluesMask` bity, `megaCode` rozdělaný stav, feedback „X ze 4".
+- Ověřit: přečtu cedule, zadám kód, `megaTask 1→2`. **Safe stop.**
+
+**Krok 4 — ostrov 1, vzkaz + navедení dál** (`BuildFortress` část 3)
+- Svitek v trezoru (aktivní od `megaTask==2`), E → text bratra → `megaTask 2→3`
+  + `GridManager.GiveNextMegaIsland()` (umístí ostrov 2 daleko deterministicky,
+  waypoint, `storyStep` zpět na 2).
+- `StoryNpc` case 3 při `megaTask==3` → volitelná reakce dědy (ne brána).
+- Ověřit: vzkaz → objeví se waypoint na ostrov 2, dopluju tam, marker staví
+  placeholder ostrova 2. **← PRVNÍ VELKÝ MILNÍK: celý ostrov 1 hratelný.**
+
+**Krok 5 — mořská obluda** (`SeaMonster.cs`)
+- `StoryEvents.CheckMonster(grid)` z `PlayerController.OnEnteredTile`, spawn na
+  trase k ostrovu 2 (`storyStep==2 && megaIndex>=1 && !ambush1Done`).
+- **Feel prototypovat hned na začátku kroku** — telegrafovaný výpad ~1.5 s,
+  velkorysé okno; když úhyb s dnešním ovládáním nejde fér, přehodnotit
+  (třeba jen „drž se dál od stínu" místo přesného úhybu).
+- Ověřit: obluda naběhne 1×, po zabití `ambush1Done`, podruhé už ne. **Safe stop.**
+
+**Krok 6 — ostrov 2** (`BuildWreckGraveyard`)
+- Holanďan hlídač (přesunout `ship-ghost.fbx` do `Resources/` — řekne se
+  uživateli). 3 kopací místa v mělčině (`DigRoutine` styl) → skládání mapy →
+  kód do podpalubí → 2. vzkaz + souřadnice ostrova 3.
+- Ověřit: dig 3×, puzzle, vzkaz, waypoint na ostrov 3. **Safe stop** (2 ostrovy).
+
+**Krok 7 — ostrov 3, konfrontace** (`BuildConfrontation`)
+- Boss loď na příjezd → vylodění → `RivalNpc.cs` (starý muž) → dialogový strom
+  s monology (zmínka o dědově synovi) → **IMGUI volba A ušetřit / B zabít** →
+  `storyDone=true`, `storyEnding=1|2`.
+- Ověřit: obě volby projdou, `storyEnding` se uloží. **Safe stop.**
+
+**Krok 8 — koncovky u dědy**
+- `StoryNpc` větev podle `storyEnding` (A: scéna setkání dvou bratrů; B: monolog
+  o ztraceném synovi) + odměna hráči (jiná podle endingu — TBD co přesně).
+- Ověřit: `story ending 1` i `2` → správný dialog + odměna. **← HOTOVÝ OBLOUK.**
+
+**Krok 9 — doladění** (texty, tempo, dekorace ostrovů, balancing odměn).
 
 ---
 
@@ -253,8 +316,9 @@ Ending B: bratr zmizí, u dědy monolog o ztraceném synovi.
 4. **Rozsah = zkusit celé** (3 ostrovy + obluda + obě koncovky). Kdyby se
    nestíhalo, uživatel dá včas vědět a udělá se řez (ostrov 1 jako první milník
    je i tak obhajitelný). ✅ přijato.
-5. **Děda popírá** — od 1. vzkazu tuší / nechce věřit, že má staršího bratra;
-   hráč si to skládá sám kolem ostrova 2. ✅ přijato.
+5. **Děda popírá** — od 1. vzkazu tuší, komu patří (bratr, co "utonul" při
+   ztroskotání, když byl děda malý), ale nechce to vyslovit; hráč si to skládá
+   sám kolem ostrova 2. ✅ přijato.
 6. **Vedlejší linka — dědův ztracený syn:** bratr ho zmíní v monologu na
    ostrově 3; v endingu B ji děda rozvine (kóda). ✅ přijato.
 

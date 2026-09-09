@@ -11,12 +11,16 @@ sem Claude píše, kde se přestalo, aby se dalo pokračovat i z notebooku.
 ## STAV 2026-09-09 — vše commitnuté a pushnuté, working tree čistý
 (kromě `Napady.txt` a `Doporuceni.txt`, které si edituje uživatel — necommitovat za něj)
 
-### 📖 PLÁN PŘÍBĚHU (2026-09-09) — `.claude/story-plan.md`
-Schválený návrh pokračování příběhu: **3 mega ostrovy, sok = ztracený syn
-starého námořníka.** Detail (oblouk, technická kostra, rozdělení na kousky,
-můj názor) je v `.claude/story-plan.md`. **NIC se z toho zatím nestaví** —
-bude se dělat po kouskách do maturity. Až se začne: první milník = "Infra"
-+ "Ostrov 1 — obrana" (viz plán sekce 6).
+### 📖 PLÁN PŘÍBĚHU (upřesněno 2026-09-10) — `.claude/story-plan.md`
+Schválený návrh pokračování příběhu: **3 mega ostrovy. Zadavatel = DĚDA hráče
+(dnešní `StoryNpc` "starý námořník" jen přerámovat na dědu), sok = dědův
+ztracený STARŠÍ BRATR, o kterém děda nevěděl.** Poklad = rodinné dědictví.
+Souřadnice dalšího ostrova dává rovnou trezor (žádný backtracking). Finále na
+ostrově 3 = **volba hráče A ušetřit / B zabít** → 2 koncovky u dědy
+(`storyEnding`). Detail (oblouk, technická kostra, rozdělení na kousky) je
+v `.claude/story-plan.md`. **NIC se z toho zatím nestaví** — bude se dělat po
+kouskách do maturity. Až se začne: první milník = "Infra" + "Ostrov 1 — obrana"
+(viz plán sekce 6).
 
 ### ⚙️ STRUKTURNÍ ÚKLID 2026-09-09 večer (jiná session, pushnuto `99efd2c..d26249b`)
 **Skripty se PŘESUNULY: `Assets/TutorialInfo/Scripts/` → `Assets/Scripts/`.**

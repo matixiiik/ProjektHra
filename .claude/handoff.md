@@ -11,6 +11,26 @@ sem Claude píše, kde se přestalo, aby se dalo pokračovat i z notebooku.
 ## STAV 2026-09-09 — vše commitnuté a pushnuté, working tree čistý
 (kromě `Napady.txt`, který si edituje uživatel — necommitovat za něj)
 
+### KONEC DNE 2026-09-09 — vše commitnuté a pushnuté (`d5e92ae`), tree čistý
+Dnešní práce (nejnovější nahoře, detaily v sekcích níž):
+- `get item <map/ammo/histtreasure/sellbonus/megamap>` v konzoli
+- maják: kamenný sloup uprostřed pryč (jen kobereček + lampa)
+- maják: stůl s prodavači posunutý víc doprostřed místnosti
+- maják podle ručního náčrtu: JEDEN dlouhý stůl rovnoběžný se dveřmi, 3 prodavači
+  za ním (bez klobouku), velká mapa na zdi
+- symetrický maják + HP bary zarovnané + větší ostrovy (7×7) + dekorace šachovnicově
+- **začátek příběhu** (starý námořník, historický poklad, mega ostrov) — viz sekce
+
+**"Spawn v majáku" = jen otevřená scéna LighthouseInterior v editoru.** Necháno
+otevřené `SampleScene` (build index 0).
+
+### DALŠÍ KROK PŘÍBĚHU (čeká na zadání od uživatele)
+- Co přesně musí hráč na mega ostrově splnit (teď jen země + obelisk).
+- "Stopa" po tom, kdo poklad vykopal, a kam vede. `MegaIslandMarker` = hák.
+- "Každý mega ostrov jiný" — zatím jeden, generovaný stejně.
+
+---
+
 ### MAJÁK — PŘESTAVBA PODLE NÁČRTU (2026-09-09) — HOTOVO, OTESTOVÁNO přes MCP
 Uživatel poslal ruční náčrt. `LighthouseInteriorDecor` přestavěno:
 - **JEDEN dlouhý stůl** u zadní stěny, **rovnoběžný se dveřmi** (podél osy X,

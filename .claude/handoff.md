@@ -9,7 +9,29 @@ sem Claude píše, kde se přestalo, aby se dalo pokračovat i z notebooku.
 ---
 
 ## STAV 2026-09-09 — vše commitnuté a pushnuté, working tree čistý
-(kromě `Napady.txt`, který si edituje uživatel — necommitovat za něj)
+(kromě `Napady.txt` a `Doporuceni.txt`, které si edituje uživatel — necommitovat za něj)
+
+### ⚙️ STRUKTURNÍ ÚKLID 2026-09-09 večer (jiná session, pushnuto `99efd2c..d26249b`)
+**Skripty se PŘESUNULY: `Assets/TutorialInfo/Scripts/` → `Assets/Scripts/`.**
+Taky: `TutorialInfo/Materials` → `Assets/Materials`, `TutorialInfo/Resources` →
+`Assets/Resources` (cesty `Resources.Load("IslandDecor/…")` / `("PirateShips/…")`
+fungují dál — Resources je relativní). `TutorialInfo/` celá smazána. Reference
+přežily (GUID v .meta). Dál:
+- `PierPrefab 1.prefab` → `PierPrefab.prefab`
+- smazána mrtvá `MinimapCamera` + `MinimapRenderTexture` (druhá minimapa, kterou
+  `MinimapUIRenderer` stejně přepisoval)
+- smazán legacy `ReadMe.cs` + `Editor/ReadmeEditor.cs`, `Screenshots/`
+- **`CLAUDE.md` kompletně přepsán** podle současného stavu
+- Player Settings: **Company Name = matixiiik**
+- **Fix:** dekorace ostrovů se přehazovala po návratu z majáku → teď uložená
+  v `TileStatus.decor/decorRot/decorScale/tileRot` (`GridManager.AssignIslandDecor`,
+  5–8 dekorací/ostrov; `MigrateIslandDecor` dodělá starým savům). `IslandDecor`
+  už nic nelosuje, jen čte data.
+- **Fix:** starý námořník se přesouval po vstupu/výstupu z majáku → pozice
+  uložená v `GameData.storyNpcPlaced/X/Y`, referenční bod `[0,0]`.
+- `.claude/skills/unity-hra/` cesty opraveny.
+
+Priorita 3 (asmdef `Assets/Scripts/Game.asmdef`) = neřešeno, volitelné.
 
 ### KONEC DNE 2026-09-09 — vše commitnuté a pushnuté (`d5e92ae`), tree čistý
 Dnešní práce (nejnovější nahoře, detaily v sekcích níž):
@@ -382,7 +404,7 @@ Uživatel po kouskách. Hotovo (`<hash tohoto commitu>`):
 3. **25 % zásah do panáčka.** Zásah do celé lodě má `BoatStats.CannonSplashChance`
    (0.25) šanci trefit i panáčka (splash = `max(3, dmg/2)`).
 4. **Extra dekorace ostrovů.** 10 Kenney fbx do
-   `Assets/TutorialInfo/Resources/IslandDecor/` (rocks-a/b/c, rocks-sand-b/c,
+   `Assets/Resources/IslandDecor/` (rocks-a/b/c, rocks-sand-b/c,
    grass, grass-plant, palm-bend, patch-grass-foliage, patch-sand-foliage).
    `IslandDecor` je načte staticky, přidá do fondu vedle vestavěných `Decor_*`,
    materiál (PirateColormap) vezme z existující `Decor_` dlaždice. **Měřítka
@@ -430,7 +452,7 @@ Uživatel po kouskách. Hotovo (`<hash tohoto commitu>`):
     ostatní ×0,85–1,25. (Nové Kenney varianty rocks-b/c, grass-plant, patche
     ZATÍM NE — chtělo by to přesun do Resources, netestovatelné bez editoru.)
 11. **Pirátské Kenney lodě** — `ship-pirate-{small,medium,large}.fbx` přesunuty
-    do `Assets/TutorialInfo/Resources/PirateShips/` (nic je neodkazovalo).
+    do `Assets/Resources/PirateShips/` (nic je neodkazovalo).
     `PirateShip.BuildKenneyModel` je `Resources.Load` + tmavý nátěr (fbx nemá
     materiál), fallback na kvádry. **Měřítko 0.42/0.55/0.7 + otočení + Y −0.35
     v editoru doladit.**

@@ -22,6 +22,26 @@ v `.claude/story-plan.md`. **NIC se z toho zatím nestaví** — bude se dělat 
 kouskách do maturity. Až se začne: první milník = "Infra" + "Ostrov 1 — obrana"
 (viz plán sekce 6).
 
+### 🔧 OPRAVY ANIMAČNÍ DÁVKY #2 2026-09-10 (commit `1d2a3a2`, PUSHNUTO — ověřeno v Play módu přes MCP)
+Druhé kolo po playtestu:
+- **"děda je pořád v sudu, nesedí na něm"** → sud byl moc vysoký/tlustý (vršek 0,53,
+  půlka postavy uvnitř). Změřeno v Play módu: kloub boků seděl v ~0,30. Sud teď
+  nízká stolička: `localPos (0, 0.15, -0.12)`, `scale (0.52, 0.16, 0.52)`, vršek
+  ~0,31. Model zvednutý jen o 0,24 (dřív 0,28). Screenshot ověřen — sedí zadkem na
+  sudu, nohy pokrčené dopředu.
+- **"v majáku se dostanu do stolu"** → `InteriorPlayer.frontZ` (nové pole) = hráč
+  nesmí za danou Z hranici; `LighthouseInteriorDecor` ji nastaví na `TABLE_Z-0.85`
+  (~1,10). Ověřeno: hráč se zastaví ~1,1 před stolem, na pulty pořád dosáhne.
+- **"zmenši trošku všechny postavy (do veslice se opticky nevejde)"** →
+  `CharacterModel.DEFAULT_SCALE` **1.85 → 1.6** (model ~1,07 j vysoký místo ~1,25).
+  Platí pro hráče venku i v majáku, dědu, prodavače.
+- **bonus:** `CharacterModel` normalizuje měřítko po osách — interiérová postavička
+  má rodiče scale `(0.5, 0.55, 0.5)`, dřív byl model vodorovně zploštělý (1,45 vs
+  1,60). Teď rovnoměrných 1,60 → hráč v majáku = hráč na ostrově.
+
+Pozn.: prodavači (model `character-male-c`) jsou konstrukčně o kus vyšší (~1,27)
+než hráč (`character-male-a`, ~1,07) — je to jiný Kenney model, ne měřítko. Zatím OK.
+
 ### 🔧 OPRAVY ANIMAČNÍ DÁVKY 2026-09-10 (commit `7b06280`, PUSHNUTO — ověřeno v Play módu přes MCP)
 Reakce na hlášení uživatele po playtestu animací:
 - **"v majáku nejde chodit"** → `SoloPause` měl v modal-checku `LighthouseManager`,

@@ -140,6 +140,13 @@ public class GameData
     public List<string> player2OpenedChests = new List<string>();
 
     // ── Svět ─────────────────────────────────────────────────────────────────
+    // Herní seed. Vylosuje se jednou při nové hře a pak se ukládá. "Vzhledová"
+    // náhoda (dekorace ostrovů – IslandDecor, natočení dlaždic) se z něj + ze
+    // souřadnic odvozuje deterministicky → rozehraná hra vypadá po každém
+    // znovunačtení (návrat z majáku) stejně, ale nová hra vygeneruje jiný svět.
+    // Starý save bez tohoto pole se načte jako 0 → dostane pevný (nulový) seed.
+    public int worldSeed;
+
     // Klíč = "x,y" (souřadnice políčka jako text), hodnota = stav políčka.
     // Ukládají se jen políčka, která už byla vygenerovaná / navštívená.
     public SerializableDictionary<string, TileStatus> tileData = new SerializableDictionary<string, TileStatus>();

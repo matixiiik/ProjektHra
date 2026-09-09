@@ -1256,6 +1256,11 @@ public class GridManager : MonoBehaviour
     // ── Startovní ostrov (úplně nová hra) ──────────────────────────────────
     private void GenerateInitialWorld()
     {
+        // Vylosuj herní seed pro tuhle novou hru (viz GameData.worldSeed).
+        // Odvozuje se z něj vzhled dekorace ostrovů — nová hra = jiný svět,
+        // rozehraná hra pak zůstává vizuálně stejná.
+        gameData.worldSeed = UnityEngine.Random.Range(int.MinValue, int.MaxValue);
+
         // Stejný organický generátor jako pro ostatní ostrovy, jen kolem počátku
         // a rovnou prozkoumaný.
         var land = StampOrganicLand(0, 0, explored: true);

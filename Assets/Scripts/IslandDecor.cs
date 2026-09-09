@@ -9,11 +9,16 @@ using UnityEngine;
 //
 //  Základní dekorace jsou pod objektem jako vypnuté děti "Decor_*" (palma,
 //  kámen, tráva — nastavené v HarborPrefabu). Navíc se ZA BĚHU přidávají další
-//  Kenney modely z Assets/TutorialInfo/Resources/IslandDecor/ (kameny, trsy
-//  trávy, ohnutá palma, záplaty s křovím), aby byly ostrovy pestřejší. Materiál
-//  se jim vezme z existující "Decor_*" dlaždice (Kenney fbx žádný nemá).
+//  Kenney modely z Assets/Resources/IslandDecor/ (kameny, trsy trávy, ohnutá
+//  palma, záplaty s křovím), aby byly ostrovy pestřejší. Materiál se jim vezme
+//  z existující "Decor_*" dlaždice (Kenney fbx žádný nemá).
 //
 //  Skript je čistě vizuální — nemá vliv na hratelnost.
+//
+//  Náhoda je SEEDOVANÁ podle souřadnic dlaždice + herního seedu
+//  (GameData.worldSeed): stejná dlaždice vypadá po každém znovuvytvoření
+//  (návrat z majáku, načtení hry) identicky, ale nová hra (nový worldSeed)
+//  vygeneruje ostrovy jinak.
 // ─────────────────────────────────────────────────────────────────────────────
 
 public class IslandDecor : MonoBehaviour
@@ -80,30 +85,57 @@ public class IslandDecor : MonoBehaviour
                 }
             }
 
-        // Náhodné pootočení celé dlaždice (0/90/180/270), ať se textura písku
-        // tolik neprozradí.
-        transform.rotation = Quaternion.Euler(0f, Random.Range(0, 4) * 90f, 0f);
-
         // Dekorace jen na "šachovnicově každé druhé" dlaždici → nikdy nestojí dvě
-        // těsně vedle sebe (řeší přehuštění na malých ostrovech). Deterministické
-        // podle souřadnic → po znovunačtení ostrova vypadá stejně.
+        // těsně vedle sebe (řeší přehuštění na malých ostrovech).
         int gx = Mathf.RoundToInt(transform.position.x);
         int gy = Mathf.RoundToInt(transform.position.z);
         if (((gx + gy) & 1) != 0) return; // "sudá" dlaždice zůstane holá
 
-        // Každý ostrov má vlastní "hustotu" dekorace odvozenou z jeho hrubé
-        // pozice (ostrovy vznikají po 40 políčkách) — některé jsou skoro holé,
-        // jiné o něco zarostlejší, ať nevypadají všechny stejně.
-        int islandSeed = Mathf.RoundToInt(transform.position.x / 40f) * 73856093
-                       ^ Mathf.RoundToInt(transform.position.z / 40f) * 19349663;
-        float islandBias = -0.06f + ((islandSeed & 0xFFFF) / 65535f) * 0.14f; // -0.06 .. +0.08
-        float chance = Mathf.Clamp01(decorChance + islandBias);
+        // ── Deterministický náhodný generátor jen pro tuhle dlaždici ─────────
+        // Seed = souřadnice dlaždice + herní seed. Díky tomu vypadá ostrov po
+        // každém znovuvytvoření stejně. Po dokončení se globální RNG vrátí zpět,
+        // ať se neovlivní zbytek hry.
+        var prevRandom = Random.state;
+        Random.InitState(TileDecorSeed(gx, gy));
+        try
+        {
+            // Náhodné pootočení celé dlaždice (0/90/180/270), ať se textura
+            // písku tolik neprozradí.
+            transform.rotation = Quaternion.Euler(0f, Random.Range(0, 4) * 90f, 0f);
 
-        if (Random.value > chance) return; // dlaždice zůstane holá
+            // Každý ostrov má vlastní "hustotu" dekorace odvozenou z jeho hrubé
+            // pozice (ostrovy vznikají po 40 políčkách) — některé jsou skoro
+            // holé, jiné o něco zarostlejší, ať nevypadají všechny stejně.
+            int islandSeed = Mathf.RoundToInt(transform.position.x / 40f) * 73856093
+                           ^ Mathf.RoundToInt(transform.position.z / 40f) * 19349663;
+            float islandBias = -0.06f + ((islandSeed & 0xFFFF) / 65535f) * 0.14f; // -0.06 .. +0.08
+            float chance = Mathf.Clamp01(decorChance + islandBias);
 
-        PlaceOne(builtin, decorMat, center: true);
-        if (Random.value < secondDecorChance)
-            PlaceOne(builtin, decorMat, center: false);
+            if (Random.value > chance) return; // dlaždice zůstane holá
+
+            PlaceOne(builtin, decorMat, center: true);
+            if (Random.value < secondDecorChance)
+                PlaceOne(builtin, decorMat, center: false);
+        }
+        finally
+        {
+            Random.state = prevRandom;
+        }
+    }
+
+    // Deterministický seed pro dekoraci dlaždice [gx,gy] — kombinuje herní seed
+    // (jiný pro každou novou hru) se souřadnicemi dlaždice.
+    private static int TileDecorSeed(int gx, int gy)
+    {
+        int world = GameSession.Instance != null && GameSession.Instance.Data != null
+            ? GameSession.Instance.Data.worldSeed : 0;
+        unchecked
+        {
+            int h = world * 668265263;
+            h = (h ^ gx) * 73856093;
+            h = (h ^ gy) * 19349663;
+            return h;
+        }
     }
 
     // Vybere náhodně z vestavěných + extra modelů a jednu dekoraci na dlaždici položí.

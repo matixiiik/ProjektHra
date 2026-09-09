@@ -259,6 +259,14 @@ public class GridManager : MonoBehaviour
         if (!gameData.tileData.ContainsKey(key))
         {
             TileType seaType = GenerateRandomSeaType();
+
+            // Blízko ostrova ať je klid — žádné poklady ani ryby (a piráti taky ne,
+            // to řeší CombatDirector). Test se dělá jen po nenulovém hodu, ať to
+            // nestojí výkon na 99,5 % vodních políček.
+            if ((seaType == TileType.Treasure || seaType == TileType.Water_Fish)
+                && IsNearIsland(x, y, SPAWN_ISLAND_CLEARANCE))
+                seaType = TileType.Water;
+
             var status = new TileStatus((int)seaType);
             if (seaType == TileType.Water_Fish) status.fishRemaining = 3;
             gameData.tileData.Add(key, status);
@@ -312,6 +320,24 @@ public class GridManager : MonoBehaviour
         => type == (int)TileType.Harbor || type == (int)TileType.Pier
         || type == (int)TileType.UpgradeShop || type == (int)TileType.QuestShop
         || type == (int)TileType.Lighthouse || type == (int)TileType.Chest;
+
+    // Jak daleko od ostrova nesmí vzniknout poklad / ryby / pirát (klidná zóna).
+    public const int SPAWN_ISLAND_CLEARANCE = 50;
+
+    /// <summary>Je políčko [x,y] blíž než `radius` k nějakému ostrovnímu políčku?</summary>
+    public bool IsNearIsland(int x, int y, int radius)
+    {
+        int r2 = radius * radius;
+        foreach (var kv in gameData.tileData)
+        {
+            if (!IsIslandTile(kv.Value.type)) continue;
+            var (ix, iy) = ParseGridKey(kv.Key);
+            int dx = ix - x, dy = iy - y;
+            if (dx > radius || dx < -radius || dy > radius || dy < -radius) continue; // rychlý test
+            if (dx * dx + dy * dy <= r2) return true;
+        }
+        return false;
+    }
 
     // ── Organický (nepravidelný) ostrov ────────────────────────────────────
     // Ostrov není čtverec: pevné jádro (min. 4×4) + náhodné rozrůstání na okraj.
@@ -386,6 +412,7 @@ public class GridManager : MonoBehaviour
         PlaceEdgePier(land);
         PlaceLighthouse(land);
         MaybePlaceChest(land);
+        ClearSpawnsNearIsland(land); // klidná zóna: smaž poklady/ryby, co vznikly dřív, než tu byl ostrov
 
         // ~20 % ostrovů je nepřátelských — mají dělo, co po hráči střílí
         // (klíč = bod, kolem kterého ostrov vznikl; ten je stabilní).
@@ -393,6 +420,47 @@ public class GridManager : MonoBehaviour
         {
             string key = GridKey(startX, startY);
             if (!gameData.hostileIslands.Contains(key)) gameData.hostileIslands.Add(key);
+        }
+    }
+
+    // Kolem nově vzniklého ostrova udělá klidnou zónu: políčka s pokladem nebo
+    // rybami blíž než SPAWN_ISLAND_CLEARANCE k pevnině převede zpět na vodu.
+    // (Mořská políčka se generují dřív než ostrov, takže se to musí uklidit.)
+    private void ClearSpawnsNearIsland(List<(int x, int y)> land)
+    {
+        int r = SPAWN_ISLAND_CLEARANCE;
+        int r2 = r * r;
+
+        // hrubé ohraničení ostrova, ať neprocházíme celý slovník zbytečně daleko
+        int minX = int.MaxValue, minY = int.MaxValue, maxX = int.MinValue, maxY = int.MinValue;
+        foreach (var p in land)
+        {
+            if (p.x < minX) minX = p.x;
+            if (p.y < minY) minY = p.y;
+            if (p.x > maxX) maxX = p.x;
+            if (p.y > maxY) maxY = p.y;
+        }
+
+        var toWater = new List<string>();
+        foreach (var kv in gameData.tileData)
+        {
+            int t = kv.Value.type;
+            if (t != (int)TileType.Treasure && t != (int)TileType.Water_Fish) continue;
+
+            var (tx, ty) = ParseGridKey(kv.Key);
+            if (tx < minX - r || tx > maxX + r || ty < minY - r || ty > maxY + r) continue;
+
+            foreach (var p in land)
+            {
+                int dx = p.x - tx, dy = p.y - ty;
+                if (dx * dx + dy * dy <= r2) { toWater.Add(kv.Key); break; }
+            }
+        }
+
+        foreach (string key in toWater)
+        {
+            gameData.tileData[key].type = (int)TileType.Water;
+            gameData.tileData[key].fishRemaining = 0;
         }
     }
 

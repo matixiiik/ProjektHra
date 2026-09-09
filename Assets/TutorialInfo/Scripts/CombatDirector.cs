@@ -152,6 +152,9 @@ public class CombatDirector : MonoBehaviour
             TileType t = grid.GetTileType(x, z);
             if (t != TileType.Water && t != TileType.Water_Fish) continue;
 
+            // Klidná zóna kolem ostrovů — piráti se tam nespawnují.
+            if (grid.IsNearIsland(x, z, GridManager.SPAWN_ISLAND_CLEARANCE)) continue;
+
             float roll = Random.value;
             int size = roll < 0.55f ? 0 : roll < 0.88f ? 1 : 2;
             pirates.Add(PirateShip.Spawn(new Vector3(x, 0f, z), size));

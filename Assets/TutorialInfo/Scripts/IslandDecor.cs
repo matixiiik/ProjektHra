@@ -19,11 +19,12 @@ using UnityEngine;
 public class IslandDecor : MonoBehaviour
 {
     [Range(0f, 1f)]
-    [Tooltip("Šance, že na dlaždici vyroste nějaká dekorace.")]
-    public float decorChance = 0.5f;
+    [Tooltip("Základní šance na dekoraci. Každý ostrov si ji navíc sám trochu " +
+             "posune nahoru/dolů, aby nebyly všechny stejně husté.")]
+    public float decorChance = 0.16f;
 
     [Tooltip("Šance, že se přidá i druhá (menší) dekorace navrch.")]
-    public float secondDecorChance = 0.3f;
+    public float secondDecorChance = 0f;
 
     // Vestavěná palma "Decor_Palm" (v HarborPrefabu) je dost malá — zvětšíme ji,
     // ať je vůči majáku a panáčkovi věrohodnější (cca půl majáku).
@@ -49,10 +50,7 @@ public class IslandDecor : MonoBehaviour
         // balíčku, mají jiné UV → z pirátského atlasu by braly špatné (červené)
         // texely, proto je tu nepoužíváme.
         AddExtra("rocks-a",      0.42f, false);
-        AddExtra("rocks-b",      0.42f, false);
-        AddExtra("rocks-c",      0.42f, false);
         AddExtra("rocks-sand-b", 0.42f, false);
-        AddExtra("rocks-sand-c", 0.42f, false);
         AddExtra("palm-bend",    EXTRA_PALM_SCALE, true);
     }
 
@@ -85,7 +83,15 @@ public class IslandDecor : MonoBehaviour
         // tolik neprozradí.
         transform.rotation = Quaternion.Euler(0f, Random.Range(0, 4) * 90f, 0f);
 
-        if (Random.value > decorChance) return; // dlaždice zůstane holá
+        // Každý ostrov má vlastní "hustotu" dekorace odvozenou z jeho hrubé
+        // pozice (ostrovy vznikají po 40 políčkách) — některé jsou skoro holé,
+        // jiné o něco zarostlejší, ať nevypadají všechny stejně.
+        int islandSeed = Mathf.RoundToInt(transform.position.x / 40f) * 73856093
+                       ^ Mathf.RoundToInt(transform.position.z / 40f) * 19349663;
+        float islandBias = -0.05f + ((islandSeed & 0xFFFF) / 65535f) * 0.14f; // -0.05 .. +0.09
+        float chance = Mathf.Clamp01(decorChance + islandBias);
+
+        if (Random.value > chance) return; // dlaždice zůstane holá
 
         PlaceOne(builtin, decorMat, center: true);
         if (Random.value < secondDecorChance)

@@ -33,8 +33,9 @@ public class SeaFloor : MonoBehaviour
     private const float SHOAL_RADIUS = 9f;    // do jaké vzdálenosti od vraku se dno zvedá
     private const int   SCAN_RADIUS  = 44;    // v kolika políčkách kolem hledat vraky/ostrovy
 
-    private const float SHELF_Y      = -0.8f; // kam se dno zvedne u ostrova (těsně pod úpatí ostrovního meshe)
-    private const float SHELF_RADIUS = 9f;    // jak daleko od ostrova se dno zvedá do mělčiny
+    private const float SHELF_Y       = -0.5f; // výška dna přímo u ostrova (leží nad úpatím ostrovního meshe → žádná mezera)
+    private const float SHELF_CORE    = 2.5f;  // do téhle vzdálenosti od pevniny je dno rovnou na SHELF_Y (síť dna je hrubá)
+    private const float SHELF_RADIUS  = 15f;   // za jádrem se dno lineárně svažuje zpátky do hloubky
 
     private Transform   p1;
     private Transform   p2;
@@ -176,18 +177,20 @@ public class SeaFloor : MonoBehaviour
             }
             if (shoal > 0f) floorY = Mathf.Max(floorY, Mathf.Lerp(floorY, SHOAL_Y, shoal));
 
-            // Okolí ostrova → dno se zvedne až k jeho úpatí, ať ostrov "vyrůstá
-            // ze dna" a nekončí pod vodou uříznutý (stejný princip jako u vraků).
+            // Okolí ostrova → dno se plynule zvedne až k jeho úpatí (SHELF_Y),
+            // takže ostrov "vyrůstá ze dna" a nekončí pod vodou uříznutý. Falloff
+            // je lineární (kužel/svah), ne plochá deska — a dál se přes Max()
+            // vrací k náhodnému Perlinovu dnu.
             float shelf = 0f;
             for (int t = 0; t < islandTiles.Count; t++)
             {
                 float dx = wx - (islandTiles[t].x + 0.5f);
                 float dz = wz - (islandTiles[t].y + 0.5f);
-                float s  = Mathf.Clamp01(1f - Mathf.Sqrt(dx * dx + dz * dz) / SHELF_RADIUS);
-                s = s * s * (3f - 2f * s); // smoothstep
+                float d  = Mathf.Sqrt(dx * dx + dz * dz);
+                float s  = Mathf.Clamp01(1f - Mathf.Max(0f, d - SHELF_CORE) / SHELF_RADIUS);
                 if (s > shelf) shelf = s;
             }
-            if (shelf > 0f) floorY = Mathf.Max(floorY, Mathf.Lerp(floorY, SHELF_Y, shelf));
+            if (shelf > 0f) floorY = Mathf.Max(floorY, Mathf.Lerp(FLOOR_MIN, SHELF_Y, shelf));
 
             verts[k].y = floorY;
         }

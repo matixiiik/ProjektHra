@@ -24,7 +24,7 @@ public class PirateShip : MonoBehaviour
     private const float KEEP_DIST    = 3.2f;  // nechce hráči vlézt úplně na kobylku (aby stíhal střílet)
     private const float RAM_RANGE    = 1.4f;
     private const float RELOAD       = 2.9f;
-    private const float SHIP_Y       = -0.35f;
+    private const float SHIP_Y       = -0.42f; // stejné "potopení" jako hráčova loď (ShipModelSwitcher)
 
     public  int    size;               // 0 = malá, 1 = střední, 2 = velká
     private float  hp, maxHp;
@@ -69,11 +69,12 @@ public class PirateShip : MonoBehaviour
 
         var go = Instantiate(prefab, root, false);
         go.name = "Model";
-        // Měřítko drženě malé — pirátská loď má být o něco větší než hráčova, ne
-        // obr přes celý ostrov. Model posadíme kousek pod kýl (fbx má pivot na
-        // dně trupu), ať část trupu mizí pod hladinou a loď působí, že pluje.
-        float sc = size == 0 ? 0.30f : size == 1 ? 0.38f : 0.48f;
-        go.transform.localPosition = new Vector3(0f, -0.10f, 0f);
+        // Zhruba stejná velikost jako hráčovy lodě. Pirátský fbx je ale širší
+        // (galéona), tak dáme o kus menší měřítko, ať výsledná loď sedí velikostně
+        // vedle hráčovy (~0.15/0.17/0.20). Model posadíme kousek pod kýl (fbx má
+        // pivot na dně trupu), ať část trupu mizí pod hladinou a loď působí, že pluje.
+        float sc = size == 0 ? 0.12f : size == 1 ? 0.14f : 0.16f;
+        go.transform.localPosition = new Vector3(0f, -0.04f, 0f);
         go.transform.localScale    = new Vector3(sc, sc, sc);
 
         // Kenney fbx nemá materiál. Rozlišíme trup / plachty / vlajky, ať loď
@@ -93,7 +94,7 @@ public class PirateShip : MonoBehaviour
 
     private static void BuildPrimitiveModel(Transform root, int size)
     {
-        float s = size == 0 ? 0.8f : size == 1 ? 1.05f : 1.35f;
+        float s = size == 0 ? 0.42f : size == 1 ? 0.52f : 0.66f;
         Material hull = MakeMat(new Color(0.28f, 0.2f, 0.15f));
         Material sail = MakeMat(new Color(0.15f, 0.15f, 0.17f));
 

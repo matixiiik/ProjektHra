@@ -42,9 +42,11 @@ Ověřeno compile-checkem + MCP Console (bez chyb), NEProklikáno v editoru.
 - **nápověda ovládání** na startu (děda krok 0 + ~9s toast)
 - **Kenney Mini Characters (CC0)** staženo do `Assets/Resources/Characters/`
   (character-male-a/c/e + colormap). `CharacterModel.TryBuild` (colormap, vypne
-  Animator, fallback=null). **Děda** teď = model `character-male-e` (fallback primitivy).
-  **ZBÝVÁ:** model HRÁČE (`headDot` ve scéně) — ruční práce v editoru; zvážit i
-  piráty na palubě. Měřítko `CharacterModel.DEFAULT_SCALE = 0.55` dolaď.
+  Animator, fallback=null, `DEFAULT_SCALE = 1.85` — FBX je maličký ~0,68 j).
+  **Děda** = model `character-male-e`, **hráč** (headDot) = `character-male-a`
+  (P1 modrý / P2 červený tint, primitivní díly headDotu se schovají, idempotentní
+  kvůli P2=klon). Ověřeno screenshotem — oba OK velké, colormap sedí do stylu.
+  Piráti na palubě = zatím ne.
 
 ### ⚙️ STRUKTURNÍ ÚKLID 2026-09-09 večer (jiná session, pushnuto `99efd2c..d26249b`)
 **Skripty se PŘESUNULY: `Assets/TutorialInfo/Scripts/` → `Assets/Scripts/`.**

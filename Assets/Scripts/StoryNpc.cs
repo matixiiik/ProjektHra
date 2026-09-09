@@ -379,6 +379,14 @@ public class StoryNpc : MonoBehaviour
         Vector3 dir = new Vector3(look.x - tilePos.x, 0f, look.y - tilePos.y);
         if (dir.sqrMagnitude > 0.001f) transform.rotation = Quaternion.LookRotation(dir);
 
+        MaybeShowStartHint();
+
+        // Nejdřív zkus Kenney model postavy (starý námořník = trochu vybledlá barva).
+        // Když v Resources není, postav dědu ze základních tvarů jako dřív.
+        if (CharacterModel.TryBuild(transform, "character-male-e",
+                CharacterModel.DEFAULT_SCALE, new Color(0.78f, 0.75f, 0.72f)) != null)
+            return;
+
         Material coat  = MakeMat(new Color(0.30f, 0.33f, 0.42f)); // obnošený modrý kabát
         Material skin  = MakeMat(new Color(0.83f, 0.66f, 0.53f));
         Material hair  = MakeMat(new Color(0.88f, 0.88f, 0.85f)); // šedé vlasy / vousy
@@ -389,8 +397,6 @@ public class StoryNpc : MonoBehaviour
         AddPart(PrimitiveType.Cylinder, "Hair",  new Vector3(0f, 0.95f, 0.02f), new Vector3(0.46f, 0.07f, 0.46f), Vector3.zero,             hair);
         AddPart(PrimitiveType.Cube,     "Beard", new Vector3(0f, 0.66f, 0.17f), new Vector3(0.24f, 0.26f, 0.12f), Vector3.zero,             hair);
         AddPart(PrimitiveType.Cube,     "Nose",  new Vector3(0f, 0.77f, 0.23f), new Vector3(0.08f, 0.08f, 0.13f), Vector3.zero,             skin);
-
-        MaybeShowStartHint();
     }
 
     // Na úplném začátku (příběh v kroku 0) ukaž jednou krátkou nápovědu ovládání.

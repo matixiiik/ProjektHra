@@ -92,6 +92,9 @@ public class GridManager : MonoBehaviour
         // Úplně nová hra → vygeneruj startovní ostrov.
         if (gameData.tileData.Count == 0) GenerateInitialWorld();
 
+        // Starý save bez uložené dekorace ostrovů → doplň ji jednou (a ulož).
+        MigrateIslandDecor();
+
         GenerateWorld(gameData.playerGridX, gameData.playerGridY);
         CreateSeaWorld();
 
@@ -435,6 +438,7 @@ public class GridManager : MonoBehaviour
         PlaceLighthouse(land);
         MaybePlaceChest(land);
         ClearSpawnsNearIsland(land); // klidná zóna: smaž poklady/ryby, co vznikly dřív, než tu byl ostrov
+        AssignIslandDecor(land);     // dekorace se vygeneruje jednou a uloží se do dlaždic
 
         // ~20 % ostrovů je nepřátelských — mají dělo, co po hráči střílí
         // (klíč = bod, kolem kterého ostrov vznikl; ten je stabilní).
@@ -671,6 +675,116 @@ public class GridManager : MonoBehaviour
             && gameData.tileData[key].type == (int)TileType.Harbor;
     }
 
+    // ── Dekorace ostrova (kameny / palmy / trsy) ───────────────────────────
+    // Vygeneruje se JEDNOU při vzniku ostrova a uloží se přímo do dlaždic
+    // (TileStatus.decor / decorRot / decorScale / tileRot). Po návratu z majáku
+    // se ostrov znovu vytvoří ze save → vypadá pořád stejně. Nová hra vygeneruje
+    // ostrovy znova (jsou jinde a projdou tímhle znova).
+    private void AssignIslandDecor(List<(int x, int y)> islandTiles)
+    {
+        // Kandidáti = dlaždice, co ZŮSTALY pevninou (Harbor) a ještě nemají
+        // dekoraci vyřešenou. Zároveň jim tady nastav natočení písku.
+        var cand = new List<(int x, int y)>();
+        foreach (var p in islandTiles)
+        {
+            string key = GridKey(p.x, p.y);
+            if (!gameData.tileData.ContainsKey(key)) continue;
+            var st = gameData.tileData[key];
+            if (st.type != (int)TileType.Harbor) continue;
+            if (st.decor != 0) continue; // už vyřešeno
+
+            st.tileRot = UnityEngine.Random.Range(0, 4);
+            cand.Add(p);
+        }
+        if (cand.Count == 0) return;
+
+        // Zamíchej pořadí kandidátů.
+        for (int i = 0; i < cand.Count; i++)
+        {
+            int j = UnityEngine.Random.Range(i, cand.Count);
+            var t = cand[i]; cand[i] = cand[j]; cand[j] = t;
+        }
+
+        // Kolik dekorací ostrov dostane: 5–8 (méně, když je ostrov malý).
+        int want = Mathf.Min(UnityEngine.Random.Range(5, 9), cand.Count);
+        var used = new HashSet<(int, int)>();
+        int placed = 0;
+
+        // 1. kolo: ber jen dlaždice, co 4-směrně nesousedí s už použitou →
+        //          dekorace se nemačká na sebe.
+        foreach (var p in cand)
+        {
+            if (placed >= want) break;
+            if (used.Contains((p.x + 1, p.y)) || used.Contains((p.x - 1, p.y))
+             || used.Contains((p.x, p.y + 1)) || used.Contains((p.x, p.y - 1))) continue;
+            SetTileDecor(p.x, p.y);
+            used.Add((p.x, p.y));
+            placed++;
+        }
+        // 2. kolo: kdyby první nestačilo (malý ostrov), doplň i sousedící.
+        foreach (var p in cand)
+        {
+            if (placed >= want) break;
+            if (used.Contains((p.x, p.y))) continue;
+            SetTileDecor(p.x, p.y);
+            used.Add((p.x, p.y));
+            placed++;
+        }
+
+        // Zbylým kandidátům řekni "záměrně bez dekorace" (aby byli vyřešení).
+        foreach (var p in cand)
+            if (!used.Contains((p.x, p.y)))
+                gameData.tileData[GridKey(p.x, p.y)].decor = 1;
+    }
+
+    private void SetTileDecor(int x, int y)
+    {
+        var st = gameData.tileData[GridKey(x, y)];
+        st.decor      = 2 + UnityEngine.Random.Range(0, 10000); // model = (decor-2) % počet_modelů (řeší IslandDecor)
+        st.decorRot   = UnityEngine.Random.Range(0, 360);
+        st.decorScale = UnityEngine.Random.Range(80, 126);      // 80–125 %
+    }
+
+    // Starý save (ostrovy vygenerované před zavedením uložené dekorace): projdi
+    // pevninové dlaždice bez určené dekorace, seskup je do ostrovů a přiřaď
+    // dekoraci. Uloží se → po návratu z majáku se pak už nepřehazuje.
+    private void MigrateIslandDecor()
+    {
+        var visited = new HashSet<string>();
+        var islands = new List<List<(int x, int y)>>();
+
+        var startKeys = new List<string>(gameData.tileData.Keys);
+        foreach (string k in startKeys)
+        {
+            if (!gameData.tileData.TryGetValue(k, out var st0)) continue;
+            if (st0.type != (int)TileType.Harbor || st0.decor != 0) continue;
+            if (visited.Contains(k)) continue;
+
+            // Flood-fill spojité souše (Harbor / Lighthouse / Chest), seber Harbor.
+            var group = new List<(int x, int y)>();
+            var stack = new Stack<(int x, int y)>();
+            var (sx, sy) = ParseGridKey(k);
+            stack.Push((sx, sy));
+            while (stack.Count > 0)
+            {
+                var c = stack.Pop();
+                string ck = GridKey(c.x, c.y);
+                if (visited.Contains(ck)) continue;
+                var t = GetTileType(c.x, c.y);
+                if (t != TileType.Harbor && t != TileType.Lighthouse && t != TileType.Chest) continue;
+                visited.Add(ck);
+                if (t == TileType.Harbor) group.Add((c.x, c.y));
+                stack.Push((c.x + 1, c.y)); stack.Push((c.x - 1, c.y));
+                stack.Push((c.x, c.y + 1)); stack.Push((c.x, c.y - 1));
+            }
+            if (group.Count > 0) islands.Add(group);
+        }
+
+        if (islands.Count == 0) return;
+        foreach (var g in islands) AssignIslandDecor(g);
+        SaveManager.SaveGame(gameData); // ať to reload po návratu z majáku najde hotové
+    }
+
     // Náhodný typ mořského políčka: 0,06 % vrak s pokladem, 0,35 % ryby, zbytek voda.
     // Vraky jsou vzácné schválně — má se za nimi "lovit", ne je potkávat na potkání.
     private TileType GenerateRandomSeaType()
@@ -778,7 +892,14 @@ public class GridManager : MonoBehaviour
     public void ReserveNpcTile(int x, int y)
     {
         npcClearTile = new Vector2Int(x, y);
-        if (activeTiles.TryGetValue(GridKey(x, y), out GameObject tile))
+
+        // Zapiš "bez dekorace" i do dat dlaždice, ať IslandDecor při příštím
+        // vygenerování ostrova na dědovo políčko nic nepoloží.
+        string key = GridKey(x, y);
+        if (gameData != null && gameData.tileData.TryGetValue(key, out var st))
+            st.decor = 1;
+
+        if (activeTiles.TryGetValue(key, out GameObject tile))
             StripTileDecor(tile);
     }
 
@@ -1256,17 +1377,13 @@ public class GridManager : MonoBehaviour
     // ── Startovní ostrov (úplně nová hra) ──────────────────────────────────
     private void GenerateInitialWorld()
     {
-        // Vylosuj herní seed pro tuhle novou hru (viz GameData.worldSeed).
-        // Odvozuje se z něj vzhled dekorace ostrovů — nová hra = jiný svět,
-        // rozehraná hra pak zůstává vizuálně stejná.
-        gameData.worldSeed = UnityEngine.Random.Range(int.MinValue, int.MaxValue);
-
         // Stejný organický generátor jako pro ostatní ostrovy, jen kolem počátku
         // a rovnou prozkoumaný.
         var land = StampOrganicLand(0, 0, explored: true);
         PlaceEdgePier(land);
         PlaceLighthouse(land);
         // Na startovním ostrově ZÁMĚRNĚ není bedna s mega questem (naváže se na příběh).
+        AssignIslandDecor(land); // vygeneruj dekoraci jednou a ulož ji do dlaždic
 
         // Loď zaparkuj do VODY hned vedle prvního mola, hráče postav PĚŠKY na
         // pevninu vedle mola. (Nová hra = probudíš se jako panáček na ostrově,

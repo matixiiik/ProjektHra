@@ -111,6 +111,9 @@ public class GameData
     public bool storyIslandActive;     // příběhový mega ostrov je vygenerovaný a hráč zná jeho polohu
     public int  storyIslandX;
     public int  storyIslandY;
+    public bool storyNpcPlaced;        // starý námořník už má napevno vybrané políčko (ať se nepřesouvá)
+    public int  storyNpcX;             // políčko dědy (X)
+    public int  storyNpcY;             // políčko dědy (Y)
 
     // ── Hráč 2 — oddělená ekonomika (jen multiplayer) ─────────────────────────
     public int  player2GridX;
@@ -140,15 +143,10 @@ public class GameData
     public List<string> player2OpenedChests = new List<string>();
 
     // ── Svět ─────────────────────────────────────────────────────────────────
-    // Herní seed. Vylosuje se jednou při nové hře a pak se ukládá. "Vzhledová"
-    // náhoda (dekorace ostrovů – IslandDecor, natočení dlaždic) se z něj + ze
-    // souřadnic odvozuje deterministicky → rozehraná hra vypadá po každém
-    // znovunačtení (návrat z majáku) stejně, ale nová hra vygeneruje jiný svět.
-    // Starý save bez tohoto pole se načte jako 0 → dostane pevný (nulový) seed.
-    public int worldSeed;
-
     // Klíč = "x,y" (souřadnice políčka jako text), hodnota = stav políčka.
     // Ukládají se jen políčka, která už byla vygenerovaná / navštívená.
+    // Dekorace ostrovů je uložená přímo v TileStatus (viz TileData.cs) —
+    // vygeneruje se jednou při vzniku ostrova a pak už zůstává.
     public SerializableDictionary<string, TileStatus> tileData = new SerializableDictionary<string, TileStatus>();
 }
 

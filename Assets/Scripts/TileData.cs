@@ -36,6 +36,14 @@ public class TileStatus
     public bool isExplored;    // true = hráč sem už doplul a odkryl mlhu
     public int  fishRemaining; // kolik ryb na políčku ještě zbývá (jen u Water_Fish)
 
+    // ── Dekorace ostrovní dlaždice (nastaví GridManager.AssignIslandDecor při
+    //    vzniku ostrova; ukládá se → po návratu z majáku vypadá ostrov stejně) ──
+    public int decor;      // 0 = zatím neurčeno, 1 = záměrně bez dekorace,
+                           // ≥2 = má dekoraci; model = (decor - 2) % počet_modelů
+    public int decorRot;   // natočení dekorace ve stupních (0..359)
+    public int decorScale; // měřítko dekorace v % (0 = ber jako 100)
+    public int tileRot;    // natočení celé dlaždice: 0..3 → *90° (jen vzhled písku)
+
     public TileStatus(int type)
     {
         this.type = type;

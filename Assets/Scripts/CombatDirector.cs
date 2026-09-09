@@ -184,10 +184,12 @@ public class CombatDirector : MonoBehaviour
         Toast("Ostrovni delo zniceno!  +" + EconomyConfig.IslandCannonReward + " minci");
     }
 
-    public void Toast(string text)
+    public void Toast(string text) => Toast(text, 2.6f);
+
+    public void Toast(string text, float duration)
     {
         toastText  = text;
-        toastUntil = Time.time + 2.6f;
+        toastUntil = Time.time + duration;
     }
 
     /// <summary>Jednotkový směr PRYČ od nejbližšího piráta / ostrovního děla (pro "odplavání" po potopení).</summary>

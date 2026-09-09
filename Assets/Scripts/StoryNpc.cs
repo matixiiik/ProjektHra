@@ -83,6 +83,8 @@ public class StoryNpc : MonoBehaviour
                         "Á, návštěva. Vidím, že jsi vyplul na obyčejném voru.",
                         "Takhle daleko se nedostaneš, chlapče.",
                         "Kup si aspoň malou plachetnici v majáku a vrať se za mnou.",
+                        "A pamatuj: myší střílíš z děla, klávesou E vejdeš do majáku " +
+                        "nebo přístavu a klávesou R opravíš loď u mola.",
                     };
                 else
                     activeLines = new[]
@@ -387,6 +389,20 @@ public class StoryNpc : MonoBehaviour
         AddPart(PrimitiveType.Cylinder, "Hair",  new Vector3(0f, 0.95f, 0.02f), new Vector3(0.46f, 0.07f, 0.46f), Vector3.zero,             hair);
         AddPart(PrimitiveType.Cube,     "Beard", new Vector3(0f, 0.66f, 0.17f), new Vector3(0.24f, 0.26f, 0.12f), Vector3.zero,             hair);
         AddPart(PrimitiveType.Cube,     "Nose",  new Vector3(0f, 0.77f, 0.23f), new Vector3(0.08f, 0.08f, 0.13f), Vector3.zero,             skin);
+
+        MaybeShowStartHint();
+    }
+
+    // Na úplném začátku (příběh v kroku 0) ukaž jednou krátkou nápovědu ovládání.
+    private static bool startHintShown;
+    private void MaybeShowStartHint()
+    {
+        if (startHintShown || StoryStep != 0) return;
+        startHintShown = true;
+        if (CombatDirector.Instance != null)
+            CombatDirector.Instance.Toast(
+                "Ovladani:  WASD plout  -  E maják/přístav  -  mys strilet  -  R opravit lod  -  M mapa  -  promluv s namornikem (E)",
+                9f);
     }
 
     private Vector2Int? NearestPier()

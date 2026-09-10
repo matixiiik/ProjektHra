@@ -22,6 +22,24 @@ v `.claude/story-plan.md`. **NIC se z toho zatím nestaví** — bude se dělat 
 kouskách do maturity. Až se začne: první milník = "Infra" + "Ostrov 1 — obrana"
 (viz plán sekce 6).
 
+### 🔧 NEPŘÁTELSKÝ OSTROV: VLAJKA + FLOTILA 2026-09-10 (commit `0a97d1e`, PUSHNUTO — ověřeno v Play módu)
+- **Vlajka nešla vidět** — byla na tile-local y 4, ale věž majáku je (po ×3.2)
+  vysoká ~6,5 → vlajka zapadlá v půlce věže. `AddHostileFlag(tile, tower)` teď
+  změří vršek věže z rendererů a dá stožár + větší vlajku nad špičku. Ověřeno
+  screenshotem (červená vlajka fakticky nad majákem).
+- **1–3 děla na ostrov** (dřív 1): `CombatDirector.ScanHostileIslands` +
+  `GridManager.GetHostileCannonSpots(center, n)` (kraj ostrova u vody, rozmístěná
+  ≥4 od sebe). Počet deterministicky `1 + seed%3` z pozice ostrova.
+- **1–3 hlídkové pirátské lodě kolem ostrova**: `GetGuardWaterSpots` (kruh ~r10),
+  `PirateShip.SetGuard(home)` — guard mód: nemizí sama (přeskočí GIVEUP destroy),
+  po souboji se vrací k `guardHome`, drží se do `GUARD_LEASH=9`. Spawnou se JEDNOU
+  při příchodu na dohled (`guardedIslands` set), zabité se nedoplňují.
+- **Ostrov „vyčištěn" až po POSLEDNÍM dělu**: `OnIslandCannonDestroyed(key, self)`
+  → odměna za každé dělo, `MarkIslandCleared` + `ReleaseGuard` na hlídky až když
+  `!cannons.Exists(c != self && c.islandKey == key)`.
+- Cleanup: hráč >40 políček → děla i hlídky Destroy, `guardedIslands.Remove`;
+  návrat = fresh flotila. Ověřeno.
+
 ### 🔧 LOCATE PIRATE + DĚLO 2026-09-10 (commit `2cc00f4`, PUSHNUTO — ověřeno v Play módu)
 - Uživatel projel 1000+ bloků a nenašel žádný nepřátelský ostrov (smůla — sim
   ukazuje ~1 na drift-plavbě 1200 dlaždic i po zvýšení na 40 %). Řešení dle

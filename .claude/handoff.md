@@ -22,6 +22,18 @@ v `.claude/story-plan.md`. **NIC se z toho zatím nestaví** — bude se dělat 
 kouskách do maturity. Až se začne: první milník = "Infra" + "Ostrov 1 — obrana"
 (viz plán sekce 6).
 
+### 🔧 KOLIZE PIRÁTŮ + MENŠÍ DĚLA 2026-09-10 (commit `97260ba`, PUSHNUTO — ověřeno v Play módu)
+- **Piráti jezdili skrz ostrovy** → `PirateShip.MoveShip(step)` — centralizovaný
+  pohyb přes `GridManager.IsLandAt` (round-to-int tile, `IsIslandTile`), s
+  lookahead 0,9 před příď. Náraz do pevniny → klouzání po ose X nebo Z, jinak
+  otočka pryč. `Wander` do břehu → hned nový směr. Nahrazeny všechny
+  `transform.position +=` v chase/wander/return/odraz.
+- `CombatDirector`: `guardHome` hlídky = její vodní spot (ne střed ostrova =
+  pevnina — loď se pak tlačila do břehu).
+- **Děla byla obří** → `HostileIslandCannon` Kenney scale 0.9 → **0.55**
+  (fbx je při scale 1 přes 1 j vysoký). Primitivní fallback taky zmenšen.
+  Výsledek ~0,77 š × 0,58 v.
+
 ### 🔧 NEPŘÁTELSKÝ OSTROV: VLAJKA + FLOTILA 2026-09-10 (commit `0a97d1e`, PUSHNUTO — ověřeno v Play módu)
 - **Vlajka nešla vidět** — byla na tile-local y 4, ale věž majáku je (po ×3.2)
   vysoká ~6,5 → vlajka zapadlá v půlce věže. `AddHostileFlag(tile, tower)` teď

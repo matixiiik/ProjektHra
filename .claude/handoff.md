@@ -22,6 +22,21 @@ v `.claude/story-plan.md`. **NIC se z toho zatím nestaví** — bude se dělat 
 kouskách do maturity. Až se začne: první milník = "Infra" + "Ostrov 1 — obrana"
 (viz plán sekce 6).
 
+### 🔧 LOCATE PIRATE + DĚLO 2026-09-10 (commit `2cc00f4`, PUSHNUTO — ověřeno v Play módu)
+- Uživatel projel 1000+ bloků a nenašel žádný nepřátelský ostrov (smůla — sim
+  ukazuje ~1 na drift-plavbě 1200 dlaždic i po zvýšení na 40 %). Řešení dle
+  zadání ("nějak si poraď"): **`locate pirate` teď ostrov VYNUTÍ**, když žádný
+  není objevený — `GridManager.ForceHostileIslandNear(px,py)` projde lattice
+  body (prstenec 2–14 × 40), první kde `CanPlaceIsland` projde → `GenerateIsland`,
+  přidá klíč do `GameData.forcedIslandKeys` (nový save list) i `hostileIslands`.
+  `CheckAndGenerateArea` forced klíče generuje bez 30% hodu → ostrov přežije
+  úklid dlaždic. Konzole nastaví i waypoint. Ověřeno end-to-end: force → doplout
+  → ostrov je nepřátelský → CombatDirector spawnul dělo.
+- **Dělo na ostrově = Kenney model** (`Assets/Resources/PirateKit/cannon.fbx`
+  + `colormap.png`, z Pirate Kitu). `HostileIslandCannon.TryBuildKenneyCannon`,
+  fallback na primitiva zůstal. Kenney dělo se otáčí k hráči celé kolem osy Y
+  (scale 0.9, míří +Z = na moře). Screenshot ověřen.
+
 ### 🔧 DROBNOSTI 2026-09-10 (commit `e1aa0c0`, PUSHNUTO — ověřeno v Play módu)
 - **žlutý toast s ovládáním na startu pryč** → ovládání teď říká děda v dialogu
   (krok 0, hráč na voru): přidán WASD + M na mapu k dosavadnímu E/R/myš.

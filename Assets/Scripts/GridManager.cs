@@ -966,9 +966,9 @@ public class GridManager : MonoBehaviour
                     tower.localPosition += new Vector3(0.5f, 0f, 0.5f);
                     tower.localScale    *= 3.2f; // maják má být na mapě pořádně vidět (cca 2× víc než dřív)
 
-                    // Nepřátelský ostrov → červená vlajka na majáku (vidíš to dřív,
-                    // než po tobě dělo začne pálit).
-                    if (IsHostileIslandNear(x, y)) AddHostileFlag(newTile);
+                    // Nepřátelský ostrov → červená vlajka na špičce majáku (vidíš to
+                    // dřív, než po tobě dělo začne pálit).
+                    if (IsHostileIslandNear(x, y)) AddHostileFlag(newTile, tower);
                 }
                 else
                 {
@@ -990,26 +990,34 @@ public class GridManager : MonoBehaviour
         return false;
     }
 
-    // Červená vlajka na stožáru vysoko nad majákem (parent = kořen dlaždice, měřítko 1,
-    // takže rozměry jsou ve světových jednotkách — dlaždice je 1×1, věž ~3 vysoká).
-    // Výšku/velikost případně dolaď tady podle skutečné výšky lighthousePrefabu.
-    private void AddHostileFlag(GameObject tile)
+    // Červená vlajka na stožáru NAD špičkou majáku. Věž bývá různě vysoká
+    // (prefab × škálování), tak si výšku vršku změříme z jejích rendererů.
+    private void AddHostileFlag(GameObject tile, Transform tower)
     {
+        float topLocalY = 6.6f; // fallback, kdyby se věž nedala změřit
+        if (tower != null)
+        {
+            float maxY = float.MinValue;
+            foreach (var r in tower.GetComponentsInChildren<Renderer>(true))
+                if (r.bounds.max.y > maxY) maxY = r.bounds.max.y;
+            if (maxY > float.MinValue) topLocalY = maxY - tile.transform.position.y;
+        }
+
         var pole = GameObject.CreatePrimitive(PrimitiveType.Cube);
         Destroy(pole.GetComponent<Collider>());
         pole.name = "HostileFlagPole";
         pole.transform.SetParent(tile.transform, false);
-        pole.transform.localPosition = new Vector3(0.5f, 3.6f, 0.5f);
-        pole.transform.localScale    = new Vector3(0.06f, 1.4f, 0.06f);
-        TintPrimitive(pole, new Color(0.15f, 0.1f, 0.07f));
+        pole.transform.localPosition = new Vector3(0.5f, topLocalY + 0.75f, 0.5f);
+        pole.transform.localScale    = new Vector3(0.09f, 1.6f, 0.09f);
+        TintPrimitive(pole, new Color(0.12f, 0.08f, 0.06f));
 
         var flag = GameObject.CreatePrimitive(PrimitiveType.Cube);
         Destroy(flag.GetComponent<Collider>());
         flag.name = "HostileFlag";
         flag.transform.SetParent(tile.transform, false);
-        flag.transform.localPosition = new Vector3(0.82f, 4.0f, 0.5f);
-        flag.transform.localScale    = new Vector3(0.55f, 0.34f, 0.03f);
-        TintPrimitive(flag, new Color(0.85f, 0.09f, 0.07f));
+        flag.transform.localPosition = new Vector3(0.5f + 0.46f, topLocalY + 1.2f, 0.5f);
+        flag.transform.localScale    = new Vector3(0.85f, 0.52f, 0.04f);
+        TintPrimitive(flag, new Color(0.86f, 0.09f, 0.07f));
     }
 
     private static void TintPrimitive(GameObject go, Color c)
@@ -1301,22 +1309,69 @@ public class GridManager : MonoBehaviour
     /// <summary>Najde pevninovou dlaždici u vody poblíž středu ostrova (kam dát dělo).</summary>
     public bool TryGetHostileCannonSpot(Vector2Int center, out Vector2Int spot)
     {
-        spot = default;
-        bool found = false;
-        int  bestD = int.MaxValue;
+        var spots = GetHostileCannonSpots(center, 1);
+        spot = spots.Count > 0 ? spots[0] : default;
+        return spots.Count > 0;
+    }
 
-        for (int x = center.x - 12; x <= center.x + 12; x++)
-            for (int y = center.y - 12; y <= center.y + 12; y++)
+    /// <summary>
+    /// Až `maxCount` pevninových dlaždic u kraje ostrova (soused = voda), rozmístěných
+    /// od sebe — kam nepřátelský ostrov dá děla. Nejblíž ke středu jako první.
+    /// </summary>
+    public List<Vector2Int> GetHostileCannonSpots(Vector2Int center, int maxCount)
+    {
+        var cand = new List<Vector2Int>();
+        for (int x = center.x - 13; x <= center.x + 13; x++)
+            for (int y = center.y - 13; y <= center.y + 13; y++)
             {
                 if (GetTileType(x, y) != TileType.Harbor) continue;
-                // musí sousedit s vodou (aby dělo bylo u kraje a mělo výhled)
                 if (GetTileType(x + 1, y) != TileType.Water && GetTileType(x - 1, y) != TileType.Water
                  && GetTileType(x, y + 1) != TileType.Water && GetTileType(x, y - 1) != TileType.Water) continue;
-
-                int d = (x - center.x) * (x - center.x) + (y - center.y) * (y - center.y);
-                if (d < bestD) { bestD = d; spot = new Vector2Int(x, y); found = true; }
+                cand.Add(new Vector2Int(x, y));
             }
-        return found;
+
+        cand.Sort((a, b) =>
+            ((a.x - center.x) * (a.x - center.x) + (a.y - center.y) * (a.y - center.y))
+          - ((b.x - center.x) * (b.x - center.x) + (b.y - center.y) * (b.y - center.y)));
+
+        var pick = new List<Vector2Int>();
+        foreach (var c in cand)
+        {
+            bool tooClose = false;
+            foreach (var p in pick)
+                if (Mathf.Abs(p.x - c.x) < 4 && Mathf.Abs(p.y - c.y) < 4) { tooClose = true; break; }
+            if (tooClose) continue;
+            pick.Add(c);
+            if (pick.Count >= maxCount) break;
+        }
+        return pick;
+    }
+
+    /// <summary>
+    /// Až `count` vodních dlaždic v pásu ~6–14 políček kolem středu ostrova —
+    /// kam se postaví hlídkující pirátské lodě nepřátelského ostrova.
+    /// </summary>
+    public List<Vector2Int> GetGuardWaterSpots(Vector2Int center, int count)
+    {
+        var result = new List<Vector2Int>();
+        if (count <= 0) return result;
+
+        // Zkus rovnoměrně po kruhu (8 směrů), poloměr 10, s pár záložními poloměry.
+        int[] radii = { 10, 8, 12, 7, 13 };
+        for (int i = 0; i < count; i++)
+        {
+            float ang = (i / (float)count) * Mathf.PI * 2f + 0.4f;
+            foreach (int r in radii)
+            {
+                int x = center.x + Mathf.RoundToInt(Mathf.Cos(ang) * r);
+                int y = center.y + Mathf.RoundToInt(Mathf.Sin(ang) * r);
+                var t = GetTileType(x, y);
+                if (t != TileType.Water && t != TileType.Water_Fish) continue;
+                result.Add(new Vector2Int(x, y));
+                break;
+            }
+        }
+        return result;
     }
 
     // ── Mapa (šipka k nejbližšímu ostrovu) + respawn po smrti ──────────────

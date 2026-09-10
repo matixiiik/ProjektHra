@@ -149,7 +149,7 @@ public class HostileIslandCannon : MonoBehaviour
         if (hp <= 0f)
         {
             SoundManager.PlaySink();
-            if (CombatDirector.Instance != null) CombatDirector.Instance.OnIslandCannonDestroyed(islandKey);
+            if (CombatDirector.Instance != null) CombatDirector.Instance.OnIslandCannonDestroyed(islandKey, this);
             Destroy(gameObject);
         }
     }

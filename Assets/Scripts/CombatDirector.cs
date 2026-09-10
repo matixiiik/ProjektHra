@@ -29,6 +29,7 @@ public class CombatDirector : MonoBehaviour
     private GridManager grid;
     private readonly List<PirateShip>          pirates = new List<PirateShip>();
     private readonly List<HostileIslandCannon> cannons = new List<HostileIslandCannon>();
+    private readonly HashSet<string>           guardedIslands = new HashSet<string>(); // ostrovy, kam už byly poslány hlídkové lodě
 
     private float nextIslandScan;
     private float nextPirateSpawn;
@@ -104,7 +105,7 @@ public class CombatDirector : MonoBehaviour
         return null;
     }
 
-    // ── Nepřátelské ostrovy: drž dělo spawnuté, když je ostrov u hráče ─────
+    // ── Nepřátelské ostrovy: drž děla + hlídkové lodě, když je ostrov u hráče ─
     void ScanHostileIslands()
     {
         var player = NearestAnyPlayer();
@@ -116,16 +117,51 @@ public class CombatDirector : MonoBehaviour
             Vector2Int center = GridManager.KeyToTile(key);
             float dist = Vector2.Distance(new Vector2(center.x, center.y), new Vector2(pp.x, pp.z));
 
-            HostileIslandCannon existing = cannons.Find(c => c != null && c.islandKey == key);
-
             if (dist > ISLAND_KEEP_RANGE)
             {
-                if (existing != null) { Destroy(existing.gameObject); cannons.Remove(existing); }
+                // Ostrov je daleko → ukliď jeho děla i hlídkové lodě.
+                for (int i = cannons.Count - 1; i >= 0; i--)
+                    if (cannons[i] != null && cannons[i].islandKey == key) { Destroy(cannons[i].gameObject); cannons.RemoveAt(i); }
+                for (int i = pirates.Count - 1; i >= 0; i--)
+                    if (pirates[i] != null && pirates[i].guardIslandKey == key) { Destroy(pirates[i].gameObject); pirates.RemoveAt(i); }
+                guardedIslands.Remove(key);
                 continue;
             }
 
-            if (existing == null && grid.TryGetHostileCannonSpot(center, out Vector2Int spot))
-                cannons.Add(HostileIslandCannon.Spawn(spot, key));
+            // Kolik děl a lodí tenhle ostrov má (1–3, stabilně podle jeho pozice).
+            int seed = Mathf.Abs(unchecked(center.x * 73856093 ^ center.y * 19349663));
+            int wantCannons = 1 + seed % 3;
+            int wantGuards  = 1 + (seed / 3) % 3;
+
+            // Děla: doplň chybějící (děla se nehýbou, tak porovnáváme podle pozice).
+            int haveCannons = cannons.FindAll(c => c != null && c.islandKey == key).Count;
+            if (haveCannons < wantCannons)
+            {
+                foreach (var s in grid.GetHostileCannonSpots(center, wantCannons))
+                {
+                    if (haveCannons >= wantCannons) break;
+                    var world = new Vector3(s.x, 0f, s.y);
+                    bool occupied = cannons.Exists(c => c != null && c.islandKey == key && c.IsNear(world, 1.2f));
+                    if (occupied) continue;
+                    cannons.Add(HostileIslandCannon.Spawn(s, key));
+                    haveCannons++;
+                }
+            }
+
+            // Hlídkové lodě: pošli je JEDNOU, když ostrov přijde na dohled. Zabité
+            // se už nedoplňují (dokud hráč neodpluje a nevrátí se).
+            if (!guardedIslands.Contains(key))
+            {
+                guardedIslands.Add(key);
+                var home = new Vector3(center.x, 0f, center.y);
+                foreach (var w in grid.GetGuardWaterSpots(center, wantGuards))
+                {
+                    var gp = PirateShip.Spawn(new Vector3(w.x, 0f, w.y), (seed + pirates.Count) % 3);
+                    gp.SetGuard(home);
+                    gp.guardIslandKey = key;
+                    pirates.Add(gp);
+                }
+            }
         }
     }
 
@@ -175,13 +211,27 @@ public class CombatDirector : MonoBehaviour
         Toast("Pirat potopen!  +" + reward + " minci");
     }
 
-    public void OnIslandCannonDestroyed(string key)
+    public void OnIslandCannonDestroyed(string key, HostileIslandCannon self)
     {
-        if (grid != null) { grid.MarkIslandCleared(key); grid.Save(); }
         var pc = NearestAnyPlayer();
         if (pc != null) pc.RewardCoins(EconomyConfig.IslandCannonReward);
         SoundManager.PlayCoin();
-        Toast("Ostrovni delo zniceno!  +" + EconomyConfig.IslandCannonReward + " minci");
+
+        cannons.RemoveAll(c => c == null);
+        bool anyLeft = cannons.Exists(c => c != null && c != self && c.islandKey == key);
+
+        if (anyLeft)
+        {
+            Toast("Delo zniceno!  +" + EconomyConfig.IslandCannonReward + " minci  (jeste tam nejaka jsou)");
+            return;
+        }
+
+        // Poslední dělo ostrova → ostrov je vyčištěný.
+        if (grid != null) { grid.MarkIslandCleared(key); grid.Save(); }
+        for (int i = pirates.Count - 1; i >= 0; i--)
+            if (pirates[i] != null && pirates[i].guardIslandKey == key) pirates[i].ReleaseGuard();
+        guardedIslands.Remove(key);
+        Toast("Ostrov vycisten!  +" + EconomyConfig.IslandCannonReward + " minci");
     }
 
     public void Toast(string text) => Toast(text, 2.6f);

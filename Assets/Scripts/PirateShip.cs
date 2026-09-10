@@ -27,6 +27,19 @@ public class PirateShip : MonoBehaviour
     private const float SHIP_Y       = -0.42f; // stejné "potopení" jako hráčova loď (ShipModelSwitcher)
 
     public  int    size;               // 0 = malá, 1 = střední, 2 = velká
+
+    // Hlídka nepřátelského ostrova: nezmizí sama, po souboji se vrací k ostrovu.
+    // Nastavuje CombatDirector přes SetGuard().
+    public  string  guardIslandKey;
+    private bool    isGuard;
+    private Vector3 guardHome;
+    private const float GUARD_LEASH = 9f; // jak daleko od ostrova smí zabloudit
+
+    public void SetGuard(Vector3 home) { isGuard = true; guardHome = new Vector3(home.x, SHIP_Y, home.z); }
+
+    /// <summary>Ostrov je vyčištěný → loď přestane být hlídka a chová se jako běžný pirát.</summary>
+    public void ReleaseGuard() { isGuard = false; }
+
     private float  hp, maxHp;
     private float  nextShot;
     private float  nextRam;
@@ -141,6 +154,17 @@ public class PirateShip : MonoBehaviour
             everEngaged     = true;
             outOfRangeTimer = 0f;
             ChaseAndFight(target, dist);
+        }
+        else if (isGuard)
+        {
+            // Hlídka ostrova: po souboji se stáhne zpět k ostrovu, jinak krouží
+            // kolem něj. Nikdy nemizí sama (uklidí ji CombatDirector, až je ostrov
+            // daleko / zničený).
+            if (everEngaged && dist < GIVEUP_RANGE) ChasePosition(lastPlayerPos);
+            else if ((transform.position - guardHome).sqrMagnitude > GUARD_LEASH * GUARD_LEASH)
+                ChasePosition(guardHome);
+            else
+                Wander();
         }
         else
         {

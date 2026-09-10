@@ -137,6 +137,11 @@ ostrově). Podporuje lokální split-screen pro dva hráče.
 ### Souboj (`CombatDirector`, `PirateShip`, `HostileIslandCannon`, `CannonBall`)
 - `CombatDirector.Ensure()` z `GridManager.Awake()` — spravuje spawn pirátů
   (od malých po velké lodě, boss-fight health bar) a děl nepřátelských ostrovů.
+- `HostileIslandCannon` model = Kenney Pirate Kit `Resources/PirateKit/cannon.fbx`
+  (atlas `colormap.png`), fallback = primitiva.
+- Konzole `locate pirate` vynutí vznik nepřátelského ostrova, když hráč žádný
+  neobjevil (`GridManager.ForceHostileIslandNear` → `GameData.forcedIslandKeys`,
+  ostrov se pak vždy přegeneruje, i po úklidu dlaždic).
 - Odměny za potopení v `EconomyConfig`.
 
 ### Příběh (`StoryNpc` — „starý námořník" / děda)

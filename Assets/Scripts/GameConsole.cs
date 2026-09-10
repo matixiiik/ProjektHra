@@ -316,10 +316,29 @@ public class GameConsole : MonoBehaviour
             {
                 var h = NearestHostileIsland(px, py);
                 if (h == null)
-                    Log("<color=#ffcc66>Žádný nepřátelský ostrov jsi zatím neobjevil. Pluj dál od startu — " +
-                        "zhruba 2 z 5 ostrovů jsou nepřátelské (červená vlajka na majáku, červená tečka na minimapě).</color>");
+                {
+                    // Žádný objevený → jeden vynutíme poblíž (nepřátelské ostrovy nejdou
+                    // předpovědět dopředu, tak si takhle pomůžeme).
+                    string key = grid.ForceHostileIslandNear(px, py);
+                    if (key != null) h = GridManager.KeyToTile(key);
+                }
+
+                if (h == null)
+                {
+                    Log("<color=#ffcc66>Nepodařilo se najít místo na nepřátelský ostrov. Popluj kousek dál a zkus to znovu.</color>");
+                }
                 else
+                {
+                    // Nastav i waypoint, ať tě k němu na minimapě vede šipka.
+                    grid.gameData.hasWaypoint = true;
+                    grid.gameData.waypointX   = h.Value.x;
+                    grid.gameData.waypointY   = h.Value.y;
+                    grid.Save();
+                    grid.NotifyWorldChanged();
+
                     ReportNearest("nepřátelský ostrov", h, px, py);
+                    Log("<color=#88ff88>Waypoint nastaven — na minimapě tě k němu vede azurová šipka.</color>");
+                }
                 break;
             }
             case "quest":

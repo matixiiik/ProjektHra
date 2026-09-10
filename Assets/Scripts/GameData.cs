@@ -104,6 +104,7 @@ public class GameData
     public List<string> hostileIslands = new List<string>(); // klíče "x,y" (kotva majáku) nepřátelských ostrovů
     public List<string> clearedIslands = new List<string>(); // nepřátelské ostrovy, kterým hráč zničil dělo
     public List<string> mappedIslands  = new List<string>(); // ostrovy zahlédnuté na dálku (klíč "minX,minY") → na velké mapě
+    public List<string> forcedIslandKeys = new List<string>(); // ostrovy vynucené konzolí ("locate pirate") — vždy se přegenerují, i po úklidu
     public int          pirateKills;                          // kolik pirátů hráč potopil (jen statistika)
 
     // ── Příběh (starý námořník na startovním ostrově) — sdílené pro oba hráče ──

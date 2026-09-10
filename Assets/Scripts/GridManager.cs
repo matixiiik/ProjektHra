@@ -285,7 +285,12 @@ public class GridManager : MonoBehaviour
         // a jen když je kolem dost místa (min. rozestup 200 — viz CanPlaceIsland).
         // Ostrov je organický a nemusí přesně pokrýt spouštěcí políčko [x,y] —
         // pokud ne, doplní se dole moře.
-        if (x % 40 == 0 && y % 40 == 0 && UnityEngine.Random.value < 0.3f && CanPlaceIsland(x, y))
+        // Ostrovy jen na mřížce po 40. Vynucené ostrovy (konzole "locate pirate")
+        // vzniknou vždy — bez hodu kostkou.
+        bool onLattice = x % 40 == 0 && y % 40 == 0;
+        bool forced = onLattice && gameData.forcedIslandKeys != null
+                   && gameData.forcedIslandKeys.Contains(GridKey(x, y));
+        if (onLattice && (forced || UnityEngine.Random.value < 0.3f) && CanPlaceIsland(x, y))
             GenerateIsland(x, y);
 
         // Jinak obyčejné mořské políčko (většinou voda, občas ryby / poklad).
@@ -524,10 +529,12 @@ public class GridManager : MonoBehaviour
 
         // ~40 % ostrovů je nepřátelských — mají dělo, co po hráči střílí
         // (klíč = bod, kolem kterého ostrov vznikl; ten je stabilní).
-        if (UnityEngine.Random.value < 0.40f)
+        // Vynucený ostrov (konzole) je nepřátelský vždy.
+        string ikey = GridKey(startX, startY);
+        bool forcedHostile = gameData.forcedIslandKeys != null && gameData.forcedIslandKeys.Contains(ikey);
+        if (forcedHostile || UnityEngine.Random.value < 0.40f)
         {
-            string key = GridKey(startX, startY);
-            if (!gameData.hostileIslands.Contains(key)) gameData.hostileIslands.Add(key);
+            if (!gameData.hostileIslands.Contains(ikey)) gameData.hostileIslands.Add(ikey);
         }
     }
 
@@ -1351,6 +1358,38 @@ public class GridManager : MonoBehaviour
                     int gx = bx + dx * 40, gy = by + dy * 40;
                     if (CanPlaceIsland(gx, gy)) { GenerateIsland(gx, gy); return; }
                 }
+    }
+
+    /// <summary>
+    /// Vynutí vznik NEPŘÁTELSKÉHO ostrova poblíž bodu — pro konzoli "locate pirate",
+    /// když hráč žádný neobjevil. Ostrov není přímo pod hráčem (prstenec 2–14 × 40
+    /// políček), zapamatuje se jako "vynucený" (přežije úklid dlaždic) a je vždy
+    /// nepřátelský. Vrací klíč "x,y" (kotva ostrova), nebo null když se nikam nevešel.
+    /// </summary>
+    public string ForceHostileIslandNear(int cx, int cy)
+    {
+        int bx = Mathf.RoundToInt(cx / 40f) * 40;
+        int by = Mathf.RoundToInt(cy / 40f) * 40;
+
+        for (int ring = 2; ring <= 14; ring++)
+            for (int dx = -ring; dx <= ring; dx++)
+                for (int dy = -ring; dy <= ring; dy++)
+                {
+                    if (Mathf.Max(Mathf.Abs(dx), Mathf.Abs(dy)) != ring) continue;
+                    int gx = bx + dx * 40, gy = by + dy * 40;
+                    if (!CanPlaceIsland(gx, gy)) continue;
+
+                    string key = GridKey(gx, gy);
+                    if (!gameData.forcedIslandKeys.Contains(key)) gameData.forcedIslandKeys.Add(key);
+                    if (!gameData.hostileIslands.Contains(key))   gameData.hostileIslands.Add(key);
+                    gameData.clearedIslands.Remove(key);
+
+                    GenerateIsland(gx, gy);
+                    Save();
+                    NotifyWorldChanged();
+                    return key;
+                }
+        return null;
     }
 
     // ── Příběhový mega ostrov ─────────────────────────────────────────────

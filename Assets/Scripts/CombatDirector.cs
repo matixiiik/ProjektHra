@@ -153,11 +153,10 @@ public class CombatDirector : MonoBehaviour
             if (!guardedIslands.Contains(key))
             {
                 guardedIslands.Add(key);
-                var home = new Vector3(center.x, 0f, center.y);
                 foreach (var w in grid.GetGuardWaterSpots(center, wantGuards))
                 {
                     var gp = PirateShip.Spawn(new Vector3(w.x, 0f, w.y), (seed + pirates.Count) % 3);
-                    gp.SetGuard(home);
+                    gp.SetGuard(new Vector3(w.x, 0f, w.y)); // domov = jeho vodní kotviště, ne střed ostrova
                     gp.guardIslandKey = key;
                     pirates.Add(gp);
                 }

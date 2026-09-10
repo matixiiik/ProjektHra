@@ -63,7 +63,7 @@ public class HostileIslandCannon : MonoBehaviour
         go.name = "Model";
         go.transform.localPosition    = Vector3.zero;
         go.transform.localEulerAngles = Vector3.zero;
-        go.transform.localScale       = Vector3.one * 0.9f;
+        go.transform.localScale       = Vector3.one * 0.55f; // Kenney dělo je při scale 1 přes 1 j vysoké — zmenšit, ať nevypadá obří
 
         if (!colormapTried) { colormapTried = true; colormap = Resources.Load<Texture2D>("PirateKit/colormap"); }
 
@@ -93,15 +93,15 @@ public class HostileIslandCannon : MonoBehaviour
         var baseGo = GameObject.CreatePrimitive(PrimitiveType.Cube);
         baseGo.name = "Base";
         baseGo.transform.SetParent(root, false);
-        baseGo.transform.localPosition = new Vector3(0f, 0.22f, 0f);
-        baseGo.transform.localScale    = new Vector3(0.7f, 0.24f, 0.7f);
+        baseGo.transform.localPosition = new Vector3(0f, 0.13f, 0f);
+        baseGo.transform.localScale    = new Vector3(0.42f, 0.16f, 0.42f);
         StripCollider(baseGo, dark);
 
         var barrel = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
         barrel.name = "Barrel";
         barrel.transform.SetParent(root, false);
-        barrel.transform.localPosition    = new Vector3(0f, 0.45f, 0.25f);
-        barrel.transform.localScale       = new Vector3(0.22f, 0.42f, 0.22f);
+        barrel.transform.localPosition    = new Vector3(0f, 0.27f, 0.16f);
+        barrel.transform.localScale       = new Vector3(0.13f, 0.26f, 0.13f);
         barrel.transform.localEulerAngles = new Vector3(90f, 0f, 0f);
         StripCollider(barrel, dark);
         return barrel.transform;

@@ -53,6 +53,34 @@ public class PirateShip : MonoBehaviour
     // krok pohybu, ať loď neproletí půl mapy naráz.
     private static float Dt => Mathf.Min(Time.deltaTime, 0.05f);
 
+    private GridManager gridCache;
+    private GridManager Grid => gridCache != null ? gridCache : (gridCache = FindFirstObjectByType<GridManager>());
+
+    // Posune loď o `step`, ale nepustí ji na pevninu — když by narazila do ostrova,
+    // zkusí klouzat aspoň po jedné ose (aby "objela" kraj), jinak stojí.
+    private void MoveShip(Vector3 step)
+    {
+        Vector3 p = transform.position;
+        if (!IsLandAhead(p.x + step.x, p.z + step.z)) { transform.position = new Vector3(p.x + step.x, p.y, p.z + step.z); return; }
+        if (!IsLandAhead(p.x + step.x, p.z))          { transform.position = new Vector3(p.x + step.x, p.y, p.z); return; }
+        if (!IsLandAhead(p.x, p.z + step.z))          { transform.position = new Vector3(p.x, p.y, p.z + step.z); return; }
+        // úplně zaseknuto o pevninu — otoč se pryč od ní
+        Vector3 away = new Vector3(p.x - (p.x + step.x), 0f, p.z - (p.z + step.z));
+        if (away.sqrMagnitude > 0.001f)
+            transform.rotation = Quaternion.Slerp(transform.rotation, Quaternion.LookRotation(away.normalized, Vector3.up), 3f * Dt);
+    }
+
+    // Kontroluje bod kousek před přídí (loď je delší než 1 dlaždice), ať trup
+    // nezajede do ostrova.
+    private bool IsLandAhead(float x, float z)
+    {
+        var g = Grid;
+        if (g == null) return false;
+        Vector3 fwd = transform.forward;
+        return g.IsLandAt(x, z)
+            || g.IsLandAt(x + fwd.x * 0.9f, z + fwd.z * 0.9f);
+    }
+
     public float HpFraction => maxHp > 0f ? Mathf.Clamp01(hp / maxHp) : 0f;
     public bool  Engaged { get; private set; }
 
@@ -190,7 +218,7 @@ public class PirateShip : MonoBehaviour
         if (to.magnitude < 0.5f) return;
         Vector3 dir = to.normalized;
         transform.rotation = Quaternion.Slerp(transform.rotation, Quaternion.LookRotation(dir, Vector3.up), 2.5f * Dt);
-        transform.position += dir * WANDER_SPEED * Dt;
+        MoveShip(dir * WANDER_SPEED * Dt);
     }
 
     void ChaseAndFight(PlayerController target, float dist)
@@ -205,7 +233,7 @@ public class PirateShip : MonoBehaviour
 
         // Přibliž se, ale ne úplně na doraz (aby stíhal pálit).
         if (dist > KEEP_DIST)
-            transform.position += dir * CHASE_SPEED * Dt;
+            MoveShip(dir * CHASE_SPEED * Dt);
 
         // Náraz do hráče (jen jednou za ~1.5 s, ne každý snímek).
         if (dist <= RAM_RANGE && Time.time >= nextRam)
@@ -213,7 +241,7 @@ public class PirateShip : MonoBehaviour
             nextRam = Time.time + 1.5f;
             int ram = size == 0 ? 6 : size == 1 ? 10 : 16;
             target.DamageBoat(ram);
-            transform.position -= dir * 1.6f; // odraz zpět
+            MoveShip(-dir * 1.6f); // odraz zpět
             hp -= 0.4f;                        // náraz bolí i piráta
             if (hp <= 0f) { Sink(); return; }
         }
@@ -238,8 +266,12 @@ public class PirateShip : MonoBehaviour
         }
         if (wanderDir.sqrMagnitude > 0.01f)
         {
-            transform.position += wanderDir * WANDER_SPEED * Dt;
+            MoveShip(wanderDir * WANDER_SPEED * Dt);
             transform.rotation = Quaternion.Slerp(transform.rotation, Quaternion.LookRotation(wanderDir, Vector3.up), 2f * Dt);
+
+            // Když bloumání míří do pevniny, hned zvol nový směr (ať se loď netlačí do břehu).
+            if (Grid != null && Grid.IsLandAt(transform.position.x + wanderDir.x * 2f, transform.position.z + wanderDir.z * 2f))
+                nextWander = 0f;
         }
     }
 

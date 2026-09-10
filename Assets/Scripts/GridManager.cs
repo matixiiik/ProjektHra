@@ -1273,6 +1273,10 @@ public class GridManager : MonoBehaviour
         return gameData.tileData.ContainsKey(key) ? (TileType)gameData.tileData[key].type : TileType.Water;
     }
 
+    /// <summary>Je na světové pozici [x,z] pevnina (ostrov / molo / maják)? Pro kolize pirátských lodí.</summary>
+    public bool IsLandAt(float worldX, float worldZ)
+        => IsIslandTile((int)GetTileType(Mathf.RoundToInt(worldX), Mathf.RoundToInt(worldZ)));
+
     /// <summary>Celý stav políčka, nebo null když neexistuje.</summary>
     public TileStatus GetTileStatus(int x, int y)
     {

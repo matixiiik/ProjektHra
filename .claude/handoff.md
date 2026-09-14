@@ -8,27 +8,54 @@ sem Claude píše, kde se přestalo, aby se dalo pokračovat i z notebooku.
 
 ---
 
-## STAV 2026-09-14 — implementace story-plan.md začala, jsme na Kroku 0/9 hotovém
-Postupujeme podle `.claude/story-plan.md` §6 ("Postup po kouskách"). **Krok 0 —
-příprava — hotový a ověřený:**
+## STAV 2026-09-14 — implementace story-plan.md, jsme na Kroku 1/9 hotovém
+Postupujeme podle `.claude/story-plan.md` §6 ("Postup po kouskách").
+
+**Krok 0 — příprava — hotový a ověřený (commit `2bad582`, PUSHNUTO):**
 - `GameData`: přidána pole `megaIndex, megaTask, megaCode, megaCluesMask,
   ambush1Done, ambush2Done, storyDone, storyEnding` (na konec třídy, komentovaný
-  blok „Mega ostrovy — pokračování příběhu"). Staré savy je načtou jako 0/false
-  — ověřeno v Play módu (slot 1, `storyStep` z předchozího savu zůstal, nová pole
-  naskočila na výchozí hodnoty).
+  blok „Mega ostrovy — pokračování příběhu"). Staré savy je načtou jako 0/false.
 - Konzole (`GameConsole.HandleStory`): přibyly `story megatask <0-3>`,
   `story ending <0-2>`, `story nextisland` (zatím jen posouvá `megaIndex` a nuluje
   rozdělaný postup — skutečné umístění dalšího ostrova přijde s
   `GridManager.GiveNextMegaIsland()` v Kroku 4).
 - Ověřeno v Play módu (slot 1): příkazy fungují, `grid.RespawnPlayerAtNearestIsland`
-  příběhová pole nemaže, save→disk→load round-trip sedí. Slot 1 po testu vrácen
-  na výchozí hodnoty (megaIndex/megaTask/storyEnding/storyDone/ambush* = 0/false).
-- Kompilace čistá (0 chyb v Console).
+  příběhová pole nemaže, save→disk→load round-trip sedí.
 
-**Další krok (Krok 1 — kostra ostrova):** `MegaIslandMarker.Instance` (Awake),
-`TryInteract(x,y,playerIndex)` hák do `PlayerController.TryInteractAdjacentBuilding()`,
-`Start()` → switch podle `megaIndex` na `BuildFortress/BuildWreckGraveyard/
-BuildConfrontation` (zatím jen placeholder cedule). Viz plán §6 Krok 1.
+**Krok 1 — kostra ostrova — hotový a ověřený (zatím NEcommitnuto):**
+- `MegaIslandMarker`: přidán `static Instance` (Awake), `TryInteract(x,y,playerIndex)`
+  (vrací true, jen když je [x,y] přesně políčko obelisku), `Start()` teď kromě
+  obelisku podle `gameData.megaIndex` staví jednu ze tří placeholder cedulí
+  (`BuildFortress/BuildWreckGraveyard/BuildConfrontation` — zatím jen text
+  "Mega ostrov N — ... (TODO: ...)" na dřevěné desce vedle obelisku).
+- `PlayerController.TryInteractAdjacentBuilding()`: nový řádek na začátek smyčky
+  — `MegaIslandMarker.Instance?.TryInteract(tx, ty, playerIndex)` — ukáže toast
+  s textem cedule, když hráč stiskne E vedle obelisku.
+- `StoryNpc`: case 3 dialogu teď čte `Data.megaTask` (< 3 = obecné povzbuzení
+  "dokonči, co jsi začal", == 3 = "tak povídej, co jsi našel"). `OnDialogFinished`
+  už NEPOSOUVÁ `storyStep` 3→4 automaticky — rozhovor s dědou při kroku 3 už
+  není brána (posun dál bude řešit `GiveNextMegaIsland` v Kroku 4). Toast při
+  doražení na ostrov přeformulován (už nemluví o "vykopaném pokladu").
+- `HUDCounter.RefreshStory` case 3 čte `megaTask`/`megaIndex` místo pevného textu.
+  Mimochodem opraven i drobný pozůstatek "starym namornikem" → "dedovi"/"dedou".
+- **Ověřeno v Play módu (slot 1), včetně regresního testu:**
+  - `PlaceMegaIsland` → o snímek později `MegaIslandMarker.Instance` existuje,
+    `tilePos` sedí na `storyIslandX/Y`, `TryInteract` na políčku obelisku vrací
+    true a vyvolá toast se správným textem podle `megaIndex`.
+  - **Regrese:** hráč vedle dědy pořád spustí `StoryNpc` dialog (hák nový kód
+    nerozbil) — `TryInteractAdjacentBuilding()==true`, `IsTalkingWith(0)==true`.
+  - `StoryNpc` case 3 dialog: `megaTask<3` a `megaTask==3` dávají různé repliky.
+  - `HUDCounter` case 3: text se mění podle `megaTask`/`megaIndex`.
+  - Kompilace čistá (0 chyb). **Pozor:** jednou se stalo, že Play mód naběhl na
+    starou (nezkompilovanou) verzi po `refresh_unity` hlásícím "recovered from
+    disconnect" — po druhém čistém force-compile bez disconnectu už bylo vše
+    v pořádku. Kdyby se `read_console` po `refresh_unity` chovala podezřele
+    (0 chyb, ale chování neodpovídá novému kódu), zopakovat compile ještě jednou.
+
+**Další krok (Krok 2 — ostrov 1, obrana):** `BuildFortress` část 1 — 2-3×
+`HostileIslandCannon.Spawn(tile,"mega")` + 1 hlídkující `PirateShip` + nový
+`LandGuard.cs` (2-3 ks u středu). Marker `Update()` počítá zničené → `megaTask 0→1`
++ toast. Viz plán §6 Krok 2 a §3.
 
 ---
 

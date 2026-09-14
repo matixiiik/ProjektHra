@@ -350,9 +350,11 @@ public class HUDCounter : MonoBehaviour
         string txt = "";
         switch (d.storyStep)
         {
-            case 1: txt = "Ukol: prines starymu namornikovi 1000 minci + historicky poklad"; break;
+            case 1: txt = "Ukol: prines dedovi 1000 minci + historicky poklad"; break;
             case 2: txt = $"Ukol: dopluj k ostrovu na  [{d.storyIslandX}, {d.storyIslandY}]"; break;
-            case 3: txt = "Ukol: vrat se za starym namornikem"; break;
+            case 3: txt = d.megaTask < 3
+                        ? $"Ukol: probojuj se ostrovem {d.megaIndex + 1} a najdi, co je uvnitr"
+                        : "Ukol: vrat se za dedou"; break;
         }
 
         bool show = txt != "";

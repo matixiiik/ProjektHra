@@ -2,17 +2,85 @@ using UnityEngine;
 
 // ─────────────────────────────────────────────────────────────────────────────
 //  MegaIslandMarker.cs
-//  Střed příběhového "mega ostrova" — zatím jen kamenný obelisk s teplým
-//  přísvitem, ať je poznat, že jde o zvláštní místo. Vytváří ho
-//  GridManager.PlaceMegaIsland (a znovu po načtení save).
+//  "Mozek" příběhového mega ostrova. Staví kamenný obelisk (vždy) a podle
+//  gameData.megaIndex (0/1/2 = který ostrov v pořadí) jeho konkrétní obsah —
+//  zatím jen placeholder cedule, skutečnou obranu/trezor/konfrontaci přidají
+//  další kroky podle .claude/story-plan.md. Vytváří ho GridManager.PlaceMegaIsland
+//  (a znovu po načtení save, pokud je storyIslandActive).
 //
-//  Tady se budou později přidávat věci, které na mega ostrově musí hráč splnit
-//  (zadá je uživatel). Zatím je to čistě orientační bod.
+//  Ve hře je aktivní vždy nejvýš jeden mega ostrov najednou, proto stačí
+//  jednoduchý statický Instance — přes něj se s ostrovem dá interagovat
+//  (PlayerController) i ho testovat (GameConsole).
 // ─────────────────────────────────────────────────────────────────────────────
 
 public class MegaIslandMarker : MonoBehaviour
 {
+    public static MegaIslandMarker Instance { get; private set; }
+
+    private GridManager gridManager;
+    private Vector2Int  tilePos;  // políčko obelisku (= střed ostrova)
+    private string      signText; // co cedule říká — vrátí se jako toast při interakci
+
+    void Awake()     { Instance = this; }
+    void OnDestroy() { if (Instance == this) Instance = null; }
+
     void Start()
+    {
+        gridManager = FindFirstObjectByType<GridManager>();
+        tilePos = new Vector2Int(Mathf.RoundToInt(transform.position.x), Mathf.RoundToInt(transform.position.z));
+
+        BuildObelisk();
+
+        int megaIndex = gridManager != null ? gridManager.gameData.megaIndex : 0;
+        switch (megaIndex)
+        {
+            case 0: BuildFortress();       break;
+            case 1: BuildWreckGraveyard(); break;
+            default: BuildConfrontation(); break; // 2 (a jistota pro budoucí)
+        }
+    }
+
+    // ── Obsah ostrova podle megaIndex — zatím jen placeholder cedule ─────────
+    // Skutečnou obranu (děla + LandGuard), trezor s puzzlem atd. staví další
+    // kroky plánu (§3 a dál v .claude/story-plan.md).
+    private void BuildFortress()
+        => BuildSign("Mega ostrov 1 — Pevnost staré posádky (TODO: obrana + trezor)",
+                      new Color(0.5f, 0.24f, 0.18f));
+
+    private void BuildWreckGraveyard()
+        => BuildSign("Mega ostrov 2 — Hřbitov lodí (TODO: hlídač + puzzle z vraků)",
+                      new Color(0.32f, 0.36f, 0.42f));
+
+    private void BuildConfrontation()
+        => BuildSign("Mega ostrov 3 — Kde to začalo (TODO: konfrontace s bratrem)",
+                      new Color(0.52f, 0.44f, 0.16f));
+
+    // Dřevěná cedule kousek od obelisku — jen orientační, dokud nevznikne
+    // skutečný obsah ostrova. Text se ukáže jako toast při interakci (E).
+    private void BuildSign(string text, Color boardColor)
+    {
+        signText = text;
+
+        Material wood  = MakeMat(new Color(0.35f, 0.24f, 0.14f));
+        Material board = MakeMat(boardColor);
+
+        Box("SignPost",  new Vector3(1.8f, 0.6f,  1.8f), new Vector3(0.12f, 1.2f, 0.12f), wood);
+        Box("SignBoard", new Vector3(1.8f, 1.25f, 1.8f), new Vector3(1.1f,  0.6f, 0.08f),  board);
+    }
+
+    // ── Interakce (hák z PlayerController.TryInteractAdjacentBuilding) ──────
+    // Vrací true, když hráč stojí vedle obelisku a stisk E patří tomuhle
+    // ostrovu — v dalších krocích přibudou další interaktivní body (tabulky,
+    // trezor, vzkaz), zatím je tu jen samotný obelisk s cedulí.
+    public bool TryInteract(int x, int y, int playerIndex)
+    {
+        if (x != tilePos.x || y != tilePos.y) return false;
+        if (CombatDirector.Instance != null) CombatDirector.Instance.Toast(signText);
+        return true;
+    }
+
+    // ── Vizuál obelisku (beze změny z předchozí verze) ───────────────────────
+    private void BuildObelisk()
     {
         Material stone = MakeMat(new Color(0.42f, 0.40f, 0.38f));
         Material glow  = MakeMat(new Color(0.55f, 0.85f, 0.95f));

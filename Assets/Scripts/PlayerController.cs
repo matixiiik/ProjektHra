@@ -1012,6 +1012,10 @@ public class PlayerController : MonoBehaviour
             int tx = px + d.x, ty = py + d.y;
             TileType t = gridManager.GetTileType(tx, ty);
 
+            // Mega ostrov (pokračování příběhu) — obelisk, později tabulky/trezor.
+            if (MegaIslandMarker.Instance != null && MegaIslandMarker.Instance.TryInteract(tx, ty, playerIndex))
+                return true;
+
             if (storyNpc != null && storyNpc.IsAt(tx, ty))
             {
                 storyNpc.StartTalk(playerIndex);

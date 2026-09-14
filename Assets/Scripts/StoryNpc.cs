@@ -4,13 +4,15 @@ using UnityEngine;
 
 // ─────────────────────────────────────────────────────────────────────────────
 //  StoryNpc.cs
-//  Příběhové NPC — starý námořník, který sedí na startovním ostrově. Vede hráče
-//  příběhem po krocích (gameData.storyStep):
+//  Příběhové NPC — děda, který sedí na startovním ostrově. Vede hráče příběhem
+//  po krocích (gameData.storyStep):
 //    0 = start: řekne, ať si koupí aspoň malou loď a vrátí se
 //    1 = má loď: chce se prokázat — 1000 mincí + historický poklad
 //    2 = dostal souřadnice: navádí k příběhovému mega ostrovu (šipka na minimapě)
-//    3 = hráč tam byl: poklad už někdo vykopal, ale nechal stopu
-//    4+ = pokračování (doplní se později)
+//    3 = na mega ostrově se něco děje — podrobnosti řídí gameData.megaTask
+//        (0-2 = ostrov ještě neprošel, 3 = vzkaz nalezen). Dokud se tam něco
+//        nedokončí, dialog není brána — nikam dál neposouvá.
+//    4+ = pokračování (doplní se v pozdějších krocích .claude/story-plan.md)
 //
 //  Objekt "StoryNpc" je v SampleScene. Panáčka i jeho umístění si vytvoří sám
 //  v Start(). V majáku / jiných scénách není.
@@ -127,13 +129,21 @@ public class StoryNpc : MonoBehaviour
                 break;
 
             case 3:
-                activeLines = new[]
-                {
-                    "Vidím ti to na očích. Byl jsi tam.",
-                    "Někdo tě předběhl. Poklad je pryč.",
-                    "Ale ten, kdo kopal, nechal na obelisku vzkaz — stopu, kam dál.",
-                    "Nech mě přemýšlet. Řeknu ti víc, až tomu porozumím.",
-                };
+                // Dokud hráč nedokončil, co má na ostrově udělat (megaTask < 3),
+                // dá mu děda jen obecné povzbuzení — detailní repliky přidají
+                // další kroky, až bude mít ostrov skutečný obsah.
+                if (Data.megaTask < 3)
+                    activeLines = new[]
+                    {
+                        "Byl jsi tam, co? Cítím to na tobě.",
+                        "Ale ještě jsi tam neskončil. Dokonči to, co jsi začal, a vrať se za mnou.",
+                    };
+                else
+                    activeLines = new[]
+                    {
+                        "Tak povídej, co jsi tam našel.",
+                        "Nech mě přemýšlet. Řeknu ti víc, až tomu porozumím.",
+                    };
                 break;
 
             default:
@@ -153,11 +163,9 @@ public class StoryNpc : MonoBehaviour
             int shipLevel = talkingWith == 0 ? Data.shipLevel : Data.player2ShipLevel;
             if (shipLevel >= 1) { Data.storyStep = 1; gridManager.Save(); }
         }
-        else if (StoryStep == 3)
-        {
-            Data.storyStep = 4;
-            gridManager.Save();
-        }
+        // StoryStep 3 už dialog sám dál neposouvá — to teď dělá postup na
+        // mega ostrově (megaTask) a GridManager.GiveNextMegaIsland() v
+        // pozdějším kroku. Rozhovor s dědou je tu jen volitelný komentář.
     }
 
     // Tlačítko "dát starému námořníkovi 1000 mincí + historický poklad" (krok 1).
@@ -215,7 +223,7 @@ public class StoryNpc : MonoBehaviour
         if (grid != null) grid.NotifyWorldChanged();
 
         if (CombatDirector.Instance != null)
-            CombatDirector.Instance.Toast("Někdo tu už kopal. Na obelisku je vzkaz — vrať se za dědou.");
+            CombatDirector.Instance.Toast("Ostrov není prázdný — něco ho hlídá. Budeš se muset probojovat dál.");
     }
 
     // ───────────────────────────────────────────────────────────────────────

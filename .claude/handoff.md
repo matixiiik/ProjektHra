@@ -223,6 +223,13 @@ FEEL ještě neodladěný — viz níže, potřebuje reálné zahrání):**
 - Kompilace čistá, ověřeno v Play módu (spawn, bounds/scale, oba stavy
   vizuálně screenshoty). **Ovládání/dodge feel se zatím nemění** — uživatel
   řekl, že to řekne večer po vlastním zahrání.
+- **Rychlost výpadu = 10× člověk** (na žádost uživatele, ještě před
+  playtestem): `HUMAN_SPEED = PlayerController.moveSpeed = 5` (rychlost
+  pěšky, tu žádný multiplikátor nemění). `LUNGE_SPEED = HUMAN_SPEED*10 = 50`,
+  `APPROACH_SPEED = HUMAN_SPEED*3 = 15` (plave rychle, ale ne tak zběsile
+  jako samotný výpad — ať je cítit rozdíl). `LUNGE_MAX_TIME` zkráceno na 0,5 s
+  (při 50 j/s by 1,2 s pokrylo přes 25 polí — moc dlouhý "sprint"). Ověřeno
+  v Play módu přes reflection přímo na konstantách (50/5 = přesně 10×).
 
 **Další krok (Krok 6 — ostrov 2, Hřbitov lodí):** hlídač ve stylu Bludného
 Holanďana (přesunout `ship-ghost.fbx` do `Resources/`), 3 kopací místa v

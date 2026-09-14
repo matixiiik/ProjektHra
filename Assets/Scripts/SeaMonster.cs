@@ -19,11 +19,15 @@ public class SeaMonster : MonoBehaviour
 {
     private enum State { Approach, Telegraph, Lunge, Recover, Vulnerable, Sinking }
 
-    private const float APPROACH_SPEED     = 3.2f;
+    // Rychlosti odvozené od hráče pěšky (PlayerController.moveSpeed = 5 j/s
+    // = "člověk"). Výpad = 10× člověk, plavání kolem = rychlé, ale ne tak
+    // zběsilé, ať je znát rozdíl mezi "plave k tobě" a "teď zaútočí".
+    private const float HUMAN_SPEED        = 5f;
+    private const float APPROACH_SPEED     = HUMAN_SPEED * 3f;  // 15 j/s
     private const float LUNGE_TRIGGER_RANGE = 9f;   // odtud se spustí telegraph
     private const float TELEGRAPH_TIME     = 1.5f;  // "nadechnutí" — hráč má čas uhnout
-    private const float LUNGE_SPEED        = 10f;
-    private const float LUNGE_MAX_TIME     = 1.2f;  // i když nikoho netrefí, tak dlouho se žene
+    private const float LUNGE_SPEED        = HUMAN_SPEED * 10f; // 50 j/s — samotný výpad
+    private const float LUNGE_MAX_TIME     = 0.5f;  // při 50 j/s i tak pokryje ~25 políček
     private const float LUNGE_DAMAGE       = 20f;
     private const float HIT_RADIUS         = 1.3f;
     private const int   LUNGES_PER_CYCLE   = 2;      // pár výpadů, pak vyčerpání

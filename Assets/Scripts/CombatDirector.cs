@@ -111,6 +111,12 @@ public class CombatDirector : MonoBehaviour
     public void RegisterCannon(HostileIslandCannon c)   { if (c != null) cannons.Add(c); }
     public void RegisterGuardShip(PirateShip p)          { if (p != null) pirates.Add(p); }
 
+    // ── Mořská obluda (Krok 5, story-plan.md §4) — vždy nejvýš jedna ────────
+    private SeaMonster monster;
+    public void RegisterMonster(SeaMonster m) => monster = m;
+    public SeaMonster MonsterNear(Vector3 pos, float radius)
+        => monster != null && monster.IsNear(pos, radius) ? monster : null;
+
     // ── Nepřátelské ostrovy: drž děla + hlídkové lodě, když je ostrov u hráče ─
     void ScanHostileIslands()
     {
@@ -239,6 +245,16 @@ public class CombatDirector : MonoBehaviour
         Toast("Ostrov vycisten!  +" + EconomyConfig.IslandCannonReward + " minci");
     }
 
+    /// <summary>Mořská obluda potopena (Krok 5) — jednorázová odměna, ambush1Done
+    /// nastaví volající (SeaMonster sám, přes GridManager).</summary>
+    public void OnMonsterSunk()
+    {
+        var pc = NearestAnyPlayer();
+        if (pc != null) pc.RewardCoins(EconomyConfig.SeaMonsterReward);
+        SoundManager.PlayCoin();
+        Toast("Morska obluda potopena!  +" + EconomyConfig.SeaMonsterReward + " minci", 4f);
+    }
+
     public void Toast(string text) => Toast(text, 2.6f);
 
     public void Toast(string text, float duration)
@@ -275,28 +291,38 @@ public class CombatDirector : MonoBehaviour
     {
         EnsureStyles();
 
-        // Boss bar: nejbližší pirát, který zrovna útočí na nějakého hráče.
+        // Boss bar: nejbližší pirát, který zrovna útočí (přednostně), jinak
+        // mořská obluda, pokud je zrovna zapojená do souboje.
         PirateShip boss = null;
         foreach (var p in pirates) if (p != null && p.Engaged) { boss = p; break; }
 
         if (boss != null)
         {
-            float w = 360f, h = 22f;
-            float x = (Screen.width - w) / 2f;
-            float y = 54f;
-
-            GUI.color = new Color(0f, 0f, 0f, 0.6f);
-            GUI.DrawTexture(new Rect(x - 3, y - 3, w + 6, h + 20), Texture2D.whiteTexture);
-            GUI.color = new Color(0.75f, 0.15f, 0.12f, 1f);
-            GUI.DrawTexture(new Rect(x, y, w * boss.HpFraction, h), Texture2D.whiteTexture);
-            GUI.color = Color.white;
-
             string name = boss.size == 0 ? "PIRAT (mala lod)" : boss.size == 1 ? "PIRAT (stredni lod)" : "PIRAT (velka lod)";
-            GUI.Label(new Rect(x, y + h, w, 18f), name, bossLabel);
+            DrawBossBar(boss.HpFraction, name);
+        }
+        else if (monster != null && monster.Engaged)
+        {
+            DrawBossBar(monster.HpFraction, "MORSKA OBLUDA");
         }
 
         if (Time.time < toastUntil && !string.IsNullOrEmpty(toastText))
             GUI.Label(new Rect(0f, Screen.height - 168f, Screen.width, 26f), toastText, toastStyle);
+    }
+
+    private void DrawBossBar(float hpFraction, string name)
+    {
+        float w = 360f, h = 22f;
+        float x = (Screen.width - w) / 2f;
+        float y = 54f;
+
+        GUI.color = new Color(0f, 0f, 0f, 0.6f);
+        GUI.DrawTexture(new Rect(x - 3, y - 3, w + 6, h + 20), Texture2D.whiteTexture);
+        GUI.color = new Color(0.75f, 0.15f, 0.12f, 1f);
+        GUI.DrawTexture(new Rect(x, y, w * hpFraction, h), Texture2D.whiteTexture);
+        GUI.color = Color.white;
+
+        GUI.Label(new Rect(x, y + h, w, 18f), name, bossLabel);
     }
 
     void EnsureStyles()

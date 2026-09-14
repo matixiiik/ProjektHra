@@ -39,6 +39,7 @@ public static class EconomyConfig
     public const int PirateRewardMedium = 110;
     public const int PirateRewardLarge  = 260;
     public const int IslandCannonReward = 90;
+    public const int SeaMonsterReward   = 400; // jednorázová odměna za mořskou obludu (story-plan.md Krok 5)
     public const int ChestCoinsMin      = 40;
     public const int ChestCoinsMax      = 120;
     public const int MegaQuestCoinsMin  = 400;

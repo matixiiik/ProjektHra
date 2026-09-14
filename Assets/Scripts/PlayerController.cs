@@ -684,6 +684,9 @@ public class PlayerController : MonoBehaviour
             && Mathf.Max(Mathf.Abs(tx - d0.storyIslandX), Mathf.Abs(ty - d0.storyIslandY)) <= 16)
             StoryNpc.OnReachedStoryIsland();
 
+        // Plavba po trase k dalšímu mega ostrovu → může narazit na mořskou obludu (Krok 5).
+        StoryEvents.CheckMonster(gridManager);
+
         gridManager.GenerateWorld(tx, ty);
         ExploreCurrentPosition();
     }

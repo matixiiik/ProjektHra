@@ -84,6 +84,9 @@ public class CannonBall : MonoBehaviour
 
         HostileIslandCannon cannon = dir.CannonNear(transform.position, HIT_RADIUS);
         if (cannon != null) { cannon.TakeHit(damage); SoundManager.PlayHit(); Destroy(gameObject); return; }
+
+        SeaMonster monster = dir.MonsterNear(transform.position, HIT_RADIUS);
+        if (monster != null) { monster.TakeHit(damage); SoundManager.PlayHit(); Destroy(gameObject); return; }
     }
 
     // Nepřátelská koule → hráč, který pluje, plave (rozbitá loď), NEBO je pěšky

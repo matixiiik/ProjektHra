@@ -160,13 +160,52 @@ Postupujeme podle `.claude/story-plan.md` §6 ("Postup po kouskách").
   utnul spojení uprostřed (`HideMenu()` se nezavolalo) — dořešeno ručním
   zavoláním, není to bug hry, jen MCP timeout na pomalejším loadu.
 
-**Další krok (Krok 5 — mořská obluda):** nová `SeaMonster.cs` +
-`StoryEvents.CheckMonster(grid)` z `PlayerController.OnEnteredTile`
-(`storyStep==2 && megaIndex>=1 && !ambush1Done`, trasa k ostrovu 2). Stavy
-Submerged/Surfaced/Sinking, HP + boss bar (pattern z `PirateShip.Engaged`).
-**Feel prototypovat hned na začátku** — telegrafovaný výpad ~1.5 s, velkorysé
-okno; s dnešním ovládáním lodě může být přesný úhyb nefér, přehodnotit podle
-plánu, kdyby to tak vyšlo. Viz plán §4 a §6 Krok 5.
+**Krok 5 — mořská obluda — hotový a mechanicky ověřený (zatím NEcommitnuto,
+FEEL ještě neodladěný — viz níže, potřebuje reálné zahrání):**
+- Nový `SeaMonster.cs`: stavy `Approach → Telegraph (1.5s, ploutev zčervená)
+  → Lunge (rovný, "zamknutý" směr — dá se uhnout) → Recover → (po 2 výpadech)
+  Vulnerable (9s, vynořená, boss bar, dá se střílet) → zpátky Approach, nebo
+  po vyčerpání HP → Sinking → zmizí`. `MAX_HP=18`, `LUNGE_DAMAGE=20` (přímo
+  `DamageBoat`, ne `CannonBall` — je to "náraz", stejný vzor jako
+  `PirateShip` ram). Zásah hráčovou koulí funguje jen ve stavu `Vulnerable`
+  (jinde je "pod hladinou", `CannonBall.CheckEnemyHits` rozšířeno o
+  `dir.MonsterNear(...)`).
+- Nový `StoryEvents.cs`: `CheckMonster(grid)` — spawne obludu (nejvýš jednu),
+  když hráč pluje do `ROUTE_RANGE=30` polí od úsečky start(0,0)→cílový mega
+  ostrov, `storyStep==2 && megaIndex>=1 && !ambush1Done`. Voláno z
+  `PlayerController.OnEnteredTile`.
+- `CombatDirector`: `RegisterMonster`/`MonsterNear`, boss bar zobecněn do
+  `DrawBossBar(hpFraction, name)` — pirát má přednost, jinak obluda, pokud
+  `Engaged`. `OnMonsterSunk()` dává `EconomyConfig.SeaMonsterReward = 400`.
+- **Ověřeno v Play módu (slot 1):** spawn (nejvýš jeden, druhé volání
+  `CheckMonster` no-op), plný cyklus Approach→Telegraph→Lunge→Recover→
+  Lunge→Vulnerable proběhl sám (přes reálný čas mezi voláními), `LUNGE_DAMAGE`
+  reálně ubíral `boatHealth` (100→20 po 4 zásazích), `TakeHit` funguje jen ve
+  `Vulnerable`, zabití → `Sinking` → `ambush1Done=true` + odměna (+400 mincí)
+  → obelisk/marker analogie: `SeaMonster.Instance` zmizí, `CheckMonster` ji
+  už znovu nevyvolá. 0 chyb v Console.
+- **⚠️ FEEL NEODLADĚNÝ — potřebuje reálné zahrání, ne můj odhad:**
+  1. Obluda se spawne **hned vedle hráče** (6 polí před ním) a `LUNGE_TRIGGER_
+     RANGE=9` je větší než ta vzdálenost → **přeskočí fázi Approach a jde
+     rovnou do Telegraph** (žádné "něco tam pluje", rovnou "za chvíli
+     zaútočí"). Možná chtít spawnout dál a nechat chvíli plavat, než začne
+     útočit — ale to je přesně ten "feel" bod z plánu k vyzkoušení naživo.
+  2. **Ploutev je vizuálně slabá** — tenký klínek (scale 0.05×0.5×0.22), na
+     screenshotu (posílám) vypadá spíš jako tyčka než žraločí ploutev. Snadná
+     oprava (větší/výraznější tvar), ale nechávám na tvém posouzení, jak moc
+     nápadná/strašidelná má být.
+  3. **Úhyb nikdy naživo nezkoušený** — testoval jsem jen čísla/stavy přes
+     kód, ne jestli se s dnešním ovládáním lodě dá výpad reálně fér uhnout.
+     Přesně proto plán říká "prototypovat brzo" — teď je řada na tobě.
+- Reward `SeaMonsterReward=400` je zatím jen číslo z hlavy — žádná "trofej
+  (zub?)" položka (plán to nechává TBD, nepřidal jsem novou inventární věc).
+
+**Další krok (Krok 6 — ostrov 2, Hřbitov lodí):** hlídač ve stylu Bludného
+Holanďana (přesunout `ship-ghost.fbx` do `Resources/`), 3 kopací místa v
+mělčině (styl `DigRoutine`), poskládaná mapa → kód do podpalubí → 2. vzkaz +
+souřadnice ostrova 3. **Doporučuju počkat na tvůj playtest Kroků 1–5**, než se
+pustím dál — obluda i ostrov 1 ještě nebyly zahrané naživo. Viz plán §5 a §6
+Krok 6.
 
 ---
 

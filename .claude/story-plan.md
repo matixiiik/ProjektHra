@@ -170,11 +170,19 @@ Tok: přijedeš (`storyStep 3`, `megaTask 0`) → sejmeš děla + loď z lodě
 → `megaTask 3` + vzkaz rovnou nastaví waypoint na ostrov 2 (`GiveNextMegaIsland()`)
 → pluješ dál (dialog s dědou je jen volitelná zastávka, ne nutná).
 
-### Puzzle — 3 varianty (TBD, rozhodne se později)
-1. **Kód z hádanek** (doporučeno): ~6 tabulek, 4 tvoří 4-symbolový kód + 2 návnady.
+### Puzzle — varianty (rozhodnuto 2026-09-14: varianta 4)
+1. **Kód z hádanek:** ~6 tabulek, 4 tvoří 4-symbolový kód + 2 návnady.
    Zadání na trezoru (cyklíš symboly E), feedback "X ze 4 správně".
 2. **Sekvence aktivace:** 4–5 ohňů ve správném pořadí (z obelisku), špatně → reset.
 3. **Kombinace z prostředí:** počet děl + směr stínu obelisku + datum na hrobu…
+4. **Ozubená kola (VYBRÁNO):** 3 kola vedle sebe, každé 5 symbolů (kotva, lebka,
+   kompas, vlna, mince). Klik na kolo = pootočí o 1 dopředu; kola do sebe
+   zapadají, takže sousední kolo se otočí o 1 dozadu (prostřední ovlivňuje obě
+   krajní, krajní jen prostřední — lineární řetězec, ne kruh). Cíl: všechna tři
+   ukazují stejný symbol pod pevnou ryskou. Ověřeno simulací (BFS přes Z_5^3) —
+   z libovolného zamíchaného stavu je cíl vždy dosažitelný, průměr ~6 kliknutí,
+   nejhorší případ 12. Detail a náčrt implementace (`VaultMechanism.cs`) je v
+   Claude paměti `vault-gear-puzzle-design.md` — použít při Kroku 3.
 
 ---
 
@@ -323,7 +331,7 @@ Každý krok = malý commit + „co proklikat v Unity" pro uživatele.
    ostrově 3; v endingu B ji děda rozvine (kóda). ✅ přijato.
 
 ### Stále otevřené (TBD — vyřeší se při implementaci)
-- Konkrétní puzzle trezoru (ostrov 1) + puzzle na ostrově 2.
+- Puzzle na ostrově 2 (puzzle ostrova 1 už rozhodnutý — viz §3 varianta 4).
 - Mechanika "Bludného Holanďana" (ostrov 2).
 - Přesná čísla / feel mořské obludy — prototypovat brzo, úhyb s dnešním
   ovládáním lodě může být nefér.

@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -21,6 +22,12 @@ public class MegaIslandMarker : MonoBehaviour
     private Vector2Int  tilePos;  // políčko obelisku (= střed ostrova)
     private string      signText; // co cedule říká — vrátí se jako toast při interakci
 
+    // ── Obrana ostrova 1 (Krok 2) — obsazeno jen když megaIndex == 0 ────────
+    private readonly List<HostileIslandCannon> myCannons = new List<HostileIslandCannon>();
+    private readonly List<LandGuard>           myGuards  = new List<LandGuard>();
+    private PirateShip myGuardShip;
+    private bool        defenseSpawned; // ať Update() nezačne počítat dřív, než se obrana vůbec postaví
+
     void Awake()     { Instance = this; }
     void OnDestroy() { if (Instance == this) Instance = null; }
 
@@ -40,12 +47,93 @@ public class MegaIslandMarker : MonoBehaviour
         }
     }
 
-    // ── Obsah ostrova podle megaIndex — zatím jen placeholder cedule ─────────
-    // Skutečnou obranu (děla + LandGuard), trezor s puzzlem atd. staví další
-    // kroky plánu (§3 a dál v .claude/story-plan.md).
+    // Sečti zničenou obranu → megaTask 0→1. Jen dokud je co počítat (defenseSpawned)
+    // a dokud je pořád megaTask == 0 (jinak by po zničení poslední věci nic nedělalo).
+    void Update()
+    {
+        if (!defenseSpawned || gridManager == null) return;
+        var d = gridManager.gameData;
+        if (d.megaTask != 0) return;
+
+        myCannons.RemoveAll(c => c == null);
+        myGuards.RemoveAll(g => g == null);
+        if (myCannons.Count > 0 || myGuards.Count > 0 || myGuardShip != null) return;
+
+        d.megaTask = 1;
+        gridManager.Save();
+        gridManager.NotifyWorldChanged();
+        if (CombatDirector.Instance != null) CombatDirector.Instance.Toast("Obrana ostrova padla. Prohledej ho dál.");
+    }
+
+    // ── Obsah ostrova podle megaIndex ─────────────────────────────────────
+    // Ostrov 2 a 3 mají zatím jen placeholder ceduli — skutečný obsah staví
+    // další kroky plánu (§5 a dál v .claude/story-plan.md).
     private void BuildFortress()
-        => BuildSign("Mega ostrov 1 — Pevnost staré posádky (TODO: obrana + trezor)",
-                      new Color(0.5f, 0.24f, 0.18f));
+    {
+        BuildSign("Mega ostrov 1 — Pevnost staré posádky (TODO: trezor)",
+                   new Color(0.5f, 0.24f, 0.18f));
+
+        // Obrana se staví, jen když ještě nebyla vyřízená (staré savy po
+        // reloadu ať znovu nespawnou už poražené hlídky).
+        if (gridManager == null || gridManager.gameData.megaTask > 0) return;
+
+        // 2–3 děla + 2–3 strážci, deterministicky podle pozice ostrova.
+        int seed = Mathf.Abs(unchecked(tilePos.x * 73856093 ^ tilePos.y * 19349663));
+        int cannonCount = 2 + seed % 2;
+        int guardCount  = 2 + (seed / 2) % 2;
+
+        foreach (var spot in gridManager.GetHostileCannonSpots(tilePos, cannonCount, TileType.MegaIsland))
+        {
+            var cannon = HostileIslandCannon.Spawn(spot, "mega");
+            myCannons.Add(cannon);
+            if (CombatDirector.Instance != null) CombatDirector.Instance.RegisterCannon(cannon);
+        }
+
+        var guardWaterSpots = gridManager.GetGuardWaterSpots(tilePos, 1);
+        if (guardWaterSpots.Count > 0)
+        {
+            var w = guardWaterSpots[0];
+            myGuardShip = PirateShip.Spawn(new Vector3(w.x, 0f, w.y), 1); // střední loď
+            myGuardShip.SetGuard(new Vector3(w.x, 0f, w.y));
+            myGuardShip.guardIslandKey = "mega";
+            if (CombatDirector.Instance != null) CombatDirector.Instance.RegisterGuardShip(myGuardShip);
+        }
+
+        foreach (var spot in FindGuardTiles(guardCount))
+            myGuards.Add(LandGuard.Spawn(spot, "mega"));
+
+        defenseSpawned = true;
+    }
+
+    // Pár políček pevniny blíž ke středu ostrova (u budoucího trezoru), kam
+    // postavit stacionární strážce. Podobný postup jako u děl, jen blíž středu.
+    private List<Vector2Int> FindGuardTiles(int maxCount)
+    {
+        var cand = new List<Vector2Int>();
+        for (int x = tilePos.x - 6; x <= tilePos.x + 6; x++)
+            for (int y = tilePos.y - 6; y <= tilePos.y + 6; y++)
+            {
+                if (x == tilePos.x && y == tilePos.y) continue; // ne přímo na obelisku
+                if (gridManager.GetTileType(x, y) != TileType.MegaIsland) continue;
+                cand.Add(new Vector2Int(x, y));
+            }
+        cand.Sort((a, b) => DistSqToCenter(a) - DistSqToCenter(b));
+
+        var pick = new List<Vector2Int>();
+        foreach (var c in cand)
+        {
+            bool tooClose = false;
+            foreach (var p in pick)
+                if (Mathf.Abs(p.x - c.x) < 3 && Mathf.Abs(p.y - c.y) < 3) { tooClose = true; break; }
+            if (tooClose) continue;
+            pick.Add(c);
+            if (pick.Count >= maxCount) break;
+        }
+        return pick;
+    }
+
+    private int DistSqToCenter(Vector2Int p)
+        => (p.x - tilePos.x) * (p.x - tilePos.x) + (p.y - tilePos.y) * (p.y - tilePos.y);
 
     private void BuildWreckGraveyard()
         => BuildSign("Mega ostrov 2 — Hřbitov lodí (TODO: hlídač + puzzle z vraků)",
@@ -69,14 +157,30 @@ public class MegaIslandMarker : MonoBehaviour
     }
 
     // ── Interakce (hák z PlayerController.TryInteractAdjacentBuilding) ──────
-    // Vrací true, když hráč stojí vedle obelisku a stisk E patří tomuhle
-    // ostrovu — v dalších krocích přibudou další interaktivní body (tabulky,
-    // trezor, vzkaz), zatím je tu jen samotný obelisk s cedulí.
+    // Vrací true, když hráč stojí vedle obelisku (nebo živého strážce) a stisk
+    // E patří tomuhle ostrovu. V dalších krocích přibudou další interaktivní
+    // body (tabulky, trezor, vzkaz) — stejnou metodou, viz plán §2.
     public bool TryInteract(int x, int y, int playerIndex)
     {
+        // Nejdřív živí strážci — E vedle nich = úder (viz LandGuard.PLAYER_HIT).
+        foreach (var guard in myGuards)
+            if (guard != null && guard.IsAt(x, y))
+            {
+                guard.TakeHit(LandGuard.PLAYER_HIT);
+                SoundManager.PlayHit();
+                return true;
+            }
+
         if (x != tilePos.x || y != tilePos.y) return false;
         if (CombatDirector.Instance != null) CombatDirector.Instance.Toast(signText);
         return true;
+    }
+
+    /// <summary>Zavolá LandGuard při své smrti — jen okamžitá hláška. Skutečný postup
+    /// (megaTask) řeší Update() nahoře, který sečte, co všechno ještě žije.</summary>
+    public void OnGuardDestroyed(LandGuard g)
+    {
+        if (CombatDirector.Instance != null) CombatDirector.Instance.Toast("Stráž poražena.");
     }
 
     // ── Vizuál obelisku (beze změny z předchozí verze) ───────────────────────

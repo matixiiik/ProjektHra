@@ -52,10 +52,50 @@ Postupujeme podle `.claude/story-plan.md` §6 ("Postup po kouskách").
     v pořádku. Kdyby se `read_console` po `refresh_unity` chovala podezřele
     (0 chyb, ale chování neodpovídá novému kódu), zopakovat compile ještě jednou.
 
-**Další krok (Krok 2 — ostrov 1, obrana):** `BuildFortress` část 1 — 2-3×
-`HostileIslandCannon.Spawn(tile,"mega")` + 1 hlídkující `PirateShip` + nový
-`LandGuard.cs` (2-3 ks u středu). Marker `Update()` počítá zničené → `megaTask 0→1`
-+ toast. Viz plán §6 Krok 2 a §3.
+**Krok 2 — ostrov 1, obrana — hotový a ověřený (zatím NEcommitnuto):**
+- `MegaIslandMarker.BuildFortress()`: podle megaTask==0 (jinak se obrana po
+  reloadu/novém obelisku znovu nespawnuje — hlídáno guard klauzulí) postaví
+  2–3 `HostileIslandCannon.Spawn(spot,"mega")` (na krajových `MegaIsland`
+  dlaždicích u vody) + 1 hlídkující `PirateShip` (`SetGuard`) + 2–3
+  `LandGuard.cs` (nový soubor — stacionární strážce, primitiva, střílí
+  `CannonBall` na pěšího hráče v dostřelu). Počty děl/strážců deterministické
+  z pozice ostrova (stejný hash vzorec jako `CombatDirector.ScanHostileIslands`).
+- **`CombatDirector`**: nové `RegisterCannon`/`RegisterGuardShip` — mega ostrov
+  není v `hostileIslands`, takže bez registrace by hráčovy koule děla/loď
+  vůbec netrefily (`CannonNear`/`PirateNear` prochází jen tyhle interní listy).
+- **`CannonBall.CheckPlayerHits`**: rozšířeno o pěší hráče (dřív jen loď/plavec)
+  — `Side.Enemy` koule teď jde pěšky přímo do `PlayerController.DamagePlayer`
+  (ta metoda už dřív fungovala bez ohledu na `isOnFoot`, jen ji nikdo z pěší
+  situace nevolal). Nutné, aby `LandGuard` mohl vůbec hráče zasáhnout.
+- **`GridManager.GetHostileCannonSpots`**: přibyl nepovinný parametr `landType`
+  (default `Harbor`, beze změny pro stávající volání) — mega ostrov hledá
+  sloty na `MegaIsland` dlaždicích místo `Harbor`.
+- **`MegaIslandMarker.TryInteract`**: teď nejdřív zkusí živé strážce (E vedle
+  = úder `LandGuard.PLAYER_HIT`), pak teprve obelisk. `Update()` po každém
+  snímku sečte, co z `myCannons/myGuards/myGuardShip` ještě žije — až je
+  všechno pryč, `megaTask 0→1` + toast "Obrana ostrova padla."
+- **Ověřeno v Play módu (slot 1), 2× na dvou různých ostrovech:**
+  registrace do `CombatDirector` (cannons/pirates count sedí), zničení všech
+  děl+lodi+strážců → `megaTask` naskočí na 1 po dalším snímku, `LandGuard`
+  reálně poškodí hráče na nohou (ověřeno přes `CannonBall`, `playerHealth`
+  klesl), hráčovo E přes `TryInteractAdjacentBuilding` reálně ubírá strážci HP,
+  **reload-safety**: nový obelisk s `megaTask>0` obranu znovu nespawnuje
+  (`defenseSpawned=false`, listy prázdné). Regrese: `GetHostileCannonSpots` bez
+  `landType` pořád funguje. 0 chyb v Console po celou dobu.
+- **Pozor při testu:** `LandGuard` střílí na PĚŠÍHO hráče poměrně rychle
+  (RELOAD 2.2 s, DAMAGE 6) — při testování víc strážců najednou blízko sebe
+  hráči rychle ubývá zdraví, teleportovat pryč před delším laděním.
+
+**Vedlejší poznámka:** v paměti (`vault-gear-puzzle-design.md`, založeno jinou
+session 14.9. ráno) je navržený puzzle mechanismus pro trezor (Krok 3) — 3
+ozubená kola se symboly, klik otáčí sousedy opačně, cíl = shoda pod ryskou.
+Ověřeno simulací (BFS), ~6 kliknutí průměr, vždy řešitelné. Zatím
+neimplementováno, ale až přijde na Krok 3, použít tenhle návrh místo
+vymýšlení nového.
+
+**Další krok (Krok 3 — ostrov 1, trezor + puzzle):** trezor (primitiva) + ~6
+kamenných cedulí s vodítky + puzzle na trezoru (viz návrh ozubených kol výše
+nebo plán §3 varianty 2/3) → `megaTask 1→2`. Viz plán §6 Krok 3.
 
 ---
 

@@ -1321,14 +1321,16 @@ public class GridManager : MonoBehaviour
     /// <summary>
     /// Až `maxCount` pevninových dlaždic u kraje ostrova (soused = voda), rozmístěných
     /// od sebe — kam nepřátelský ostrov dá děla. Nejblíž ke středu jako první.
+    /// `landType` je typ pevniny, po které se hledá — `Harbor` pro běžné nepřátelské
+    /// ostrovy, `MegaIsland` pro příběhové mega ostrovy (viz story-plan.md).
     /// </summary>
-    public List<Vector2Int> GetHostileCannonSpots(Vector2Int center, int maxCount)
+    public List<Vector2Int> GetHostileCannonSpots(Vector2Int center, int maxCount, TileType landType = TileType.Harbor)
     {
         var cand = new List<Vector2Int>();
         for (int x = center.x - 13; x <= center.x + 13; x++)
             for (int y = center.y - 13; y <= center.y + 13; y++)
             {
-                if (GetTileType(x, y) != TileType.Harbor) continue;
+                if (GetTileType(x, y) != landType) continue;
                 if (GetTileType(x + 1, y) != TileType.Water && GetTileType(x - 1, y) != TileType.Water
                  && GetTileType(x, y + 1) != TileType.Water && GetTileType(x, y - 1) != TileType.Water) continue;
                 cand.Add(new Vector2Int(x, y));

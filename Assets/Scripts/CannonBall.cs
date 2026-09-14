@@ -86,16 +86,18 @@ public class CannonBall : MonoBehaviour
         if (cannon != null) { cannon.TakeHit(damage); SoundManager.PlayHit(); Destroy(gameObject); return; }
     }
 
-    // Nepřátelská koule → hráč, který pluje NEBO plave (rozbitá loď). DamageBoat
-    // si sám rozhodne, jestli poškodí loď, nebo rovnou panáčka.
+    // Nepřátelská koule → hráč, který pluje, plave (rozbitá loď), NEBO je pěšky
+    // (strážci mega ostrovů střílí i na pěší — viz LandGuard.cs). Pěšky jde
+    // poškození přímo do panáčka, jinak DamageBoat sám rozhodne loď/panáček.
     void CheckPlayerHits()
     {
         foreach (var pc in FindObjectsByType<PlayerController>(FindObjectsSortMode.None))
         {
-            if (!pc.IsSailing && !pc.IsSwimming) continue;
+            if (!pc.IsSailing && !pc.IsSwimming && !pc.IsOnFoot) continue;
             if ((pc.transform.position - transform.position).sqrMagnitude <= HIT_RADIUS * HIT_RADIUS)
             {
-                pc.DamageBoat(Mathf.RoundToInt(damage));
+                if (pc.IsOnFoot) pc.DamagePlayer(Mathf.RoundToInt(damage));
+                else              pc.DamageBoat(Mathf.RoundToInt(damage));
                 SoundManager.PlayHit();
                 Destroy(gameObject);
                 return;

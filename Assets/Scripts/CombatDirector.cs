@@ -105,6 +105,12 @@ public class CombatDirector : MonoBehaviour
         return null;
     }
 
+    // ── Registrace mimo běžný systém nepřátelských ostrovů (mega ostrovy
+    //    příběhu — viz story-plan.md). Ať je CombatDirector cílí hráčovými
+    //    koulemi a počítá stejně jako běžnou obranu. ──────────────────────
+    public void RegisterCannon(HostileIslandCannon c)   { if (c != null) cannons.Add(c); }
+    public void RegisterGuardShip(PirateShip p)          { if (p != null) pirates.Add(p); }
+
     // ── Nepřátelské ostrovy: drž děla + hlídkové lodě, když je ostrov u hráče ─
     void ScanHostileIslands()
     {

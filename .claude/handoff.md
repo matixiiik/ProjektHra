@@ -86,16 +86,51 @@ Postupujeme podle `.claude/story-plan.md` §6 ("Postup po kouskách").
   (RELOAD 2.2 s, DAMAGE 6) — při testování víc strážců najednou blízko sebe
   hráči rychle ubývá zdraví, teleportovat pryč před delším laděním.
 
-**Vedlejší poznámka:** v paměti (`vault-gear-puzzle-design.md`, založeno jinou
-session 14.9. ráno) je navržený puzzle mechanismus pro trezor (Krok 3) — 3
-ozubená kola se symboly, klik otáčí sousedy opačně, cíl = shoda pod ryskou.
-Ověřeno simulací (BFS), ~6 kliknutí průměr, vždy řešitelné. Zatím
-neimplementováno, ale až přijde na Krok 3, použít tenhle návrh místo
-vymýšlení nového.
+**Krok 3 — ostrov 1, trezor + puzzle — hotový a ověřený (zatím NEcommitnuto):**
+- Nový `VaultMechanism.cs`: implementace ozubených kol z paměti
+  `vault-gear-puzzle-design.md` (3 kola × 5 symbolů — KOTVA/LEBKA/KOMPAS/VLNA/
+  MINCE, `TurnWheel` otočí kolo dopředu a OBA sousedy dozadu — lineární
+  řetězec, ne kruh — cíl: všechna tři stejná). **Změna oproti návrhu:** místo
+  myšího raycastu na kola je vstup klávesový (bez myši), ať funguje i pro P2
+  ve split screenu — P1 `1`/`2`/`3` točí kola, `Esc` zavře; P2 `Numpad 4/5/6`,
+  `NumpadEnter` zavře. Otevírá se přes E vedle trezoru (stejný
+  `MegaIslandMarker.TryInteract` hák jako obelisk/strážci).
+- Trezor **vzniká, až padne obrana** (`megaTask 0→1`) — voláno z
+  `MegaIslandMarker.Update()` hned po přechodu, nebo rovnou v `BuildFortress()`
+  při načtení savu, kde `megaTask` je už ≥ 1 (reload-safety, stejný vzorec
+  jako u obrany v Kroku 2). Když je `megaTask ≥ 2` (dřív vyřešeno), trezor se
+  postaví rovnou ve vyřešeném stavu — žádná odměna/toast se nedává podruhé.
+- Vyřešení nastaví `megaTask 1→2` + toast "Trezor otevřen!" (žádné mince —
+  skutečná odměna přijde s vzkazem v Kroku 4).
+- `PlayerController`: nová brána `VaultMechanism.IsOpenFor(playerIndex)` vedle
+  ostatních (`myShopOpen`, `myTalkOpen`...) — dokud je puzzle otevřené, hráč
+  se nehýbe (stejný princip jako obchody/dialog, nemrazí druhého hráče ve
+  split screenu).
+- **Ověřeno v Play módu (slot 1):** obrana → trezor se postaví automaticky,
+  E vedle trezoru ho reálně otevře (`TryInteractAdjacentBuilding` → `Open` →
+  `IsOpenFor(0)==true`), `TurnWheel` matematika ověřena ručně (`[2,3,1]` →
+  `TurnWheel(0)` → `[3,2,1]` → `TurnWheel(1)` → `[2,3,0]`, přesně podle
+  řetězcového pravidla), vyřešení (`[4,1,0]` → `TurnWheel(0)` → `[0,0,0]`)
+  správně nastavilo `solved=true`, `megaTask=2`, zavřelo puzzle. Opětovné E na
+  vyřešeném trezoru puzzle neotvírá znovu. Reload-safety: nový ostrov s
+  `megaTask=2` postaví trezor rovnou vyřešený, bez obrany. 0 chyb v Console.
+- **Vedlejší zjištění při testu** (zapsáno i do Claude paměti
+  `playmode-stop-autosaves-slot.md`): (1) cesta k save souborům se od
+  `0fd5a88` změnila na `...\AppData\LocalLow\matixiiik\Game1\` (ne
+  `DefaultCompany`) — ověřovat tam, jinak to vypadá, že se neukládá nic. (2)
+  Opakované testovací `PlaceMegaIsland` v jedné Play session nechává ve scéně
+  staré `MegaIslandMarker` objekty, jejichž `Update()` běží dál a může
+  přepsat ručně nastavený `megaTask` — neškodí reálné hře (tam je vždy jen
+  jeden ostrov), ale je to matoucí při testu. (3) Hlídková loď se občas
+  nespawne (`GetGuardWaterSpots` nenajde vodu v okolí, viděno u ostrova blízko
+  startu) — drobná kosmetická věc k doladění, obrana funguje i bez ní.
 
-**Další krok (Krok 3 — ostrov 1, trezor + puzzle):** trezor (primitiva) + ~6
-kamenných cedulí s vodítky + puzzle na trezoru (viz návrh ozubených kol výše
-nebo plán §3 varianty 2/3) → `megaTask 1→2`. Viz plán §6 Krok 3.
+**Další krok (Krok 4 — ostrov 1, vzkaz + navedení dál):** svitek v trezoru
+(aktivní od `megaTask==2`), E → text bratra → `megaTask 2→3` +
+`GridManager.GiveNextMegaIsland()` (umístí ostrov 2 daleko deterministicky,
+waypoint, `storyStep` zpět na 2). **Při implementaci nezapomenout**
+`GiveNextMegaIsland` nechat zničit STARÝ `MegaIslandMarker` GameObject, než
+vytvoří nový — viz zjištění výše o zbytcích markerů. Viz plán §6 Krok 4.
 
 ---
 

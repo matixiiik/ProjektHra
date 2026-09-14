@@ -268,8 +268,9 @@ public class PlayerController : MonoBehaviour
         // (Ve split screenu obchod/mapa druhého hráče tohohle hráče nemrazí.)
         bool myShopOpen = (upgradeShopManager != null && upgradeShopManager.IsOpenForBuyer(playerIndex))
                        || (questShopManager   != null && questShopManager.IsOpenForBuyer(playerIndex));
-        bool myTalkOpen = storyNpc != null && storyNpc.IsTalkingWith(playerIndex);
-        if (isMoving || isWorking || myShopOpen || myTalkOpen || MapScreen.IsOpenFor(playerIndex)
+        bool myTalkOpen  = storyNpc != null && storyNpc.IsTalkingWith(playerIndex);
+        bool myVaultOpen = VaultMechanism.IsOpenFor(playerIndex); // puzzle na trezoru mega ostrova (Krok 3)
+        if (isMoving || isWorking || myShopOpen || myTalkOpen || myVaultOpen || MapScreen.IsOpenFor(playerIndex)
             || GameConsole.IsOpen || MainMenuManager.IsVisible || DeathScreen.IsOpen) return;
 
         // E / Numpad1 → nastup/vystup z lodě, nebo vejdi do sousední budovy (maják).

@@ -28,6 +28,10 @@ public class MegaIslandMarker : MonoBehaviour
     private PirateShip myGuardShip;
     private bool        defenseSpawned; // ať Update() nezačne počítat dřív, než se obrana vůbec postaví
 
+    // ── Trezor + puzzle (Krok 3) — vzniká, až padne obrana (megaTask >= 1) ──
+    private VaultMechanism vault;
+    private bool           vaultBuilt;
+
     void Awake()     { Instance = this; }
     void OnDestroy() { if (Instance == this) Instance = null; }
 
@@ -63,6 +67,23 @@ public class MegaIslandMarker : MonoBehaviour
         gridManager.Save();
         gridManager.NotifyWorldChanged();
         if (CombatDirector.Instance != null) CombatDirector.Instance.Toast("Obrana ostrova padla. Prohledej ho dál.");
+        BuildVaultIfNeeded();
+    }
+
+    // Postaví trezor, jakmile obrana padla (megaTask >= 1) — buď hned po
+    // zničení poslední hlídky (výše v Update()), nebo při načtení savu, kde
+    // už obrana dřív padla (viz BuildFortress, větev pro megaTask > 0).
+    private void BuildVaultIfNeeded()
+    {
+        if (vaultBuilt || gridManager == null || gridManager.gameData.megaTask < 1) return;
+        vaultBuilt = true;
+
+        Vector2Int spot = tilePos; // nouzovka, kdyby se nenašlo nic lepšího
+        var candidates = FindGuardTiles(1);
+        if (candidates.Count > 0) spot = candidates[0];
+
+        bool alreadySolved = gridManager.gameData.megaTask >= 2;
+        vault = VaultMechanism.Spawn(spot, alreadySolved);
     }
 
     // ── Obsah ostrova podle megaIndex ─────────────────────────────────────
@@ -73,9 +94,12 @@ public class MegaIslandMarker : MonoBehaviour
         BuildSign("Mega ostrov 1 — Pevnost staré posádky (TODO: trezor)",
                    new Color(0.5f, 0.24f, 0.18f));
 
+        if (gridManager == null) return;
+
         // Obrana se staví, jen když ještě nebyla vyřízená (staré savy po
-        // reloadu ať znovu nespawnou už poražené hlídky).
-        if (gridManager == null || gridManager.gameData.megaTask > 0) return;
+        // reloadu ať znovu nespawnou už poražené hlídky) — místo toho rovnou
+        // postav trezor, ten na megaTask 0 nezávisí.
+        if (gridManager.gameData.megaTask > 0) { BuildVaultIfNeeded(); return; }
 
         // 2–3 děla + 2–3 strážci, deterministicky podle pozice ostrova.
         int seed = Mathf.Abs(unchecked(tilePos.x * 73856093 ^ tilePos.y * 19349663));
@@ -170,6 +194,10 @@ public class MegaIslandMarker : MonoBehaviour
                 SoundManager.PlayHit();
                 return true;
             }
+
+        // Trezor — E vedle otevře puzzle (VaultMechanism.Open).
+        if (vault != null && vault.IsAt(x, y))
+            return vault.Open(playerIndex);
 
         if (x != tilePos.x || y != tilePos.y) return false;
         if (CombatDirector.Instance != null) CombatDirector.Instance.Toast(signText);

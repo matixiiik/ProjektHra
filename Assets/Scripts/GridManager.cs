@@ -1512,6 +1512,45 @@ public class GridManager : MonoBehaviour
         NotifyWorldChanged();
     }
 
+    /// <summary>Posune příběh na další mega ostrov (Krok 4, viz story-plan.md §2):
+    /// zvýší megaIndex, vynuluje rozdělaný postup, umístí nový ostrov daleko
+    /// deterministicky od toho starého a nastaví na něj waypoint. Souřadnice dává
+    /// tahle metoda (vzkaz v trezoru), ne děda — žádný backtracking.
+    /// Ostrov 3 (megaIndex 2, konfrontace) končí jinak, ne přes tuhle metodu.</summary>
+    public void GiveNextMegaIsland()
+    {
+        if (gameData.megaIndex >= 2) return;
+
+        gameData.megaIndex++;
+        gameData.megaTask      = 0;
+        gameData.megaCode      = 0;
+        gameData.megaCluesMask = 0;
+
+        // Nová pozice daleko od té staré, deterministicky (stejný vzorec jako
+        // první umístění v StoryNpc.GiveToSailor).
+        int px = gameData.storyIslandX, py = gameData.storyIslandY;
+        int hsh = unchecked((px * 92821) ^ (py * 68917) ^ (gameData.megaIndex * 40503));
+        float ang = ((hsh & 0xFFFF) / 65535f) * Mathf.PI * 2f;
+        int dist  = 340 + ((hsh >> 16) & 0x7F); // 340..467 políček
+        int sx = px + Mathf.RoundToInt(Mathf.Cos(ang) * dist);
+        int sy = py + Mathf.RoundToInt(Mathf.Sin(ang) * dist);
+
+        // Starý obelisk (s obranou/trezorem) uklidit — ať ve scéně nezůstává
+        // "duch" starého ostrova (viz handoff.md, poznámka ke Kroku 3).
+        var oldMarker = FindFirstObjectByType<MegaIslandMarker>();
+        if (oldMarker != null) Destroy(oldMarker.gameObject);
+
+        PlaceMegaIsland(sx, sy); // nastaví storyIslandActive/X/Y, postaví nový marker, uloží
+
+        gameData.hasWaypoint = true;
+        gameData.waypointX   = sx;
+        gameData.waypointY   = sy;
+        gameData.storyStep   = 2; // "pluješ k dalšímu ostrovu" — stejný krok jako poprvé
+
+        Save();
+        NotifyWorldChanged();
+    }
+
     /// <summary>
     /// Respawn po smrti: přesune hráče PĚŠKY na nejbližší ostrov (loď = veslice
     /// zaparkovaná ve vodě u mola), obnoví zdraví. Kořist (ryby, poklady, náboje,

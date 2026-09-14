@@ -437,17 +437,13 @@ public class GameConsole : MonoBehaviour
             grid.Save(); grid.NotifyWorldChanged();
             Log($"storyEnding = {d.storyEnding}, storyDone = {d.storyDone}");
         }
-        // nextisland — posune na další mega ostrov (0→1→2), vynuluje rozdělaný
-        // postup. Zatím jen posun čísel — samotné umístění ostrova staví
-        // MegaIslandMarker/GridManager.GiveNextMegaIsland() v pozdějším kroku.
+        // nextisland — posune na další mega ostrov (0→1→2): umístí ho daleko
+        // deterministicky, nastaví waypoint, zničí starý obelisk (viz
+        // GridManager.GiveNextMegaIsland, Krok 4).
         else if (p[1] == "nextisland")
         {
-            d.megaIndex     = Mathf.Clamp(d.megaIndex + 1, 0, 2);
-            d.megaTask       = 0;
-            d.megaCode       = 0;
-            d.megaCluesMask  = 0;
-            grid.Save(); grid.NotifyWorldChanged();
-            Log($"megaIndex = {d.megaIndex} (megaTask/megaCode/megaCluesMask vynulovány)");
+            grid.GiveNextMegaIsland();
+            Log($"megaIndex = {d.megaIndex}, ostrov na [{d.storyIslandX}, {d.storyIslandY}], waypoint nastaven.");
         }
         else if (int.TryParse(p[1], out int step))
         {

@@ -195,9 +195,10 @@ public class MegaIslandMarker : MonoBehaviour
                 return true;
             }
 
-        // Trezor — E vedle otevře puzzle (VaultMechanism.Open).
+        // Trezor — dokud není vyřešený, E otevře puzzle; po vyřešení E přečte
+        // vzkaz uvnitř (jednou — pak posune příběh na další ostrov).
         if (vault != null && vault.IsAt(x, y))
-            return vault.Open(playerIndex);
+            return vault.Solved ? TryReadMessage() : vault.Open(playerIndex);
 
         if (x != tilePos.x || y != tilePos.y) return false;
         if (CombatDirector.Instance != null) CombatDirector.Instance.Toast(signText);
@@ -209,6 +210,33 @@ public class MegaIslandMarker : MonoBehaviour
     public void OnGuardDestroyed(LandGuard g)
     {
         if (CombatDirector.Instance != null) CombatDirector.Instance.Toast("Stráž poražena.");
+    }
+
+    // Přečtení vzkazu v trezoru (Krok 4) — jen jednou, pak posune příběh na
+    // další mega ostrov. Text i logika platí zatím jen pro ostrov 1 (bratrův
+    // první vzkaz) — ostrov 2 dostane vlastní text, až přijde na řadu.
+    private bool TryReadMessage()
+    {
+        if (gridManager == null) return true;
+        var d = gridManager.gameData;
+
+        if (d.megaTask >= 3)
+        {
+            if (CombatDirector.Instance != null) CombatDirector.Instance.Toast("Vzkaz už jsi přečetl.");
+            return true;
+        }
+        if (d.megaTask != 2) return true; // pojistka — nemělo by nastat (vault.Solved už megaTask=2 zajišťuje)
+
+        d.megaTask = 3;
+        gridManager.Save();
+
+        if (CombatDirector.Instance != null)
+            CombatDirector.Instance.Toast(
+                "Vzkaz: \"Přišel jsi pozdě. Mám to já — měl jsem to celou dobu. "
+              + "Jestli fakt chcete, co je rodiny, přijeď si pro to sám.\"", 7f);
+
+        gridManager.GiveNextMegaIsland(); // umístí ostrov 2, nastaví waypoint, zničí tenhle marker
+        return true;
     }
 
     // ── Vizuál obelisku (beze změny z předchozí verze) ───────────────────────

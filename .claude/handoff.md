@@ -125,12 +125,48 @@ Postupujeme podle `.claude/story-plan.md` §6 ("Postup po kouskách").
   nespawne (`GetGuardWaterSpots` nenajde vodu v okolí, viděno u ostrova blízko
   startu) — drobná kosmetická věc k doladění, obrana funguje i bez ní.
 
-**Další krok (Krok 4 — ostrov 1, vzkaz + navedení dál):** svitek v trezoru
-(aktivní od `megaTask==2`), E → text bratra → `megaTask 2→3` +
-`GridManager.GiveNextMegaIsland()` (umístí ostrov 2 daleko deterministicky,
-waypoint, `storyStep` zpět na 2). **Při implementaci nezapomenout**
-`GiveNextMegaIsland` nechat zničit STARÝ `MegaIslandMarker` GameObject, než
-vytvoří nový — viz zjištění výše o zbytcích markerů. Viz plán §6 Krok 4.
+**Krok 4 — ostrov 1, vzkaz + navedení dál — hotový a ověřený (zatím NEcommitnuto).
+← PRVNÍ VELKÝ MILNÍK SPLNĚN: celý ostrov 1 je hratelný od začátku do konce**
+(obrana → trezor → vzkaz → navedení na ostrov 2).
+- `GridManager.GiveNextMegaIsland()` (nová metoda): `megaIndex++`, vynuluje
+  `megaTask/megaCode/megaCluesMask`, spočítá novou pozici **daleko**
+  deterministicky (stejný hashovací vzorec jako `StoryNpc.GiveToSailor` pro
+  první ostrov — 340–467 políček, směr z hashe pozice), **zničí starý
+  `MegaIslandMarker`** GameObject (jinak by ve scéně zůstal "duch" — přesně to
+  zjištění z konce Kroku 3), zavolá `PlaceMegaIsland(sx,sy)`, nastaví
+  `hasWaypoint/waypointX/Y`, `storyStep = 2`. Guard: při `megaIndex >= 2`
+  (ostrov 3, konfrontace) je no-op — ten končí jinak (budoucí Krok 7/8), ne
+  přes tuhle metodu.
+- `MegaIslandMarker.TryInteract`: trezor teď rozlišuje `vault.Solved` — dokud
+  není vyřešený, E otevře puzzle (Krok 3); po vyřešení E **přečte vzkaz**
+  (nová `TryReadMessage()`) — poprvé: `megaTask 2→3`, dlouhý toast (7 s) s
+  textem bratrova vzkazu ("Přišel jsi pozdě. Mám to já…"), pak
+  `GiveNextMegaIsland()`. Podruhé (megaTask ≥ 3, jen teoreticky — hned po
+  přečtení se ostrov stejně zničí): hláška "Vzkaz už jsi přečetl."
+- `VaultMechanism`: přidán `public bool Solved => solved;` pro marker.
+- Konzole `story nextisland` teď volá `GiveNextMegaIsland()` doopravdy (dřív
+  jen posouvalo čísla, umístění bylo TODO z Kroku 0).
+- **Ověřeno v Play módu (slot 1):** trezor vyřešen → E → `megaIndex 0→1`,
+  `megaTask` nulováno, nový ostrov daleko (`[15,10]` → `[246,300]`),
+  `hasWaypoint=true` na správné souřadnice, `storyStep=2`. **Ve scéně zůstal
+  jen 1 `MegaIslandMarker`** (starý se destroyoval — ověřeno přes
+  `FindObjectsOfType`, včetně že `Destroy()` je odložené na konec snímku, ne
+  okamžité — druhé čtení hned po volání ještě vidělo 2, další snímek už jen 1,
+  to je normální Unity chování, ne bug). Nový marker správně staví placeholder
+  "Mega ostrov 2 — Hřbitov lodí". `story nextisland` přes konzoli:
+  `megaIndex 1→2`, nová pozice, marker zase jen 1. `GiveNextMegaIsland()` na
+  `megaIndex==2` potvrzeno jako no-op (souřadnice/megaIndex beze změny). 0 chyb
+  v Console po celou dobu. Menší zádrhel: `LoadGame` přes reflection jednou
+  utnul spojení uprostřed (`HideMenu()` se nezavolalo) — dořešeno ručním
+  zavoláním, není to bug hry, jen MCP timeout na pomalejším loadu.
+
+**Další krok (Krok 5 — mořská obluda):** nová `SeaMonster.cs` +
+`StoryEvents.CheckMonster(grid)` z `PlayerController.OnEnteredTile`
+(`storyStep==2 && megaIndex>=1 && !ambush1Done`, trasa k ostrovu 2). Stavy
+Submerged/Surfaced/Sinking, HP + boss bar (pattern z `PirateShip.Engaged`).
+**Feel prototypovat hned na začátku** — telegrafovaný výpad ~1.5 s, velkorysé
+okno; s dnešním ovládáním lodě může být přesný úhyb nefér, přehodnotit podle
+plánu, kdyby to tak vyšlo. Viz plán §4 a §6 Krok 5.
 
 ---
 

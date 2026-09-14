@@ -114,6 +114,9 @@ public class VaultMechanism : MonoBehaviour
     /// <summary>Stojí trezor na tomhle políčku? (pro hák z PlayerController přes marker)</summary>
     public bool IsAt(int x, int y) => tile.x == x && tile.y == y;
 
+    /// <summary>Je puzzle už vyřešené? (marker podle toho pozná, že má nabídnout přečtení vzkazu)</summary>
+    public bool Solved => solved;
+
     /// <summary>Otevře puzzle pro hráče (volá MegaIslandMarker.TryInteract). Když je
     /// už vyřešeno, jen ukáže hlášku a nic neotvírá.</summary>
     public bool Open(int playerIndex)

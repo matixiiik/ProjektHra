@@ -402,7 +402,8 @@ public class GameConsole : MonoBehaviour
         if (p.Length < 2)
         {
             Log($"storyStep = {d.storyStep}, historicky poklad = {d.hasHistoricalTreasure}, "
-              + $"mega ostrov = {(d.storyIslandActive ? $"[{d.storyIslandX}, {d.storyIslandY}]" : "-")}");
+              + $"mega ostrov = {(d.storyIslandActive ? $"[{d.storyIslandX}, {d.storyIslandY}]" : "-")}, "
+              + $"megaIndex = {d.megaIndex}, megaTask = {d.megaTask}, storyDone = {d.storyDone}, storyEnding = {d.storyEnding}");
             return;
         }
 
@@ -420,13 +421,42 @@ public class GameConsole : MonoBehaviour
             grid.Save(); grid.NotifyWorldChanged();
             Log($"Mega ostrov na [{sx}, {sy}], storyStep=2, waypoint nastaven.");
         }
+        // megatask <n> — nastaví postup na aktuálním mega ostrově (0-3), ať se
+        // nemusí hrát obrana/trezor/vzkaz znova při každém testu.
+        else if (p[1] == "megatask" && p.Length >= 3 && int.TryParse(p[2], out int task))
+        {
+            d.megaTask = Mathf.Clamp(task, 0, 3);
+            grid.Save(); grid.NotifyWorldChanged();
+            Log($"megaTask = {d.megaTask}");
+        }
+        // ending <n> — rovnou nastaví koncovku příběhu (1=ušetřen, 2=zabit) pro test dialogu u dědy.
+        else if (p[1] == "ending" && p.Length >= 3 && int.TryParse(p[2], out int ending))
+        {
+            d.storyEnding = Mathf.Clamp(ending, 0, 2);
+            d.storyDone   = d.storyEnding != 0;
+            grid.Save(); grid.NotifyWorldChanged();
+            Log($"storyEnding = {d.storyEnding}, storyDone = {d.storyDone}");
+        }
+        // nextisland — posune na další mega ostrov (0→1→2), vynuluje rozdělaný
+        // postup. Zatím jen posun čísel — samotné umístění ostrova staví
+        // MegaIslandMarker/GridManager.GiveNextMegaIsland() v pozdějším kroku.
+        else if (p[1] == "nextisland")
+        {
+            d.megaIndex     = Mathf.Clamp(d.megaIndex + 1, 0, 2);
+            d.megaTask       = 0;
+            d.megaCode       = 0;
+            d.megaCluesMask  = 0;
+            grid.Save(); grid.NotifyWorldChanged();
+            Log($"megaIndex = {d.megaIndex} (megaTask/megaCode/megaCluesMask vynulovány)");
+        }
         else if (int.TryParse(p[1], out int step))
         {
             d.storyStep = Mathf.Clamp(step, 0, 9);
             grid.Save(); grid.NotifyWorldChanged();
             Log($"storyStep = {d.storyStep}");
         }
-        else Log("Použití: story  |  story <krok 0-9>  |  story island  |  story histtreasure");
+        else Log("Použití: story  |  story <krok 0-9>  |  story island  |  story histtreasure  |  "
+               + "story megatask <0-3>  |  story ending <0-2>  |  story nextisland");
     }
 
     // reset money — vynuluje mince

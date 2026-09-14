@@ -8,6 +8,30 @@ sem Claude píše, kde se přestalo, aby se dalo pokračovat i z notebooku.
 
 ---
 
+## STAV 2026-09-14 — implementace story-plan.md začala, jsme na Kroku 0/9 hotovém
+Postupujeme podle `.claude/story-plan.md` §6 ("Postup po kouskách"). **Krok 0 —
+příprava — hotový a ověřený:**
+- `GameData`: přidána pole `megaIndex, megaTask, megaCode, megaCluesMask,
+  ambush1Done, ambush2Done, storyDone, storyEnding` (na konec třídy, komentovaný
+  blok „Mega ostrovy — pokračování příběhu"). Staré savy je načtou jako 0/false
+  — ověřeno v Play módu (slot 1, `storyStep` z předchozího savu zůstal, nová pole
+  naskočila na výchozí hodnoty).
+- Konzole (`GameConsole.HandleStory`): přibyly `story megatask <0-3>`,
+  `story ending <0-2>`, `story nextisland` (zatím jen posouvá `megaIndex` a nuluje
+  rozdělaný postup — skutečné umístění dalšího ostrova přijde s
+  `GridManager.GiveNextMegaIsland()` v Kroku 4).
+- Ověřeno v Play módu (slot 1): příkazy fungují, `grid.RespawnPlayerAtNearestIsland`
+  příběhová pole nemaže, save→disk→load round-trip sedí. Slot 1 po testu vrácen
+  na výchozí hodnoty (megaIndex/megaTask/storyEnding/storyDone/ambush* = 0/false).
+- Kompilace čistá (0 chyb v Console).
+
+**Další krok (Krok 1 — kostra ostrova):** `MegaIslandMarker.Instance` (Awake),
+`TryInteract(x,y,playerIndex)` hák do `PlayerController.TryInteractAdjacentBuilding()`,
+`Start()` → switch podle `megaIndex` na `BuildFortress/BuildWreckGraveyard/
+BuildConfrontation` (zatím jen placeholder cedule). Viz plán §6 Krok 1.
+
+---
+
 ## STAV 2026-09-09 — vše commitnuté a pushnuté, working tree čistý
 (kromě `Napady.txt` a `Doporuceni.txt`, které si edituje uživatel — necommitovat za něj)
 

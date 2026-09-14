@@ -150,6 +150,18 @@ public class GameData
     // Dekorace ostrovů je uložená přímo v TileStatus (viz TileData.cs) —
     // vygeneruje se jednou při vzniku ostrova a pak už zůstává.
     public SerializableDictionary<string, TileStatus> tileData = new SerializableDictionary<string, TileStatus>();
+
+    // ── Mega ostrovy — pokračování příběhu (viz .claude/story-plan.md) ────────
+    // Nová pole záměrně AŽ NA KONEC třídy — staré savy je při načtení doplní
+    // výchozími hodnotami (0 / false), takže se nic nerozbije.
+    public int  megaIndex;      // 0/1/2 = který mega ostrov v pořadí (fortress/hřbitov/konfrontace)
+    public int  megaTask;       // postup na aktuálním ostrově: 0=přijel, 1=obrana padla, 2=trezor otevřen, 3=hotovo
+    public int  megaCode;       // rozdělaný stav puzzlu na ostrově (zakódovaný, viz konkrétní puzzle)
+    public int  megaCluesMask;  // bitová maska přečtených vodítek/tabulek na ostrově
+    public bool ambush1Done;    // mořská obluda mezi ostrovem 1 a 2 už poražena
+    public bool ambush2Done;    // rezerva na případnou druhou příhodu na moři
+    public bool storyDone;      // celý oblouk (3 ostrovy + finále) dohraný
+    public int  storyEnding;    // 0=nevybráno, 1=bratr ušetřen, 2=bratr zabit
 }
 
 /// <summary>

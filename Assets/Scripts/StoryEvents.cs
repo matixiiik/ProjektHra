@@ -9,7 +9,8 @@ using UnityEngine;
 
 public static class StoryEvents
 {
-    private const float ROUTE_RANGE = 30f; // jak blízko trasy start→cíl obluda čeká
+    private const float ROUTE_RANGE   = 30f; // jak blízko trasy start→cíl obluda čeká
+    private const float SPAWN_DISTANCE = 50f; // jak daleko od hráče se obluda vynoří
 
     /// <summary>Vyvolá mořskou obludu, když hráč pluje po trase k dalšímu mega
     /// ostrovu (mezi ostrovem 1 a 2) a ještě obludu neporazil. Bezpečné volat
@@ -24,8 +25,8 @@ public static class StoryEvents
         PlayerController player = NearestSailingPlayerNearRoute(d);
         if (player == null) return;
 
-        // Vynoří se kousek před hráčem, ve směru jeho plavby.
-        Vector3 ahead = player.transform.position + player.transform.forward * 6f;
+        // Vynoří se daleko před hráčem, ve směru jeho plavby (ať má čas si jí všimnout).
+        Vector3 ahead = player.transform.position + player.transform.forward * SPAWN_DISTANCE;
         SeaMonster.Spawn(new Vector3(ahead.x, 0f, ahead.z));
     }
 

@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -31,8 +32,11 @@ public class SeaMonster : MonoBehaviour
     private const float SINK_TIME          = 1.4f;
     private const float MAX_HP             = 18f;
 
-    private const float DEEP_Y    = -0.65f; // jen ploutev nad hladinou (hladina ≈ -0.22)
-    private const float SURFACE_Y = -0.05f; // skoro celá na hladině (Vulnerable)
+    // Model má pivot u břicha, ne uprostřed (změřeno v Play módu: hřbet/ploutev
+    // je ~1.61 j nad pivotem, břicho ~0.91 j pod ním). Hladina ≈ -0.22.
+    private const float DEEP_Y     = -1.76f; // jen špička hřbetní ploutve nad hladinou
+    private const float SURFACE_Y  = 0.65f;  // skoro celá nad hladinou, jen břicho ji ještě čechrá (Vulnerable)
+    private const float MODEL_SCALE = 0.4f;  // Quaternius Shark.fbx (CC0, Resources/SeaMonster/shark) — surový model je obří
 
     public static SeaMonster Instance { get; private set; }
     public bool  Engaged { get; private set; } // true od prvního telegraphu do potopení — kreslí boss bar
@@ -44,8 +48,7 @@ public class SeaMonster : MonoBehaviour
     private Vector3 lungeDir;
     private bool    hitSomeoneThisLunge;
 
-    private Transform bodyT, finT;
-    private Material  finMat;
+    private readonly List<Material> glowMats = new List<Material>(); // materiály, co se v Telegraphu zbarví do červena
 
     /// <summary>Vytvoří obludu na dané pozici (hladina).</summary>
     public static SeaMonster Spawn(Vector3 pos)
@@ -56,6 +59,7 @@ public class SeaMonster : MonoBehaviour
         var m = root.AddComponent<SeaMonster>();
         m.BuildFigure();
         Instance = m;
+        m.Engaged = true; // boss bar naskočí hned po vynoření, ne až při prvním výpadu
         if (CombatDirector.Instance != null) CombatDirector.Instance.RegisterMonster(m);
         if (CombatDirector.Instance != null) CombatDirector.Instance.Toast("Něco velkého pluje pod hladinou...");
         return m;
@@ -63,12 +67,37 @@ public class SeaMonster : MonoBehaviour
 
     void OnDestroy() { if (Instance == this) Instance = null; }
 
-    // Tmavý protáhlý trup + trojúhelníková ploutev nahoře (jediné, co je vidět
-    // v Approach/Telegraph/Lunge — trup je pod hladinou).
+    // Model žraloka (Quaternius, CC0 — Assets/Resources/SeaMonster/shark.fbx).
+    // Když chybí, postaví se náhradní trup+ploutev z primitivů (fallback).
     private void BuildFigure()
     {
+        if (TryBuildSharkModel() == null) BuildPrimitiveFallback();
+    }
+
+    private Transform TryBuildSharkModel()
+    {
+        var prefab = Resources.Load<GameObject>("SeaMonster/shark");
+        if (prefab == null) return null;
+
+        var go = Instantiate(prefab, transform, false);
+        go.name = "Model";
+        go.transform.localPosition = Vector3.zero;
+        go.transform.localScale    = Vector3.one * MODEL_SCALE;
+
+        foreach (var mr in go.GetComponentsInChildren<MeshRenderer>(true))
+        {
+            mr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.On;
+            var mat = mr.material; // instance kopie — ať se emisí nehrabe do sdíleného assetu
+            if (mat.HasProperty("_EmissionColor")) { mat.EnableKeyword("_EMISSION"); glowMats.Add(mat); }
+        }
+        foreach (var col in go.GetComponentsInChildren<Collider>(true)) Destroy(col);
+        return go.transform;
+    }
+
+    // Náhrada, když model v Resources chybí — tmavý protáhlý trup + ploutev.
+    private void BuildPrimitiveFallback()
+    {
         Material dark = MakeMat(new Color(0.12f, 0.16f, 0.18f));
-        finMat = MakeMat(new Color(0.12f, 0.16f, 0.18f));
 
         var body = GameObject.CreatePrimitive(PrimitiveType.Capsule);
         body.name = "Body";
@@ -79,7 +108,6 @@ public class SeaMonster : MonoBehaviour
         body.transform.localScale       = new Vector3(0.9f, 1.9f, 0.9f);
         body.transform.localEulerAngles = new Vector3(0f, 0f, 90f); // kapsle na bok = protáhlý trup
         body.GetComponent<MeshRenderer>().sharedMaterial = dark;
-        bodyT = body.transform;
 
         var fin = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
         fin.name = "Fin";
@@ -88,8 +116,9 @@ public class SeaMonster : MonoBehaviour
         fin.transform.SetParent(transform, false);
         fin.transform.localPosition    = new Vector3(0f, 0.85f, 0f);
         fin.transform.localScale       = new Vector3(0.05f, 0.5f, 0.22f); // plochý klín = ploutev
+        Material finMat = MakeMat(new Color(0.12f, 0.16f, 0.18f));
         fin.GetComponent<MeshRenderer>().sharedMaterial = finMat;
-        finT = fin.transform;
+        if (finMat.HasProperty("_EmissionColor")) { finMat.EnableKeyword("_EMISSION"); glowMats.Add(finMat); }
     }
 
     void Update()
@@ -146,14 +175,9 @@ public class SeaMonster : MonoBehaviour
     {
         stateTimer += Time.deltaTime;
 
-        // Ploutev postupně zčervená — vizuální "tohle přijde" varování.
+        // Tělo postupně "rozzáří" do červena — vizuální "tohle přijde" varování.
         float t = Mathf.Clamp01(stateTimer / TELEGRAPH_TIME);
-        if (finMat != null)
-        {
-            Color c = Color.Lerp(new Color(0.12f, 0.16f, 0.18f), new Color(0.85f, 0.15f, 0.1f), t);
-            if (finMat.HasProperty("_BaseColor")) finMat.SetColor("_BaseColor", c);
-            if (finMat.HasProperty("_Color"))     finMat.SetColor("_Color", c);
-        }
+        SetGlow(Color.Lerp(Color.black, new Color(0.9f, 0.15f, 0.1f), t) * 2f);
 
         // Mírně se natáčí k hráči, dokud se úplně nerozjede (poslední moment na uhnutí).
         var target = Target();
@@ -178,7 +202,7 @@ public class SeaMonster : MonoBehaviour
         state = State.Lunge;
         stateTimer = 0f;
         hitSomeoneThisLunge = false;
-        ResetFinColor();
+        SetGlow(Color.black);
     }
 
     private void UpdateLunge()
@@ -230,7 +254,7 @@ public class SeaMonster : MonoBehaviour
     private void UpdateVulnerable()
     {
         stateTimer += Time.deltaTime;
-        if (stateTimer >= VULNERABLE_TIME) { state = State.Approach; ResetFinColor(); }
+        if (stateTimer >= VULNERABLE_TIME) { state = State.Approach; SetGlow(Color.black); }
     }
 
     /// <summary>Zásah hráčovou dělovou koulí — účinný jen ve stavu Vulnerable
@@ -266,12 +290,11 @@ public class SeaMonster : MonoBehaviour
         if (stateTimer >= SINK_TIME) Destroy(gameObject);
     }
 
-    private void ResetFinColor()
+    // Nastaví emisní "záři" všech těles obludy (varovná červená v Telegraphu, jinak černá = vypnuto).
+    private void SetGlow(Color c)
     {
-        if (finMat == null) return;
-        Color c = new Color(0.12f, 0.16f, 0.18f);
-        if (finMat.HasProperty("_BaseColor")) finMat.SetColor("_BaseColor", c);
-        if (finMat.HasProperty("_Color"))     finMat.SetColor("_Color", c);
+        foreach (var mat in glowMats)
+            if (mat != null && mat.HasProperty("_EmissionColor")) mat.SetColor("_EmissionColor", c);
     }
 
     public bool IsNear(Vector3 pos, float radius)

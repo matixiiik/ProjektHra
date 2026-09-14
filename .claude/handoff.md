@@ -200,6 +200,30 @@ FEEL ještě neodladěný — viz níže, potřebuje reálné zahrání):**
 - Reward `SeaMonsterReward=400` je zatím jen číslo z hlavy — žádná "trofej
   (zub?)" položka (plán to nechává TBD, nepřidal jsem novou inventární věc).
 
+**Dodatek stejný den — na žádost uživatele, PŘED playtestem:**
+- **Reálný model žraloka** místo primitivů: `Assets/Resources/SeaMonster/shark.fbx`
+  — "Shark" od **Quaternius**, staženo z jeho veřejné Google Drive složky
+  (odkaz z quaternius.com/packs/animatedfish.html), **licence CC0 1.0**
+  (`License.txt` uložen vedle modelu). Surový model je obří (~22 j dlouhý při
+  scale 1) → `MODEL_SCALE = 0.4` (~6,4 j dlouhý, úmyslně větší než loď hráče —
+  je to megalodon). `SeaMonster.TryBuildSharkModel()` model načte, obarvení
+  přes ostatní kód zůstává jako emisní "žár" (Telegraph = červená), ne přebarvení
+  textury — původní vzhled modelu se zachová. Fallback na primitiva zůstal pro
+  případ, že by model chyběl.
+- **DEEP_Y/SURFACE_Y přeměřeny v Play módu** podle skutečných rozměrů modelu
+  (pivot je u břicha, ne uprostřed) — `DEEP_Y=-1.76` (jen špička hřbetní
+  ploutve nad hladinou), `SURFACE_Y=0.65` (skoro celá nad hladinou). Ověřeno
+  screenshoty (posílám oba) — hluboký stav vypadá jako stín pod hladinou +
+  ploutev, zranitelný stav ukazuje většinu žraloka nad vodou.
+- **Spawn vzdálenost 6 → 50 políček** (`StoryEvents.SPAWN_DISTANCE`) — obluda
+  se teď vynoří daleko před hráčem, ne skoro vedle něj.
+- **Boss bar hned od vynoření**: `Engaged = true` nastaveno přímo v `Spawn()`,
+  ne až při prvním Telegraphu — health bar nahoře naskočí, jakmile se obluda
+  objeví.
+- Kompilace čistá, ověřeno v Play módu (spawn, bounds/scale, oba stavy
+  vizuálně screenshoty). **Ovládání/dodge feel se zatím nemění** — uživatel
+  řekl, že to řekne večer po vlastním zahrání.
+
 **Další krok (Krok 6 — ostrov 2, Hřbitov lodí):** hlídač ve stylu Bludného
 Holanďana (přesunout `ship-ghost.fbx` do `Resources/`), 3 kopací místa v
 mělčině (styl `DigRoutine`), poskládaná mapa → kód do podpalubí → 2. vzkaz +

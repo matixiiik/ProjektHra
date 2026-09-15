@@ -91,7 +91,8 @@ public class InteriorPlayer : MonoBehaviour
             : new Color(0.32f, 0.46f, 0.72f);  // P1 — modré
 
         var model = CharacterModel.TryBuild(transform, "character-male-a",
-            CharacterModel.DEFAULT_SCALE, tint, "PlayerAnim");
+            CharacterModel.DEFAULT_SCALE, tint, "PlayerAnim",
+            CharacterModel.LightSkin); // obličej světlý, ne zabarvený jako oblečení
         if (model == null) return;
 
         figureAnimator = CharacterModel.GetAnimator(model);

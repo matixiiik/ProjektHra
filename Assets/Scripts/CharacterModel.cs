@@ -19,18 +19,28 @@ public static class CharacterModel
     // aby se postava opticky vešla i do malé veslice).
     public const float DEFAULT_SCALE = 1.6f;
 
+    // Světlá tělová barva — použij jako `skinTint`, když chceš normální obličej
+    // i pod sytým barevným oblečením (viz níže). Stejný odstín jako dřívější
+    // legacy materiál Assets/Materials/PlayerSkin.mat.
+    public static readonly Color LightSkin = new Color(0.92f, 0.78f, 0.66f);
+
     private static Texture2D colormap;
     private static bool      colormapTried;
 
     /// <summary>
     /// Vytvoří model postavy jako dítě `parent` (localPosition 0). Vrací instanci,
     /// nebo null, když model "Characters/{modelName}" v Resources není.
-    /// `tint` se násobí s texturou (bílá = beze změny, šedá = "starší/vybledlý").
+    /// `tint` se násobí s texturou (bílá = beze změny, šedá = "starší/vybledlý")
+    /// a normálně platí pro CELÝ model (tělo i obličej — colormap je jedna
+    /// sdílená atlas textura, žádné oddělené UV pro kůži).
+    /// `skinTint` (nepovinné): když je zadaný, dostane síťku "head-mesh" (obličej)
+    /// TENHLE odstín místo `tint` — ať sytě barevné oblečení (modrá/červená
+    /// P1/P2) nezabarví i kůži do stejné barvy. Použij `LightSkin`.
     /// `controllerName` = jméno Animator Controlleru v Resources/Characters
     /// (např. "PlayerAnim" nebo "SitAnim"); null = bez animací (statická póza).
     /// </summary>
     public static GameObject TryBuild(Transform parent, string modelName, float scale, Color tint,
-                                      string controllerName = null)
+                                      string controllerName = null, Color? skinTint = null)
     {
         var prefab = Resources.Load<GameObject>("Characters/" + modelName);
         if (prefab == null) return null;
@@ -67,9 +77,25 @@ public static class CharacterModel
         if (mat.HasProperty("_Color"))     mat.SetColor("_Color", tint);
         if (mat.HasProperty("_Smoothness")) mat.SetFloat("_Smoothness", 0.1f);
 
+        // Volitelný samostatný materiál pro obličej (viz `skinTint` v komentáři výš).
+        Material headMat = null;
+        if (skinTint.HasValue)
+        {
+            headMat = new Material(sh) { name = "CharColormap-Head (runtime)" };
+            if (colormap != null)
+            {
+                if (headMat.HasProperty("_BaseMap")) headMat.SetTexture("_BaseMap", colormap);
+                if (headMat.HasProperty("_MainTex")) headMat.SetTexture("_MainTex", colormap);
+            }
+            if (headMat.HasProperty("_BaseColor")) headMat.SetColor("_BaseColor", skinTint.Value);
+            if (headMat.HasProperty("_Color"))     headMat.SetColor("_Color", skinTint.Value);
+            if (headMat.HasProperty("_Smoothness")) headMat.SetFloat("_Smoothness", 0.1f);
+        }
+
         foreach (var r in go.GetComponentsInChildren<Renderer>(true))
         {
-            r.sharedMaterial     = mat;
+            bool isHead = headMat != null && r.gameObject.name.ToLowerInvariant().Contains("head");
+            r.sharedMaterial     = isHead ? headMat : mat;
             r.shadowCastingMode  = UnityEngine.Rendering.ShadowCastingMode.On;
         }
         foreach (var c in go.GetComponentsInChildren<Collider>(true)) Object.Destroy(c);

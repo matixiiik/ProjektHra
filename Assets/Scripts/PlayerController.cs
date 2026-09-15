@@ -453,7 +453,8 @@ public class PlayerController : MonoBehaviour
         }
 
         var model = CharacterModel.TryBuild(headDot.transform, "character-male-a",
-                                            CharacterModel.DEFAULT_SCALE, tint, "PlayerAnim");
+                                            CharacterModel.DEFAULT_SCALE, tint, "PlayerAnim",
+                                            CharacterModel.LightSkin); // obličej světlý, ne zabarvený jako oblečení
         if (model == null) return;
 
         figureAnimator = CharacterModel.GetAnimator(model);

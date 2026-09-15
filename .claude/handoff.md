@@ -257,9 +257,11 @@ kontextové nápovědy venku (stejný princip jako `InteriorPlayer` uvnitř maj�
   (neotevřený → "otevřít trezor", vyřešený a nepřečtený → "přečíst vzkaz",
   přečtený → žádná nápověda), toast na obelisku bez TODO. Screenshot (posílám)
   potvrzuje, že nová nápověda nekoliduje s dědovou. 0 chyb v Console.
-- **Co jsem NEudělal** (uživatel v odpovědi nezaškrtl): obecné vysvětlení
-  "ryby/poklady se prodávají v majáku" v dialogu s dědou — pořád to zmiňuje
-  jen u historického pokladu. Můžu doplnit, stačí říct.
+- **Dodatečně doplněno** (uživatel si to pak rozmyslel): `StoryNpc` case 0 —
+  obě větve (bez lodě i s lodí) teď mají navíc 1–2 repliky vysvětlující, že
+  Space rybaří/těží a že úlovek se mění na mince až prodejem ve výkupně
+  (zelený pult v majáku). Ověřeno v Play módu přes `BuildDialogForStep` na
+  obě větve přímo (viz text výše), 0 chyb v Console.
 
 **Další krok (Krok 6 — ostrov 2, Hřbitov lodí):** hlídač ve stylu Bludného
 Holanďana (přesunout `ship-ghost.fbx` do `Resources/`), 3 kopací místa v

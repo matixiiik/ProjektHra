@@ -88,6 +88,10 @@ public class StoryNpc : MonoBehaviour
                         "A pamatuj: pluješ klávesami W A S D, myší střílíš z děla.",
                         "Klávesou E vejdeš do majáku nebo přístavu, R opraví loď " +
                         "u mola a M ti otevře velkou mapu.",
+                        "Mezerníkem rybaříš na hejnech a těžíš poklady z vraků — samo o " +
+                        "sobě to ale mince nedá.",
+                        "Ulovené ryby a poklady prodáš ve výkupně (zelený pult v majáku) " +
+                        "— teprve pak jsou to mince.",
                     };
                 else
                     activeLines = new[]
@@ -96,6 +100,7 @@ public class StoryNpc : MonoBehaviour
                         "Než tě pošlu za tím, co hledám, musím vědět, že ti můžu věřit.",
                         "Přines mi 1000 mincí a historický poklad.",
                         "Historický poklad občas bývá v pokladech ze starých map — z beden.",
+                        "Ryby a poklady, co uloví tvoje loď, prodáš ve výkupně (zelený pult v majáku).",
                         "Vrať se, až budeš mít obojí.",
                     };
                 break;

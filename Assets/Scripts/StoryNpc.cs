@@ -73,6 +73,11 @@ public class StoryNpc : MonoBehaviour
     private void BuildDialogForStep()
     {
         showGiveButton = false;
+
+        // Příběh dohraný (Krok 7, ostrov 3) — zvláštní repliky podle koncovky,
+        // nezávisle na StoryStep (ten se po ostrovu 3 už nikam neposouvá).
+        if (Data.storyDone) { BuildEndingDialog(); return; }
+
         int shipLevel  = talkingWith == 0 ? Data.shipLevel : Data.player2ShipLevel;
         int coins      = talkingWith == 0 ? Data.coins     : Data.player2Coins;
 
@@ -158,6 +163,29 @@ public class StoryNpc : MonoBehaviour
                 };
                 break;
         }
+    }
+
+    // Repliky u dědy po dohrání příběhu (Krok 7) — jiný text podle koncovky
+    // (Data.storyEnding: 1 = bratr ušetřen, 2 = bratr zabit).
+    private void BuildEndingDialog()
+    {
+        activeLines = Data.storyEnding == 1
+            ? new[]
+              {
+                  "Ty... to není možné.",
+                  "Bratře. Po tolika letech.",
+                  "Celý život jsem si myslel, že jsme tě tam nechali umřít.",
+                  "Odpusť mi to, chlapče. Konečně jsi doma.",
+              }
+            : new[]
+              {
+                  "Máš to. Dědictví.",
+                  "A on?",
+                  "...Rozumím. Neptám se dál.",
+                  "Víš, měl jsem syna. Taky si ho vzalo moře — jednou vyplul a nevrátil se.",
+                  "Čekal jsem u okna roky, stejně jako čekal on tam na útesu.",
+                  "Možná si to moře od naší rodiny vždycky jen půjčuje. A jednou si to zase vezme zpátky.",
+              };
     }
 
     // Volá se, když hráč dočte poslední repliku (nebo dialog ukončí).

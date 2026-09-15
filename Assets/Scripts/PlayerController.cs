@@ -1054,6 +1054,11 @@ public class PlayerController : MonoBehaviour
                 storyNpc.StartTalk(playerIndex);
                 return true;
             }
+            if (RivalNpc.Instance != null && RivalNpc.Instance.IsAt(tx, ty))
+            {
+                RivalNpc.Instance.StartTalk(playerIndex);
+                return true;
+            }
             if (t == TileType.Lighthouse && LighthouseManager.Instance != null)
             {
                 // Cenová hladina obchodů = podle pozice majáku toho ostrova.

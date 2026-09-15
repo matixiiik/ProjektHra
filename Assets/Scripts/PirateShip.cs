@@ -154,7 +154,9 @@ public class PirateShip : MonoBehaviour
 
         var go = Instantiate(prefab, root, false);
         go.name = "Model";
-        float sc = size == 0 ? 0.12f : size == 1 ? 0.14f : 0.16f;
+        // Znatelně větší než běžná pirátská loď — Holanďan má budit respekt
+        // (na žádost uživatele po prvním screenshotu, kde působila malá).
+        float sc = size == 0 ? 0.20f : size == 1 ? 0.24f : 0.28f;
         go.transform.localPosition = new Vector3(0f, -0.04f, 0f);
         go.transform.localScale    = new Vector3(sc, sc, sc);
 

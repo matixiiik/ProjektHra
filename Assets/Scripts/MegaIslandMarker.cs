@@ -43,6 +43,13 @@ public class MegaIslandMarker : MonoBehaviour
     private Vector2Int holdTile;
     private bool        holdBuilt;
 
+    // ── Konfrontace (Krok 7) — obsazeno jen když megaIndex == 2 ──────────────
+    private PirateShip myBossShip;
+    private bool        bossShipSpawned;
+    private bool        bossShipSpawnedOk;
+    private RivalNpc    rival;
+    private bool        rivalBuilt;
+
     void Awake()     { Instance = this; }
     void OnDestroy() { if (Instance == this) Instance = null; }
 
@@ -92,6 +99,14 @@ public class MegaIslandMarker : MonoBehaviour
             gridManager.NotifyWorldChanged();
             if (CombatDirector.Instance != null) CombatDirector.Instance.Toast("Bludný Holanďan je poražen. Mělčina teď skrývá kousky mapy.");
             SpawnDigSpots();
+        }
+        else if (bossShipSpawned && bossShipSpawnedOk && myBossShip == null)
+        {
+            d.megaTask = 1;
+            gridManager.Save();
+            gridManager.NotifyWorldChanged();
+            if (CombatDirector.Instance != null) CombatDirector.Instance.Toast("Bratrova loď je potopená. Vylodi se.");
+            SpawnRival();
         }
     }
 
@@ -383,8 +398,46 @@ public class MegaIslandMarker : MonoBehaviour
     }
 
     private void BuildConfrontation()
-        => BuildSign("Mega ostrov 3 — Kde to začalo. Zatím je tu ticho.",
-                      new Color(0.52f, 0.44f, 0.16f));
+    {
+        BuildSign("Mega ostrov 3 — Kde to začalo. Bratrova loď hlídá příjezd.",
+                   new Color(0.52f, 0.44f, 0.16f));
+
+        if (gridManager == null) return;
+        var d = gridManager.gameData;
+
+        // Po reloadu: loď se staví jen jednou, jinak rovnou obnov bratra.
+        if (d.megaTask > 0) { SpawnRival(); return; }
+
+        Vector2Int? bossSpot = FindGuardWaterSpot();
+        if (bossSpot != null)
+        {
+            var w = bossSpot.Value;
+            myBossShip = PirateShip.Spawn(new Vector3(w.x, 0f, w.y), 2); // velká loď
+            myBossShip.SetGuard(new Vector3(w.x, 0f, w.y));
+            myBossShip.guardIslandKey = "mega";
+            if (CombatDirector.Instance != null) CombatDirector.Instance.RegisterGuardShip(myBossShip);
+            bossShipSpawnedOk = true;
+        }
+        else
+        {
+            // Nouzovka — viz stejný postup u FindGuardWaterSpot v BuildWreckGraveyard.
+            d.megaTask = 1;
+            gridManager.Save();
+            SpawnRival();
+        }
+        bossShipSpawned = true;
+    }
+
+    // Bratr se objeví na pevném políčku poblíž obelisku, jakmile jeho loď padne.
+    private void SpawnRival()
+    {
+        if (rivalBuilt || gridManager == null) return;
+        rivalBuilt = true;
+
+        var candidates = FindGuardTiles(1);
+        Vector2Int spot = candidates.Count > 0 ? candidates[0] : tilePos;
+        rival = RivalNpc.Spawn(spot);
+    }
 
     // Dřevěná cedule kousek od obelisku — jen orientační, dokud nevznikne
     // skutečný obsah ostrova. Text se ukáže jako toast při interakci (E).

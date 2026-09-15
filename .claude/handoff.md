@@ -303,13 +303,60 @@ neotestováno naživo, jen přes UnityMCP/kód.**
   ukazuje 2, počkat víc snímků/volání). 0 chyb v Console. Screenshot
   Holanďana posílám — bledě modrá loď, dobře odlišitelná od pirátů.
 
-**Další krok (Krok 7 — ostrov 3, konfrontace):** boss loď na příjezd (bratrova
-loď) → vylodění → `RivalNpc.cs` (starý muž, vrstevník dědy) → dialogový strom
-s monology (zmínka o dědově synovi) → volba A ušetřit / B zabít →
-`storyDone=true`, `storyEnding=1|2`. **Tohle je citlivá část příběhu**
-(finální rozhodnutí, konec hry) — doporučuju s uživatelem probrat konkrétní
-znění monologů/voleb, než se začne stavět, ne to jen vymyslet sám. Viz plán §1
-(Ostrov 3) a §6 Krok 7.
+**Dodatek — zvětšena loď Bludného Holanďana** (na žádost uživatele, po
+screenshotu z Kroku 6 vypadala malá): `PirateShip.BuildGhostModel` má teď
+vlastní (větší) scale tabulku `0.20/0.24/0.28` místo sdílené s běžnými piráty
+`0.12/0.14/0.16` (~1,7× větší). Ověřeno screenshotem (posílám) — znatelně
+mohutnější, běžné pirátské lodě beze změny.
+
+**Krok 7 — ostrov 3, konfrontace — hotový a ověřený (zatím NEcommitnuto).
+← DRUHÝ VELKÝ MILNÍK: celý příběhový oblouk (3 ostrovy + obluda + konfrontace
++ obě koncovky) je hratelný od začátku do konce.** Uživatel řekl "udělej další
+krok" i pro tohle navzdory mému doporučení nejdřív probrat znění — psal jsem
+proto monology sám z toho, co už plán měl rozepsané (backstory, rodinná linka
+se ztraceným synem), ale **přesná slova stojí za to si přečíst a případně
+poladit** — je to citlivá část.
+- **Nový `RivalNpc.cs`** — dědův starší bratr, postavený stejně jako
+  `StoryNpc` (Kenney model `character-male-c`, jiný tón barvy, ať není
+  vzhledově totožný s dědou — plán to explicitně chtěl), vlastní dialogový
+  box (studenější barva proužku) + hint. Monolog (8 replik): hořkost, že se
+  pro něj nikdo nevrátil, jak zestárl na moři, zmínka o dědově ztraceném
+  synovi, odhalení pokladu = rodinné dědictví. Na poslední replice **dvě
+  tlačítka** (ne klávesa) — "Ušetřit — vzít domů" / "Zabít — vzít dědictví".
+- **`MegaIslandMarker.BuildConfrontation()`**: bratrova loď (velká, guard mód,
+  recyklovaný `PirateShip.Spawn` beze změny — normální pirát, ne Holanďan) →
+  po poražení `megaTask 0→1` + `SpawnRival()` na pevné políčko (stejný vzor
+  jako trezor/podpalubí). Stejná `FindGuardWaterSpot` oprava jako u Kroku 6
+  (fallback hledání vody).
+- **Volba**: obě možnosti dají **stejnou** odměnu
+  (`EconomyConfig.FamilyTreasureReward = 2000`) — schválně, ať hra
+  nezvýhodňuje temnější konec mincemi. `storyDone=true`, `storyEnding=1`
+  (ušetřen) nebo `2` (zabit). Po volbě zůstává bratr na místě s kratší
+  reakcí (`Data.storyDone` větev v `BuildDialog`), ať se dá znovu promluvit
+  bez pádu hry.
+- **`StoryNpc.BuildDialogForStep`**: nová větev na začátku — když
+  `Data.storyDone`, ukáže `BuildEndingDialog()` místo normálního
+  `StoryStep`-switche (ten se po ostrově 3 už nikam neposouvá).
+  Ending 1 (ušetřen): teplé shledání bratrů. Ending 2 (zabit): mlčenlivé
+  přijetí + kóda o dědově vlastním ztraceném synovi (rodinná linka z plánu).
+- `GiveNextMegaIsland()` se z ostrova 3 **nevolá** — příběh tam podle plánu
+  končí (metoda už má guard na `megaIndex>=2`, ověřeno dřív v Kroku 4).
+- **Ověřeno v Play módu**: boss loď spawne a bojuje, poražení → bratr se
+  vylodí, celý monolog (8 replik) čitelný, obě volby zvlášť otestované —
+  `ChooseSpare`/`ChooseKill` správně nastaví `storyDone`/`storyEnding`,
+  odměna (+2000 správnému hráči — **pozor při testu**: `ResolveEnding` čte
+  `talkingWith`, který musí být nastavený na skutečné číslo hráče, ne -1,
+  jinak odměna omylem spadne hráči 2 — v reálné hře nenastane, tlačítka se
+  kreslí jen během aktivního rozhovoru). Dědova reakce u obou koncovek
+  sedí na správný text. 0 chyb v Console.
+
+**Co zbývá z plánu (menší, ne blokující):** Krok 8 v šabloně plánu byl
+"koncovky u dědy" — ten je teď fakticky hotový už jako součást tohohle kroku
+(sloučeno). Krok 9 "doladění" (tempo, balancing, dekorace) zůstává otevřené,
+stejně jako TBD detaily z §10 (přesná odměna endingů — teď stejná pro obě,
+forma volby — zvoleny tlačítka). Doporučuju: **nechat uživatele zahrát celý
+oblouk naživo**, než se cokoliv dalšího staví — zpětná vazba na znění
+monologů/balancing bude teď mnohem cennější než další nová funkce.
 
 ---
 

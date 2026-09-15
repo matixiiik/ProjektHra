@@ -8,6 +8,37 @@ sem Claude píše, kde se přestalo, aby se dalo pokračovat i z notebooku.
 
 ---
 
+## STAV 2026-09-15 — Kroky 0-7 z story-plan.md hotové, opraveny Console errory
+
+Příběh (mega ostrovy, souboj s mořskou příšerou, duch-loď, konfrontace se
+starším bratrem dědy, 2 konce) je implementovaný a odzkoušený kompletně
+(Kroky 0-7, viz `.claude/story-plan.md`). Uživatel to jde otestovat večer
+(2026-09-15) v Unity, dá zpětnou vazbu na pocit z hratelnosti (souboj s
+příšerou, trezorová hádanka, tón konfrontace).
+
+Mezitím opraveno na žádost "podívej se co konzole a oprav všechny errory":
+- V `Assets/Tests/EditMode/` se objevila (uživatelem lokálně vytvořená,
+  dosud **negitovaná**) sada EditMode testů — `BoatStatsTests.cs`,
+  `EconomyConfigTests.cs`, `GameDataTests.cs` (15 testů). Nešly zkompilovat
+  (`CS0103`/`CS0246` na `BoatStats`/`EconomyConfig`/`ActiveQuest`), protože
+  testovací `.asmdef` neměl referenci na hlavní herní kód.
+- **Důležité pro budoucí session:** Unity nejde referencovat implicitní
+  `Assembly-CSharp` jménem z vlastního `.asmdef` (ověřeno WebSearch, ne jen
+  dohad). Jediná oprava: dát `Assets/Scripts/` vlastní pojmenovaný asmdef.
+  → nový `Assets/Scripts/Game.Runtime.asmdef` (prázdné reference, žádný
+  namespace) + `Assets/Tests/EditMode/GameTests.EditMode.asmdef` teď
+  referencuje `"Game.Runtime"` místo neplatného `"Assembly-CSharp"`.
+  **`Assets/Scripts/*.cs` teď kompiluje jako pojmenovaná assembly `Game.Runtime`
+  poprvé v historii projektu** — kdyby budoucí `.asmdef` potřeboval
+  referencovat hlavní kód, tohle je jméno, co použít.
+- Ověřeno: `refresh_unity` force recompile → `read_console` 0 chyb;
+  `run_tests mode:EditMode` → **16/16 testů PASSED** (15 + 1 navíc oproti
+  očekávání, počty logiky testů souhlasí s aktuální implementací
+  `BoatStats`/`EconomyConfig`/`ActiveQuest`/`MegaQuest` — nešlo o rozpor
+  testů s kódem, jen o chybějící referenci).
+- `Assets/Tests/` byl celý negitovaný → přidán do gitu spolu s opravou
+  (jinak by fix "nedržel" na jiném počítači / po `git pull`).
+
 ## STAV 2026-09-14 — implementace story-plan.md, jsme na Kroku 1/9 hotovém
 Postupujeme podle `.claude/story-plan.md` §6 ("Postup po kouskách").
 

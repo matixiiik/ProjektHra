@@ -219,7 +219,8 @@ public class CombatDirector : MonoBehaviour
         if (pc != null) pc.RewardCoins(reward);
         if (grid != null) { grid.gameData.pirateKills++; grid.Save(); }
         SoundManager.PlayCoin();
-        Toast("Pirat potopen!  +" + reward + " minci");
+        string who = p.isGhost ? "Bludny Holandan potopen!" : "Pirat potopen!";
+        Toast(who + "  +" + reward + " minci");
     }
 
     public void OnIslandCannonDestroyed(string key, HostileIslandCannon self)

@@ -4,9 +4,11 @@ using UnityEngine;
 // ─────────────────────────────────────────────────────────────────────────────
 //  MegaIslandMarker.cs
 //  "Mozek" příběhového mega ostrova. Staví kamenný obelisk (vždy) a podle
-//  gameData.megaIndex (0/1/2 = který ostrov v pořadí) jeho konkrétní obsah —
-//  zatím jen placeholder cedule, skutečnou obranu/trezor/konfrontaci přidají
-//  další kroky podle .claude/story-plan.md. Vytváří ho GridManager.PlaceMegaIsland
+//  gameData.megaIndex (0/1/2 = který ostrov v pořadí) jeho konkrétní obsah:
+//    0 = BuildFortress       — obrana (děla+strážci+loď) → trezor s puzzlem → vzkaz
+//    1 = BuildWreckGraveyard — Bludný Holanďan → 3 kusy mapy → podpalubí → vzkaz
+//    2 = BuildConfrontation  — bratrova loď → RivalNpc → volba → konec příběhu
+//  Detail viz .claude/story-plan.md. Vytváří ho GridManager.PlaceMegaIsland
 //  (a znovu po načtení save, pokud je storyIslandActive).
 //
 //  Ve hře je aktivní vždy nejvýš jeden mega ostrov najednou, proto stačí
@@ -126,9 +128,7 @@ public class MegaIslandMarker : MonoBehaviour
         vault = VaultMechanism.Spawn(spot, alreadySolved);
     }
 
-    // ── Obsah ostrova podle megaIndex ─────────────────────────────────────
-    // Ostrov 2 a 3 mají zatím jen placeholder ceduli — skutečný obsah staví
-    // další kroky plánu (§5 a dál v .claude/story-plan.md).
+    // ── Obsah ostrova podle megaIndex — viz rozpis v hlavičce souboru ─────
     private void BuildFortress()
     {
         BuildSign("Mega ostrov 1 — Pevnost staré posádky. Kolem obelisku hlídkuje ozbrojená posádka — trezor je někde uvnitř.",

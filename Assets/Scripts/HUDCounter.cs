@@ -348,7 +348,13 @@ public class HUDCounter : MonoBehaviour
         if (storyPanel == null) return;
 
         string txt = "";
-        switch (d.storyStep)
+        if (d.storyDone)
+        {
+            // Ostrov 3 dohraný (Krok 7) — storyStep dál neputuje, ať se cíl
+            // nezasekne navěky na "probojuj se ostrovem 3".
+            txt = "";
+        }
+        else switch (d.storyStep)
         {
             case 1: txt = "Ukol: prines dedovi 1000 minci + historicky poklad"; break;
             case 2: txt = $"Ukol: dopluj k ostrovu na  [{d.storyIslandX}, {d.storyIslandY}]"; break;

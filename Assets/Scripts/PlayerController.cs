@@ -152,6 +152,7 @@ public class PlayerController : MonoBehaviour
         || (questShopManager   != null && questShopManager.IsOpenForBuyer(playerIndex))
         || MapScreen.IsOpenFor(playerIndex)
         || (storyNpc != null && storyNpc.IsTalkingWith(playerIndex))
+        || (RivalNpc.Instance != null && RivalNpc.Instance.IsTalkingWith(playerIndex))
         || LighthouseManager.IsInside(playerIndex);
     ActiveQuest PQuest     => playerIndex == 0 ? gridManager.gameData.activeQuest      : gridManager.gameData.player2ActiveQuest;
 
@@ -268,7 +269,8 @@ public class PlayerController : MonoBehaviour
         // (Ve split screenu obchod/mapa druhého hráče tohohle hráče nemrazí.)
         bool myShopOpen = (upgradeShopManager != null && upgradeShopManager.IsOpenForBuyer(playerIndex))
                        || (questShopManager   != null && questShopManager.IsOpenForBuyer(playerIndex));
-        bool myTalkOpen  = storyNpc != null && storyNpc.IsTalkingWith(playerIndex);
+        bool myTalkOpen  = (storyNpc != null && storyNpc.IsTalkingWith(playerIndex))
+                        || (RivalNpc.Instance != null && RivalNpc.Instance.IsTalkingWith(playerIndex));
         bool myVaultOpen = VaultMechanism.IsOpenFor(playerIndex); // puzzle na trezoru mega ostrova (Krok 3)
         if (isMoving || isWorking || myShopOpen || myTalkOpen || myVaultOpen || MapScreen.IsOpenFor(playerIndex)
             || GameConsole.IsOpen || MainMenuManager.IsVisible || DeathScreen.IsOpen) return;

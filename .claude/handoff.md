@@ -360,6 +360,56 @@ monologů/balancing bude teď mnohem cennější než další nová funkce.
 
 ---
 
+## Samostatná self-review — před playtestem, na žádost uživatele (14.9. odpoledne)
+Uživatel řekl "zkontroluj vše, co jde, doladit, co trkne do oka" — prošel jsem
+celý příběhový kód (Kroky 1–7) ještě jednou kriticky, hledal jsem skutečné
+bugy (ne subjektivní feel, na ten čekám na playtest). **Zatím necommitnuto.**
+
+**Opraveno (jasné bugy, ne otázka vkusu):**
+1. **`RivalNpc` chyběl ve `ModalOpen`/`myTalkOpen`** — hráč se při rozhovoru
+   s bratrem NEZAMRAZIL (na rozdíl od dědy/obchodů/mapy/trezoru). Mohl
+   odejít pryč s otevřeným dialogem, nebo v coopu dostat zásah. Přidáno do
+   obou míst v `PlayerController` (`ModalOpen` property i gate v `Update()`).
+   Ověřeno v Play módu (`pc.ModalOpen == true` během rozhovoru s bratrem).
+2. **HUD úkol se zasekl navěky na "probojuj se ostrovem 3"** — `storyStep`
+   se po ostrově 3 už nikam neposouvá (žádný `GiveNextMegaIsland`), takže
+   `HUDCounter.RefreshStory` case 3 ukazoval starý cíl i po dohrání celého
+   příběhu. Přidána podmínka `d.storyDone` → panel se schová. Ověřeno.
+3. **Bludný Holanďan při potopení hlásil "Pirat potopen!"** — matoucí pro
+   ostrov 2 (je to duch, ne pirát). `CombatDirector.OnPirateSunk` teď podle
+   `p.isGhost` řekne "Bludny Holandan potopen!" místo generické hlášky.
+4. Zastaralé komentáře v `MegaIslandMarker.cs` (hlavička + u `BuildFortress`)
+   pořád mluvily o "placeholder cedulích" — aktualizováno na skutečný obsah
+   (obrana/trezor/vzkaz, Holanďan/mapa/podpalubí, konfrontace).
+
+**Vizuálně zkontrolováno screenshoty** (LandGuard, RivalNpc + hráč vedle
+sebe) — nic vizuálně rozbité, jen jsem si ověřil, že "druhá postavička" na
+screenshotu byl hráčův vlastní panáček, ne duch/bug.
+
+**Nejsem si jistý, jak moc to vadí — napište večer, co z tohodle opravit:**
+- **`LandGuard` nedává žádnou odměnu** za zabití (na rozdíl od
+  `HostileIslandCannon`, co dává `IslandCannonReward=90` za dělo). Nevím,
+  jestli je to záměr (stráž = jen překážka, ne "poklad") nebo přehlédnutí.
+  Snadná oprava, kdyby ano.
+- **`LandGuard` i `RivalNpc`-fallback (bez Kenney modelu) jsou dost
+  jednoduché primitivní panáčky** — `RivalNpc` běžně použije Kenney model
+  (`character-male-c`), takže fallback nejspíš nikdy neuvidíš, ale
+  `LandGuard` primitiva vidět BUDOU vždycky (nemá Kenney model vůbec,
+  nezkoušel jsem žádný sehnat). Vizuálně funkční, ale hodně holé — stojí
+  za vylepšení, nebo je to v pohodě jako "vojáček"?
+- **Věci kolem obelisku (stráže, trezor, bratr) občas stojí těsně vedle
+  sebe / lehce se překrývají se základnou obelisku** (ta je 3×3 j, políčka
+  vedle jsou jen 1 j daleko) — všimnul jsem si u `RivalNpc` na screenshotu,
+  ale stejný `FindGuardTiles` vzorec se používá i pro stráže/trezor na
+  ostrově 1, takže to tam nejspíš je taky. Kosmetická věc, nehraje roli
+  mechanicky.
+- **Čísla odměn** (`SeaMonsterReward=400`, `FamilyTreasureReward=2000`) jsou
+  pořád jen můj odhad relativní k existující ekonomice
+  (`IslandCannonReward=90`, `PirateRewardLarge=260`) — chce to tvůj pocit
+  po zahrání, ne moje další hádání.
+
+---
+
 ## STAV 2026-09-09 — vše commitnuté a pushnuté, working tree čistý
 (kromě `Napady.txt` a `Doporuceni.txt`, které si edituje uživatel — necommitovat za něj)
 

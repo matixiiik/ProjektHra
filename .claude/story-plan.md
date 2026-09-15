@@ -220,7 +220,7 @@ Pravidlo: **každý krok se dá dohrát, otestovat a nechat na gitu, aniž by
 rozbil hru.** Když dojde čas, poslední hotový krok = obhajitelný konec.
 Každý krok = malý commit + „co proklikat v Unity" pro uživatele.
 
-**Krok 0 — příprava (bez herního dopadu)**
+**Krok 0 — příprava (bez herního dopadu)** ✅ HOTOVO (`2bad582`)
 - `GameData` pole na konec: `megaIndex, megaTask, megaCode, megaCluesMask,
   ambush1Done, ambush2Done, storyDone, storyEnding`. Staré savy je načtou 0.
 - Konzole: `story megatask <n>`, `story ending <n>`, `story nextisland` (aby
@@ -228,7 +228,7 @@ Každý krok = malý commit + „co proklikat v Unity" pro uživatele.
 - Ověřit: hra běží stejně, save/load projde, `RespawnPlayerAtNearestIsland`
   příběhová pole nemaže. **Safe stop.**
 
-**Krok 1 — kostra ostrova (`MegaIslandMarker` mozek)**
+**Krok 1 — kostra ostrova (`MegaIslandMarker` mozek)** ✅ HOTOVO (`ec349c3`)
 - `MegaIslandMarker.Instance` (Awake), `TryInteract(x,y,playerIndex)` hák =
   jeden řádek na začátek `PlayerController.TryInteractAdjacentBuilding()`.
 - `Start()` → `switch (megaIndex)` na `BuildFortress/BuildWreckGraveyard/
@@ -238,19 +238,19 @@ Každý krok = malý commit + „co proklikat v Unity" pro uživatele.
 - Ověřit: `story island` → doplout → marker naběhne, hák nerozbil ostatní
   interakce (maják, bedna, NPC). **Safe stop** (ostrov je prázdný, ale funguje).
 
-**Krok 2 — ostrov 1, obrana** (`BuildFortress` část 1)
+**Krok 2 — ostrov 1, obrana** (`BuildFortress` část 1) ✅ HOTOVO (`7c14570`)
 - 2–3× `HostileIslandCannon.Spawn(tile,"mega")` + 1 hlídkující `PirateShip` +
   nový `LandGuard.cs` (2–3 ks u středu). Marker `Update()` počítá zničené →
   `megaTask 0→1` + toast.
 - Ověřit: sejmu obranu z lodě + pěšky → `megaTask` naskočí na 1. **Safe stop.**
 
-**Krok 3 — ostrov 1, trezor + puzzle** (`BuildFortress` část 2)
+**Krok 3 — ostrov 1, trezor + puzzle** (`BuildFortress` část 2) ✅ HOTOVO (`7ef3cc0`)
 - Trezor (primitiva) + ~6 kamenných cedulí s vodítky + IMGUI zadání kódu na
   trezoru. **Nejdřív s uživatelem dohodnout konkrétní puzzle** (viz §3 varianty).
   `megaCluesMask` bity, `megaCode` rozdělaný stav, feedback „X ze 4".
 - Ověřit: přečtu cedule, zadám kód, `megaTask 1→2`. **Safe stop.**
 
-**Krok 4 — ostrov 1, vzkaz + navедení dál** (`BuildFortress` část 3)
+**Krok 4 — ostrov 1, vzkaz + navедení dál** (`BuildFortress` část 3) ✅ HOTOVO (`916ee7b`)
 - Svitek v trezoru (aktivní od `megaTask==2`), E → text bratra → `megaTask 2→3`
   + `GridManager.GiveNextMegaIsland()` (umístí ostrov 2 daleko deterministicky,
   waypoint, `storyStep` zpět na 2).
@@ -258,7 +258,10 @@ Každý krok = malý commit + „co proklikat v Unity" pro uživatele.
 - Ověřit: vzkaz → objeví se waypoint na ostrov 2, dopluju tam, marker staví
   placeholder ostrova 2. **← PRVNÍ VELKÝ MILNÍK: celý ostrov 1 hratelný.**
 
-**Krok 5 — mořská obluda** (`SeaMonster.cs`)
+**Krok 5 — mořská obluda** (`SeaMonster.cs`) ✅ HOTOVO (`eee5113` + doladění
+`7822412`/`33b86f1` na žádost uživatele — skutečný model žraloka, spawn 50
+polí, boss bar hned, výpad 10× rychlost člověka). **Feel ještě nezahrán
+naživo uživatelem.**
 - `StoryEvents.CheckMonster(grid)` z `PlayerController.OnEnteredTile`, spawn na
   trase k ostrovu 2 (`storyStep==2 && megaIndex>=1 && !ambush1Done`).
 - **Feel prototypovat hned na začátku kroku** — telegrafovaný výpad ~1.5 s,
@@ -266,24 +269,25 @@ Každý krok = malý commit + „co proklikat v Unity" pro uživatele.
   (třeba jen „drž se dál od stínu" místo přesného úhybu).
 - Ověřit: obluda naběhne 1×, po zabití `ambush1Done`, podruhé už ne. **Safe stop.**
 
-**Krok 6 — ostrov 2** (`BuildWreckGraveyard`)
+**Krok 6 — ostrov 2** (`BuildWreckGraveyard`) ✅ HOTOVO (`9050f70`) — Holanďan
+mechanicky = recyklovaná `PirateShip` (guard mód, jiný model/barva), puzzle =
+3 kusy mapy v mělčině (bez nového `TileType`, marker si drží pozice sám).
 - Holanďan hlídač (přesunout `ship-ghost.fbx` do `Resources/` — řekne se
   uživateli). 3 kopací místa v mělčině (`DigRoutine` styl) → skládání mapy →
   kód do podpalubí → 2. vzkaz + souřadnice ostrova 3.
 - Ověřit: dig 3×, puzzle, vzkaz, waypoint na ostrov 3. **Safe stop** (2 ostrovy).
 
-**Krok 7 — ostrov 3, konfrontace** (`BuildConfrontation`)
-- Boss loď na příjezd → vylodění → `RivalNpc.cs` (starý muž) → dialogový strom
-  s monology (zmínka o dědově synovi) → **IMGUI volba A ušetřit / B zabít** →
-  `storyDone=true`, `storyEnding=1|2`.
-- Ověřit: obě volby projdou, `storyEnding` se uloží. **Safe stop.**
-
-**Krok 8 — koncovky u dědy**
-- `StoryNpc` větev podle `storyEnding` (A: scéna setkání dvou bratrů; B: monolog
-  o ztraceném synovi) + odměna hráči (jiná podle endingu — TBD co přesně).
-- Ověřit: `story ending 1` i `2` → správný dialog + odměna. **← HOTOVÝ OBLOUK.**
+**Krok 7 — ostrov 3, konfrontace** (`BuildConfrontation`) ✅ HOTOVO (`b3ac176`)
+— **Krok 8 (koncovky u dědy) sloučen sem, hotový zároveň.** Boss loď →
+vylodění → `RivalNpc.cs` → monolog (8 replik, psaný bez konzultace přesných
+slov s uživatelem — stojí za to si je přečíst) → 2 tlačítka Ušetřit/Zabít →
+`storyDone/storyEnding`, obě volby stejná odměna (2000, schválně bez rozdílu).
+`StoryNpc` má novou větev pro obě koncovky. **← DRUHÝ VELKÝ MILNÍK: CELÝ
+OBLOUK HOTOVÝ (mechanicky). Nikdy nezahrán naživo uživatelem od začátku do
+konce.**
 
 **Krok 9 — doladění** (texty, tempo, dekorace ostrovů, balancing odměn).
+**Jediný krok, co zbývá — a je celý závislý na zpětné vazbě z playtestu.**
 
 ---
 

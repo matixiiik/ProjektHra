@@ -36,7 +36,7 @@ public static class StoryEvents
         Vector2 start  = Vector2.zero;
         Vector2 target = new Vector2(d.storyIslandX, d.storyIslandY);
 
-        foreach (var pc in Object.FindObjectsByType<PlayerController>(FindObjectsSortMode.None))
+        foreach (var pc in PlayerController.All)
         {
             if (!pc.IsSailing) continue;
             Vector2 pos = new Vector2(pc.transform.position.x, pc.transform.position.z);

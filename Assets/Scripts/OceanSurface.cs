@@ -142,7 +142,7 @@ public class OceanSurface : MonoBehaviour
         if (p2 == null && MultiplayerManager.IsMultiplayer && Time.time >= nextP2Scan)
         {
             nextP2Scan = Time.time + 0.5f;
-            foreach (var pc in FindObjectsByType<PlayerController>(FindObjectsSortMode.None))
+            foreach (var pc in PlayerController.All)
                 if (pc.playerIndex == 1) { p2 = pc.transform; break; }
         }
 

@@ -48,7 +48,9 @@ public static class SaveManager
         {
             string json = File.ReadAllText(GetPath(CurrentSlot));
             // ?? new GameData() ošetří případ, kdy je JSON prázdný / null
-            return JsonUtility.FromJson<GameData>(json) ?? new GameData();
+            GameData data = JsonUtility.FromJson<GameData>(json) ?? new GameData();
+            MigrateIfNeeded(data);
+            return data;
         }
         catch (System.Exception e)
         {
@@ -56,6 +58,22 @@ public static class SaveManager
             Debug.LogWarning($"Save slotu {CurrentSlot} je poškozený, spouštím novou hru. ({e.Message})");
             return new GameData();
         }
+    }
+
+    /// <summary>
+    /// Posune stará save data na aktuální verzi formátu. Zatím žádná verze
+    /// nevyžaduje skutečnou přeměnu dat (nová pole si JsonUtility doplní sama
+    /// jako 0/false) — jen se poznamená, že save je "normalizovaný". Až
+    /// nějaká budoucí změna bude vyžadovat přemapování existujícího pole
+    /// (ne jen přidání nového), přibude sem konkrétní krok podle
+    /// data.saveVersion.
+    /// </summary>
+    private static void MigrateIfNeeded(GameData data)
+    {
+        if (data.saveVersion >= GameData.CURRENT_SAVE_VERSION) return;
+
+        Debug.Log($"Save slotu {CurrentSlot}: migrace z verze {data.saveVersion} na {GameData.CURRENT_SAVE_VERSION}.");
+        data.saveVersion = GameData.CURRENT_SAVE_VERSION;
     }
 
     /// <summary>Smaže soubor aktuálního slotu (volá se před spuštěním nové hry).</summary>

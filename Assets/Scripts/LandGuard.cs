@@ -87,7 +87,7 @@ public class LandGuard : MonoBehaviour
         // Nejbližší hráč PĚŠKY v dostřelu (strážce je na pevnině, na lodě/plavce nestřílí).
         PlayerController target = null;
         float bestSq = RANGE * RANGE;
-        foreach (var pc in FindObjectsByType<PlayerController>(FindObjectsSortMode.None))
+        foreach (var pc in PlayerController.All)
         {
             if (!pc.IsOnFoot) continue;
             float sq = (pc.transform.position - transform.position).sqrMagnitude;

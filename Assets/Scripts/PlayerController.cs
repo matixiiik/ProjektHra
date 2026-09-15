@@ -1,5 +1,6 @@
 using UnityEngine;
 using System.Collections;
+using System.Collections.Generic;
 
 // ─────────────────────────────────────────────────────────────────────────────
 //  PlayerController.cs
@@ -15,6 +16,16 @@ using System.Collections;
 
 public class PlayerController : MonoBehaviour
 {
+    // Statický seznam všech aktivních hráčů (P1 vždy, P2 jen v multiplayeru) —
+    // spousta skriptů (souboj, minimapa, moře) potřebuje každý snímek najít
+    // hráče nejblíž sobě; místo opakovaného FindObjectsByType<PlayerController>
+    // (scan celé scény) se udržuje tenhle seznam sám sebou přes OnEnable/OnDisable.
+    private static readonly List<PlayerController> activeInstances = new List<PlayerController>();
+    public static IReadOnlyList<PlayerController> All => activeInstances;
+
+    void OnEnable()  { activeInstances.Add(this); }
+    void OnDisable() { activeInstances.Remove(this); }
+
     [HideInInspector] public int playerIndex = 0; // 0 = P1, 1 = P2 (nastavuje MultiplayerManager)
 
     private GridManager        gridManager;

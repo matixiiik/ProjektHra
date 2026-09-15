@@ -353,7 +353,7 @@ public class MinimapUIRenderer : MonoBehaviour
 
         if (myPlayer == null || !myPlayer)
         {
-            foreach (var pc in FindObjectsByType<PlayerController>(FindObjectsSortMode.None))
+            foreach (var pc in PlayerController.All)
                 if (pc.playerIndex == playerIndex) { myPlayer = pc; break; }
         }
         if (myPlayer != null)

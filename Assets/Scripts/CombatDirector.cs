@@ -83,7 +83,7 @@ public class CombatDirector : MonoBehaviour
     {
         PlayerController best = null;
         float bestSq = float.MaxValue;
-        foreach (var pc in FindObjectsByType<PlayerController>(FindObjectsSortMode.None))
+        foreach (var pc in PlayerController.All)
         {
             if (!pc.IsSailing && !pc.IsSwimming) continue;
             float sq = (pc.transform.position - from).sqrMagnitude;
@@ -184,7 +184,7 @@ public class CombatDirector : MonoBehaviour
         // Noví piráti se objevují jen když někdo PLUJE V LODI (ne když plave —
         // to už je dost bezmocný a nechceme smyčku smrti).
         PlayerController player = null;
-        foreach (var pc in FindObjectsByType<PlayerController>(FindObjectsSortMode.None))
+        foreach (var pc in PlayerController.All)
             if (pc.IsSailing) { player = pc; break; }
         if (player == null) return;
 
@@ -288,7 +288,7 @@ public class CombatDirector : MonoBehaviour
     private PlayerController NearestAnyPlayer()
     {
         PlayerController any = null;
-        foreach (var pc in FindObjectsByType<PlayerController>(FindObjectsSortMode.None))
+        foreach (var pc in PlayerController.All)
         {
             if (pc.playerIndex == 0) return pc; // P1 preferovaně
             any = pc;

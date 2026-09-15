@@ -74,7 +74,7 @@ public class DeathScreen : MonoBehaviour
         if (grid != null) grid.RespawnPlayerAtNearestIsland(deadPlayerIndex);
 
         // Znovu načti stav hráče (postaví ho na nové místo, ukáže veslici).
-        foreach (var pc in FindObjectsByType<PlayerController>(FindObjectsSortMode.None))
+        foreach (var pc in PlayerController.All)
             if (pc.playerIndex == deadPlayerIndex) pc.ReloadFromData();
 
         IsOpen         = false;

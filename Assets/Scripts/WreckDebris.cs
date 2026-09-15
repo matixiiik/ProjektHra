@@ -69,7 +69,7 @@ public class WreckDebris : MonoBehaviour
         if (age >= FLOAT_TIME + SINK_TIME) { Destroy(gameObject); return; }
 
         // Doplaval k němu majitel (plave = rozbitá loď)? → vrať náklad.
-        foreach (var pc in FindObjectsByType<PlayerController>(FindObjectsSortMode.None))
+        foreach (var pc in PlayerController.All)
         {
             if (pc.playerIndex != ownerIndex || !pc.IsSwimming) continue;
             if ((pc.transform.position - transform.position).sqrMagnitude > PICKUP_RANGE * PICKUP_RANGE) continue;

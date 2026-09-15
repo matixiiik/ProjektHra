@@ -144,7 +144,7 @@ public class GridManager : MonoBehaviour
         }
 
         Transform p1 = null;
-        foreach (var pc in FindObjectsByType<PlayerController>(FindObjectsSortMode.None))
+        foreach (var pc in PlayerController.All)
             if (pc.playerIndex == 0) { p1 = pc.transform; break; }
 
         var ocean = new GameObject("Ocean");

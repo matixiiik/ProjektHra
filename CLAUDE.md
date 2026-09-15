@@ -181,9 +181,23 @@ jednoho hráče nemrazí druhého.**
 
 ## Konvence v kódu
 
-- Wiring přes `FindFirstObjectByType<T>()` / `FindObjectsByType<T>()` v `Start()`.
-- **Singletony**: povolený je `GameSession` (+ `CombatDirector`, `ChestManager` mají
-  `Instance`) a statické flagy (`…IsOpen`, `IsMultiplayer`, `IsVisible`). Jinak ne.
+- Wiring přes `FindFirstObjectByType<T>()` / `FindObjectsByType<T>()` v `Start()`
+  — samo o sobě OK, je to jednorázové. Vyhýbej se `FindObjectsByType` volanému
+  **opakovaně za běhu** (`Update`/`LateUpdate`/static property čtená každý
+  snímek) — radši statický seznam udržovaný přes `OnEnable`/`OnDisable`, viz
+  `PlayerController.All`, `QuestShopManager.All` (žádný nový `Instance`
+  singleton, jen `IReadOnlyList`).
+- **Singletony** (`public static X Instance`): `GameSession` (jediný zdroj
+  pravdy pro `GameData`), `CombatDirector`, `ChestManager` — a dál přibyly
+  `LighthouseInterior`, `LighthouseManager`, `MegaIslandMarker`, `RivalNpc`,
+  `SeaMonster`, `StoryNpc`, `SoundManager` (audit 2026-09-15: všechny sedí na
+  stejný důvod jako ty původní — jeden objekt na scénu/příběhový moment, co
+  potřebuje rychlý statický přístup místo `Find` po celé hře — takže zůstávají).
+  Nové přidávej **jen** pro stejně jednoznačný případ ("jeden na scénu, jinak
+  by se muselo scanovat"); pro "najdi mi všechny X" použij radši statický
+  seznam (`OnEnable`/`OnDisable`, viz výš) než další `Instance`.
+  Statické flagy (`…IsOpen`, `IsMultiplayer`, `IsVisible`) jsou samostatná
+  kategorie a nepočítají se do tohohle limitu.
 - Nové skripty ve stejném stylu (české komentáře, žádný namespace, `─────` hlavičky).
 - **Je to maturitní projekt** — radši delší jasný kód než chytrý trik; kód musí být
   obhajitelný u zkoušky.

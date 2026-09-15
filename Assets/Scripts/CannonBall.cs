@@ -94,7 +94,7 @@ public class CannonBall : MonoBehaviour
     // poškození přímo do panáčka, jinak DamageBoat sám rozhodne loď/panáček.
     void CheckPlayerHits()
     {
-        foreach (var pc in FindObjectsByType<PlayerController>(FindObjectsSortMode.None))
+        foreach (var pc in PlayerController.All)
         {
             if (!pc.IsSailing && !pc.IsSwimming && !pc.IsOnFoot) continue;
             if ((pc.transform.position - transform.position).sqrMagnitude <= HIT_RADIUS * HIT_RADIUS)

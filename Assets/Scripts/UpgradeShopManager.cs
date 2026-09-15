@@ -1,4 +1,5 @@
 using UnityEngine;
+using System.Collections.Generic;
 
 // ─────────────────────────────────────────────────────────────────────────────
 //  UpgradeShopManager.cs
@@ -18,6 +19,14 @@ public class UpgradeShopManager : MonoBehaviour
 {
     // Základní ceny jsou v EconomyConfig; každý ostrov je násobí svým cenovým
     // levelem (GameSession.ShopPriceLevel) → někde levněji, jinde dráž.
+
+    // Statický seznam aktivních obchodů (viz stejný vzor u QuestShopManager) —
+    // AnyShopOpen se ptá každý snímek (CameraOrbit/PauseMenu/SoloPause), takže
+    // FindObjectsByType by tam byl zbytečný scan celé scény pořád dokola.
+    private static readonly List<UpgradeShopManager> activeInstances = new List<UpgradeShopManager>();
+
+    void OnEnable()  { activeInstances.Add(this); }
+    void OnDisable() { activeInstances.Remove(this); }
 
     private GridManager gridManager;   // v SampleScene; ve scéně majáku je null
 
@@ -55,9 +64,9 @@ public class UpgradeShopManager : MonoBehaviour
     {
         get
         {
-            foreach (var u in FindObjectsByType<UpgradeShopManager>(FindObjectsSortMode.None))
+            foreach (var u in activeInstances)
                 if (u.IsOpen) return true;
-            foreach (var q in FindObjectsByType<QuestShopManager>(FindObjectsSortMode.None))
+            foreach (var q in QuestShopManager.All)
                 if (q.IsOpen) return true;
             return false;
         }

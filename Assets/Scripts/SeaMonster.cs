@@ -217,7 +217,7 @@ public class SeaMonster : MonoBehaviour
 
         if (!hitSomeoneThisLunge)
         {
-            foreach (var pc in FindObjectsByType<PlayerController>(FindObjectsSortMode.None))
+            foreach (var pc in PlayerController.All)
             {
                 if (!pc.IsSailing) continue;
                 if ((pc.transform.position - transform.position).sqrMagnitude > HIT_RADIUS * HIT_RADIUS) continue;

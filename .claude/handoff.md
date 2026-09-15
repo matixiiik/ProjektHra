@@ -39,6 +39,52 @@ Mezitím opraveno na žádost "podívej se co konzole a oprav všechny errory":
 - `Assets/Tests/` byl celý negitovaný → přidán do gitu spolu s opravou
   (jinak by fix "nedržel" na jiném počítači / po `git pull`).
 
+## STAV 2026-09-15 (odpoledne) — bezpečná část "polish seznamu" z backlogu
+
+Zatímco uživatel ještě nestihl večerní playtest celého příběhového oblouku,
+udělal se (na jeho výslovnou žádost) jen **bezpečný podmnožina** dřívějšího
+refaktorového backlogu (`GridManager` split a `player2*`→`PlayerState[2]`
+zůstávají **schválně nedotčené** — moc invazivní na to, aby se ověřily bez
+živého hraní, viz `.claude/story-plan.md` a poznámky výš). Vše je **čistý
+refaktor bez dopadu na hratelnost** (pravidlo 1 z `unity-hra` skillu).
+
+1. **Verzování save souboru** — `GameData.CURRENT_SAVE_VERSION` (const) +
+   `GameData.saveVersion` (nové pole, na konec třídy jako obvykle). Staré
+   savy bez pole se načtou jako `saveVersion=0` = "před verzováním".
+   `SaveManager.LoadGame()` volá nové `MigrateIfNeeded(data)` — zatím žádná
+   verze nevyžaduje skutečnou transformaci dat (nová pole si `JsonUtility`
+   doplní sama), jen se `saveVersion` posune na aktuální a zaloguje se to.
+   **Až bude třeba přeházet/přemapovat existující pole** (ne jen přidat nové),
+   sem přibude konkrétní krok podle staré verze.
+2. **Omezení `FindObjectsByType` za běhu** — nejhorší opakovaný vzorec byl
+   `FindObjectsByType<PlayerController>(FindObjectsSortMode.None)`, který se
+   volal na 13 místech (mj. `OceanSurface`, `SeaFloor`, `MinimapUIRenderer`,
+   `SeaMonster` — všechno běží každý/skoro každý snímek). Nahrazeno statickým
+   seznamem `PlayerController.All` (`OnEnable`/`OnDisable` registrace,
+   `IReadOnlyList`, **není to nový singleton** — žádné `Instance`, jen seznam).
+   Stejným vzorem opraveno `UpgradeShopManager.AnyShopOpen` (bylo: dva plné
+   scany scény při **každém** snímku z `CameraOrbit`/`PauseMenu`/`SoloPause`)
+   → `QuestShopManager.All` + `UpgradeShopManager` má vlastní privátní seznam.
+   Menší/jednorázové `Find` volání v `Start()` se záměrně nechala beze změny
+   (nejsou hot path, nestojí to za riziko).
+3. **Audit singletonů** — zjištěno 10 tříd s `Instance` (`GameSession`,
+   `CombatDirector`, `ChestManager` + časem přibylé `LighthouseInterior`,
+   `LighthouseManager`, `MegaIslandMarker`, `RivalNpc`, `SeaMonster`,
+   `StoryNpc`, `SoundManager`) — víc, než `CLAUDE.md` dřív popisoval. Po
+   kontrole: všechny sedí na stejný důvod jako ty původní tři (jeden objekt
+   na scénu/moment příběhu, co by se jinak muselo pořád hledat) — **nic se
+   neodstraňovalo**, jen se `CLAUDE.md` (sekce Konvence v kódu) opravil, aby
+   odpovídal realitě, a přidalo se pravidlo, kdy `Instance` přidat a kdy radši
+   sáhnout po vzoru `PlayerController.All` (statický seznam, ne singleton).
+
+**Ověřeno:** compile 0 chyb (i po vynuceném recompile), EditMode 16/16 +
+PlayMode 4/4 testů PASSED. Živé přehrání v Play módu se záměrně vynechalo —
+je to bezobsahový refaktor (stejné objekty, stejný výsledek, jen rychlejší
+cesta k nim), takže riziko oproti čekání na uživatelovo "bezpečný slot" nestálo
+za to. **Kdyby po dnešním playtestu bylo cokoliv divné okolo splitscreenu,
+obchodů nebo soubojů (věci, co se týkají tohohle refaktoru), první podezřelý
+je tenhle commit.**
+
 ## STAV 2026-09-14 — implementace story-plan.md, jsme na Kroku 1/9 hotovém
 Postupujeme podle `.claude/story-plan.md` §6 ("Postup po kouskách").
 

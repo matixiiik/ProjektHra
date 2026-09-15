@@ -162,6 +162,15 @@ public class GameData
     public bool ambush2Done;    // rezerva na případnou druhou příhodu na moři
     public bool storyDone;      // celý oblouk (3 ostrovy + finále) dohraný
     public int  storyEnding;    // 0=nevybráno, 1=bratr ušetřen, 2=bratr zabit
+
+    // ── Verzování save souboru ───────────────────────────────────────────────
+    // Nejnovější verze formátu. Zvednout při každé změně, která by vyžadovala
+    // migraci starších uložených her (např. přečíslování TileType, změna
+    // významu existujícího pole — NE prosté přidání nového pole na konec, to
+    // JsonUtility zvládne samo doplněním výchozí hodnoty). Migrace se dělá
+    // v SaveManager.LoadGame().
+    public const int CURRENT_SAVE_VERSION = 1;
+    public int  saveVersion = CURRENT_SAVE_VERSION; // staré savy (bez pole) se načtou jako 0 = "před verzováním"
 }
 
 /// <summary>

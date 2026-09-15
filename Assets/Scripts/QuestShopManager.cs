@@ -1,4 +1,5 @@
 using UnityEngine;
+using System.Collections.Generic;
 
 // ─────────────────────────────────────────────────────────────────────────────
 //  QuestShopManager.cs
@@ -15,6 +16,14 @@ using UnityEngine;
 [DefaultExecutionOrder(100)]
 public class QuestShopManager : MonoBehaviour
 {
+    // Statický seznam aktivních obchodů — nahrazuje FindObjectsByType ve
+    // UpgradeShopManager.AnyShopOpen (to se ptá každý snímek, viz tamní komentář).
+    private static readonly List<QuestShopManager> activeInstances = new List<QuestShopManager>();
+    public static IReadOnlyList<QuestShopManager> All => activeInstances;
+
+    void OnEnable()  { activeInstances.Add(this); }
+    void OnDisable() { activeInstances.Remove(this); }
+
     // Výkupní ceny jsou v EconomyConfig (všechny ostrovy stejně).
 
     private GridManager gridManager;

@@ -32,6 +32,17 @@ public class MegaIslandMarker : MonoBehaviour
     private VaultMechanism vault;
     private bool           vaultBuilt;
 
+    // ── Obrana ostrova 2 (Krok 6) — obsazeno jen když megaIndex == 1 ────────
+    private PirateShip myGhostShip;
+    private bool        graveyardGuardSpawned;
+    private bool        ghostShipSpawnedOk; // ať se "nespawnul jsem" nesplete se "je poražený"
+
+    // ── Kopání kusů mapy + podpalubí (Krok 6) — ostrov 2 ─────────────────────
+    private readonly List<Vector2Int> digSpots       = new List<Vector2Int>(); // 3 místa v mělčině
+    private readonly List<GameObject> digSpotVisuals = new List<GameObject>();
+    private Vector2Int holdTile;
+    private bool        holdBuilt;
+
     void Awake()     { Instance = this; }
     void OnDestroy() { if (Instance == this) Instance = null; }
 
@@ -51,23 +62,37 @@ public class MegaIslandMarker : MonoBehaviour
         }
     }
 
-    // Sečti zničenou obranu → megaTask 0→1. Jen dokud je co počítat (defenseSpawned)
-    // a dokud je pořád megaTask == 0 (jinak by po zničení poslední věci nic nedělalo).
+    // Sečti zničenou obranu → megaTask 0→1. Ostrov 1 (děla+strážci+loď) i
+    // ostrov 2 (jen hlídkující Holanďan) mají svojí vlastní obranu, ale stejný
+    // princip — obě větve běží nezávisle, akorát pro každý ostrov je vždy
+    // aktivní jen jedna z nich (ta druhá nemá co spawnout).
     void Update()
     {
-        if (!defenseSpawned || gridManager == null) return;
+        if (gridManager == null) return;
         var d = gridManager.gameData;
         if (d.megaTask != 0) return;
 
-        myCannons.RemoveAll(c => c == null);
-        myGuards.RemoveAll(g => g == null);
-        if (myCannons.Count > 0 || myGuards.Count > 0 || myGuardShip != null) return;
-
-        d.megaTask = 1;
-        gridManager.Save();
-        gridManager.NotifyWorldChanged();
-        if (CombatDirector.Instance != null) CombatDirector.Instance.Toast("Obrana ostrova padla. Prohledej ho dál.");
-        BuildVaultIfNeeded();
+        if (defenseSpawned)
+        {
+            myCannons.RemoveAll(c => c == null);
+            myGuards.RemoveAll(g => g == null);
+            if (myCannons.Count == 0 && myGuards.Count == 0 && myGuardShip == null)
+            {
+                d.megaTask = 1;
+                gridManager.Save();
+                gridManager.NotifyWorldChanged();
+                if (CombatDirector.Instance != null) CombatDirector.Instance.Toast("Obrana ostrova padla. Prohledej ho dál.");
+                BuildVaultIfNeeded();
+            }
+        }
+        else if (graveyardGuardSpawned && ghostShipSpawnedOk && myGhostShip == null)
+        {
+            d.megaTask = 1;
+            gridManager.Save();
+            gridManager.NotifyWorldChanged();
+            if (CombatDirector.Instance != null) CombatDirector.Instance.Toast("Bludný Holanďan je poražen. Mělčina teď skrývá kousky mapy.");
+            SpawnDigSpots();
+        }
     }
 
     // Postaví trezor, jakmile obrana padla (megaTask >= 1) — buď hned po
@@ -113,10 +138,10 @@ public class MegaIslandMarker : MonoBehaviour
             if (CombatDirector.Instance != null) CombatDirector.Instance.RegisterCannon(cannon);
         }
 
-        var guardWaterSpots = gridManager.GetGuardWaterSpots(tilePos, 1);
-        if (guardWaterSpots.Count > 0)
+        Vector2Int? guardSpot = FindGuardWaterSpot();
+        if (guardSpot != null)
         {
-            var w = guardWaterSpots[0];
+            var w = guardSpot.Value;
             myGuardShip = PirateShip.Spawn(new Vector3(w.x, 0f, w.y), 1); // střední loď
             myGuardShip.SetGuard(new Vector3(w.x, 0f, w.y));
             myGuardShip.guardIslandKey = "mega";
@@ -160,8 +185,202 @@ public class MegaIslandMarker : MonoBehaviour
         => (p.x - tilePos.x) * (p.x - tilePos.x) + (p.y - tilePos.y) * (p.y - tilePos.y);
 
     private void BuildWreckGraveyard()
-        => BuildSign("Mega ostrov 2 — Hřbitov lodí. Zatím je tu ticho.",
-                      new Color(0.32f, 0.36f, 0.42f));
+    {
+        BuildSign("Mega ostrov 2 — Hřbitov lodí. V mělčině kolem hlídkuje Bludný Holanďan.",
+                   new Color(0.32f, 0.36f, 0.42f));
+
+        if (gridManager == null) return;
+        var d = gridManager.gameData;
+
+        // Obrana (Holanďan) se staví, jen když ještě nebyla poražená — po
+        // reloadu rovnou obnov to, co z ostrova zbývá (mapa/podpalubí).
+        if (d.megaTask > 0)
+        {
+            SpawnDigSpots();
+            if (d.megaTask >= 2) BuildHoldIfNeeded();
+            return;
+        }
+
+        Vector2Int? guardSpot = FindGuardWaterSpot();
+        if (guardSpot != null)
+        {
+            var w = guardSpot.Value;
+            myGhostShip = PirateShip.SpawnGhost(new Vector3(w.x, 0f, w.y), 1); // střední loď
+            myGhostShip.SetGuard(new Vector3(w.x, 0f, w.y));
+            myGhostShip.guardIslandKey = "mega";
+            if (CombatDirector.Instance != null) CombatDirector.Instance.RegisterGuardShip(myGhostShip);
+            ghostShipSpawnedOk = true;
+        }
+        else
+        {
+            // Nouzovka — i po širším hledání se nenašla voda na hlídku (nemělo
+            // by nastat, ostrov vždycky obklopuje moře). Ať hráč nezůstane
+            // zaseknutý: rovnou pusť dál na kopání.
+            d.megaTask = 1;
+            gridManager.Save();
+            SpawnDigSpots();
+        }
+        graveyardGuardSpawned = true;
+    }
+
+    // Vodní dlaždice na hlídku (strážce/Holanďan) — nejdřív zkus blízký pás
+    // (GetGuardWaterSpots), když nic nenajde, prohledej širší okolí. Ostrov
+    // vždycky obklopuje moře, takže tohle prakticky vždy něco najde.
+    private Vector2Int? FindGuardWaterSpot()
+    {
+        var near = gridManager.GetGuardWaterSpots(tilePos, 1);
+        if (near.Count > 0) return near[0];
+
+        for (int r = 14; r <= 40; r += 4)
+            for (int x = tilePos.x - r; x <= tilePos.x + r; x++)
+                for (int y = tilePos.y - r; y <= tilePos.y + r; y++)
+                {
+                    if (Mathf.Max(Mathf.Abs(x - tilePos.x), Mathf.Abs(y - tilePos.y)) != r) continue;
+                    var t = gridManager.GetTileType(x, y);
+                    if (t == TileType.Water || t == TileType.Water_Fish) return new Vector2Int(x, y);
+                }
+        return null;
+    }
+
+    // 3 místa v mělčině (vodní dlaždice hned u ostrova) na kousky roztržené
+    // mapy — deterministicky podle pozice ostrova. Už sebrané (bit v
+    // megaCluesMask) nedostanou vizuál a nejdou znovu vykopat.
+    private void SpawnDigSpots()
+    {
+        if (digSpots.Count > 0 || gridManager == null) return; // už postaveno (reload-safety)
+
+        var cand = new List<Vector2Int>();
+        for (int x = tilePos.x - 15; x <= tilePos.x + 15; x++)
+            for (int y = tilePos.y - 15; y <= tilePos.y + 15; y++)
+            {
+                var t = gridManager.GetTileType(x, y);
+                if (t != TileType.Water && t != TileType.Water_Fish) continue;
+                bool nextToLand = gridManager.GetTileType(x + 1, y) == TileType.MegaIsland
+                                || gridManager.GetTileType(x - 1, y) == TileType.MegaIsland
+                                || gridManager.GetTileType(x, y + 1) == TileType.MegaIsland
+                                || gridManager.GetTileType(x, y - 1) == TileType.MegaIsland;
+                if (nextToLand) cand.Add(new Vector2Int(x, y));
+            }
+        cand.Sort((a, b) => DistSqToCenter(a) - DistSqToCenter(b));
+
+        int mask = gridManager.gameData.megaCluesMask;
+        for (int i = 0; i < cand.Count && digSpots.Count < 3; i++)
+        {
+            var c = cand[i];
+            bool tooClose = false;
+            foreach (var p in digSpots)
+                if (Mathf.Abs(p.x - c.x) < 4 && Mathf.Abs(p.y - c.y) < 4) { tooClose = true; break; }
+            if (tooClose) continue;
+
+            int idx = digSpots.Count;
+            digSpots.Add(c);
+            if ((mask & (1 << idx)) != 0) { digSpotVisuals.Add(null); continue; } // už dřív vykopáno
+
+            var wreck = BuildWreckPiece(c);
+            digSpotVisuals.Add(wreck);
+        }
+    }
+
+    // Kus vraku trčící z vody — orientační bod pro kopání (primitiva).
+    private GameObject BuildWreckPiece(Vector2Int tile)
+    {
+        var go = new GameObject("WreckPiece");
+        go.transform.position = new Vector3(tile.x, -0.1f, tile.y);
+        Material wood = MakeMat(new Color(0.32f, 0.22f, 0.15f));
+
+        var plank = GameObject.CreatePrimitive(PrimitiveType.Cube);
+        plank.name = "Plank";
+        var col = plank.GetComponent<Collider>();
+        if (col != null) Destroy(col);
+        plank.transform.SetParent(go.transform, false);
+        plank.transform.localScale       = new Vector3(1.3f, 0.12f, 0.35f);
+        plank.transform.localEulerAngles = new Vector3(0f, 25f, 12f);
+        plank.GetComponent<MeshRenderer>().sharedMaterial = wood;
+
+        var mast = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+        mast.name = "Mast";
+        var mc = mast.GetComponent<Collider>();
+        if (mc != null) Destroy(mc);
+        mast.transform.SetParent(go.transform, false);
+        mast.transform.localPosition    = new Vector3(0.3f, 0.5f, 0f);
+        mast.transform.localScale       = new Vector3(0.08f, 0.6f, 0.08f);
+        mast.transform.localEulerAngles = new Vector3(0f, 0f, 20f);
+        mast.GetComponent<MeshRenderer>().sharedMaterial = wood;
+
+        return go;
+    }
+
+    /// <summary>Je na daném políčku nesebraný kus mapy? (pro nápovědu i pro
+    /// PlayerController.TryInteract — Space na lodi.)</summary>
+    public bool HasDigSpot(int x, int y)
+    {
+        if (gridManager == null || gridManager.gameData.megaTask != 1) return false;
+        int mask = gridManager.gameData.megaCluesMask;
+        for (int i = 0; i < digSpots.Count; i++)
+            if (digSpots[i].x == x && digSpots[i].y == y && (mask & (1 << i)) == 0)
+                return true;
+        return false;
+    }
+
+    /// <summary>Vykope kus mapy na daném políčku (volá PlayerController po
+    /// doběhnutí kopací animace). Když sebere poslední kus, rovnou postaví
+    /// podpalubí a posune megaTask 1→2.</summary>
+    public void TryDig(int x, int y, int playerIndex)
+    {
+        if (!HasDigSpot(x, y)) return;
+
+        int idx = digSpots.FindIndex(p => p.x == x && p.y == y);
+        gridManager.gameData.megaCluesMask |= 1 << idx;
+        gridManager.Save();
+
+        if (digSpotVisuals[idx] != null) Destroy(digSpotVisuals[idx]);
+        SoundManager.PlayCoin();
+
+        int have = PieceCount();
+        if (have < 3)
+        {
+            if (CombatDirector.Instance != null) CombatDirector.Instance.Toast($"Kousek roztržené mapy! ({have}/3)");
+            return;
+        }
+
+        gridManager.gameData.megaTask = 2;
+        gridManager.Save();
+        gridManager.NotifyWorldChanged();
+        if (CombatDirector.Instance != null) CombatDirector.Instance.Toast("Mapa je kompletní! Kód vede do podpalubí vraku.", 4f);
+        BuildHoldIfNeeded();
+    }
+
+    private int PieceCount()
+    {
+        int mask = gridManager.gameData.megaCluesMask;
+        int n = 0;
+        for (int i = 0; i < 3; i++) if ((mask & (1 << i)) != 0) n++;
+        return n;
+    }
+
+    // Podpalubí vraku — vzniká, až je mapa kompletní (megaTask >= 2). Stejný
+    // princip jako trezor na ostrově 1 (BuildVaultIfNeeded).
+    private void BuildHoldIfNeeded()
+    {
+        if (holdBuilt || gridManager == null || gridManager.gameData.megaTask < 2) return;
+        holdBuilt = true;
+
+        var candidates = FindGuardTiles(1);
+        holdTile = candidates.Count > 0 ? candidates[0] : tilePos;
+
+        Material wood = MakeMat(new Color(0.25f, 0.17f, 0.12f));
+        var go = new GameObject("WreckHold");
+        go.transform.position = new Vector3(holdTile.x, 0f, holdTile.y);
+        var hull = GameObject.CreatePrimitive(PrimitiveType.Cube);
+        hull.name = "Hull";
+        var col = hull.GetComponent<Collider>();
+        if (col != null) Destroy(col);
+        hull.transform.SetParent(go.transform, false);
+        hull.transform.localPosition    = new Vector3(0f, 0.3f, 0f);
+        hull.transform.localScale       = new Vector3(1.6f, 0.6f, 1.0f);
+        hull.transform.localEulerAngles = new Vector3(0f, 0f, 18f);
+        hull.GetComponent<MeshRenderer>().sharedMaterial = wood;
+    }
 
     private void BuildConfrontation()
         => BuildSign("Mega ostrov 3 — Kde to začalo. Zatím je tu ticho.",
@@ -195,10 +414,14 @@ public class MegaIslandMarker : MonoBehaviour
                 return true;
             }
 
-        // Trezor — dokud není vyřešený, E otevře puzzle; po vyřešení E přečte
-        // vzkaz uvnitř (jednou — pak posune příběh na další ostrov).
+        // Trezor (ostrov 1) — dokud není vyřešený, E otevře puzzle; po vyřešení
+        // E přečte vzkaz uvnitř (jednou — pak posune příběh na další ostrov).
         if (vault != null && vault.IsAt(x, y))
             return vault.Solved ? TryReadMessage() : vault.Open(playerIndex);
+
+        // Podpalubí vraku (ostrov 2) — E přečte vzkaz, stejně jako trezor.
+        if (holdBuilt && x == holdTile.x && y == holdTile.y)
+            return TryReadMessage();
 
         if (x != tilePos.x || y != tilePos.y) return false;
         if (CombatDirector.Instance != null) CombatDirector.Instance.Toast(signText);
@@ -219,6 +442,9 @@ public class MegaIslandMarker : MonoBehaviour
             return gridManager != null && gridManager.gameData.megaTask < 3 ? "přečíst vzkaz" : null;
         }
 
+        if (holdBuilt && x == holdTile.x && y == holdTile.y)
+            return gridManager != null && gridManager.gameData.megaTask < 3 ? "prohledat podpalubí" : null;
+
         if (x == tilePos.x && y == tilePos.y) return "prozkoumat obelisk";
         return null;
     }
@@ -230,9 +456,18 @@ public class MegaIslandMarker : MonoBehaviour
         if (CombatDirector.Instance != null) CombatDirector.Instance.Toast("Stráž poražena.");
     }
 
-    // Přečtení vzkazu v trezoru (Krok 4) — jen jednou, pak posune příběh na
-    // další mega ostrov. Text i logika platí zatím jen pro ostrov 1 (bratrův
-    // první vzkaz) — ostrov 2 dostane vlastní text, až přijde na řadu.
+    // Vzkazy bratra na jednotlivých ostrovech (Krok 4 = ostrov 1, Krok 6 =
+    // ostrov 2) — čte se podle megaIndex. Ostrov 3 vzkaz nedává (tam už je
+    // bratr osobně, viz plán §1).
+    private static readonly string[] BROTHER_MESSAGES =
+    {
+        "Vzkaz: \"Přišel jsi pozdě. Mám to já — měl jsem to celou dobu. "
+      + "Jestli fakt chcete, co je rodiny, přijeď si pro to sám.\"",
+        "Vzkaz: \"Vylezl jsem z vody a loď s vámi byla pryč. Čekal jsem. Nikdo nepřijel.\"",
+    };
+
+    // Přečtení vzkazu (v trezoru na ostrově 1 / v podpalubí na ostrově 2) —
+    // jen jednou, pak posune příběh na další mega ostrov.
     private bool TryReadMessage()
     {
         if (gridManager == null) return true;
@@ -243,17 +478,16 @@ public class MegaIslandMarker : MonoBehaviour
             if (CombatDirector.Instance != null) CombatDirector.Instance.Toast("Vzkaz už jsi přečetl.");
             return true;
         }
-        if (d.megaTask != 2) return true; // pojistka — nemělo by nastat (vault.Solved už megaTask=2 zajišťuje)
+        if (d.megaTask != 2) return true; // pojistka — nemělo by nastat (vault.Solved/podpalubí už megaTask=2 zajišťuje)
 
         d.megaTask = 3;
         gridManager.Save();
 
-        if (CombatDirector.Instance != null)
-            CombatDirector.Instance.Toast(
-                "Vzkaz: \"Přišel jsi pozdě. Mám to já — měl jsem to celou dobu. "
-              + "Jestli fakt chcete, co je rodiny, přijeď si pro to sám.\"", 7f);
+        string message = d.megaIndex >= 0 && d.megaIndex < BROTHER_MESSAGES.Length
+            ? BROTHER_MESSAGES[d.megaIndex] : "Vzkaz beze slov.";
+        if (CombatDirector.Instance != null) CombatDirector.Instance.Toast(message, 7f);
 
-        gridManager.GiveNextMegaIsland(); // umístí ostrov 2, nastaví waypoint, zničí tenhle marker
+        gridManager.GiveNextMegaIsland(); // umístí další ostrov, nastaví waypoint, zničí tenhle marker
         return true;
     }
 

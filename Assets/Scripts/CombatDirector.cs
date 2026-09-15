@@ -298,7 +298,9 @@ public class CombatDirector : MonoBehaviour
 
         if (boss != null)
         {
-            string name = boss.size == 0 ? "PIRAT (mala lod)" : boss.size == 1 ? "PIRAT (stredni lod)" : "PIRAT (velka lod)";
+            string name = boss.isGhost
+                ? "BLUDNY HOLANDAN"
+                : (boss.size == 0 ? "PIRAT (mala lod)" : boss.size == 1 ? "PIRAT (stredni lod)" : "PIRAT (velka lod)");
             DrawBossBar(boss.HpFraction, name);
         }
         else if (monster != null && monster.Engaged)

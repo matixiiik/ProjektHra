@@ -263,12 +263,53 @@ kontextové nápovědy venku (stejný princip jako `InteriorPlayer` uvnitř maj�
   (zelený pult v majáku). Ověřeno v Play módu přes `BuildDialogForStep` na
   obě větve přímo (viz text výše), 0 chyb v Console.
 
-**Další krok (Krok 6 — ostrov 2, Hřbitov lodí):** hlídač ve stylu Bludného
-Holanďana (přesunout `ship-ghost.fbx` do `Resources/`), 3 kopací místa v
-mělčině (styl `DigRoutine`), poskládaná mapa → kód do podpalubí → 2. vzkaz +
-souřadnice ostrova 3. **Doporučuju počkat na tvůj playtest Kroků 1–5**, než se
-pustím dál — obluda i ostrov 1 ještě nebyly zahrané naživo. Viz plán §5 a §6
-Krok 6.
+**Krok 6 — ostrov 2, Hřbitov lodí — hotový a ověřený (zatím NEcommitnuto).
+Uživatel řekl "zatím udělej další krok" ještě před playtestem Kroků 1–5 —
+neotestováno naživo, jen přes UnityMCP/kód.**
+- **`ship-ghost.fbx` přesunut** z `Assets/Kenney/PirateKit/Models/` do
+  `Assets/Resources/GhostShip/` (přes `manage_asset move` — hlásilo
+  `success:false`, ale reálně proběhlo, ověřeno na disku).
+- **`PirateShip.cs`**: nová `isGhost` kosmetika + `SpawnGhost(pos,size)` —
+  stejná loď/AI/boj jako pirát, jen jiný model (bledá barva + slabá modrá
+  emise místo trupu/plachet/vlajky) a jiný název v boss baru ("BLUDNY
+  HOLANDAN"). Mechanicky 100% recyklovaná pirátská loď (guard mód, RAM,
+  střelba, `TakeHit`) — plán nechával mechaniku Holanďana TBD, tohle je
+  nejjednodušší bezpečná volba.
+- **`MegaIslandMarker.BuildWreckGraveyard()`**: hlídkující Holanďan (guard
+  mód jako u ostrova 1) → po poražení `megaTask 0→1` + 3 kusy roztržené mapy
+  v mělčině (`SpawnDigSpots`, primitivní kusy vraku jako vizuál, políčka NE
+  jako nový `TileType` — drží si je marker sám, viz plán §9). Kopání = nová
+  `PlayerController.MegaDigRoutine` (stejné tempo jako `DigRoutine`, Space na
+  lodi). Sebrané kusy = bity `megaCluesMask` (pole z Kroku 0, teď konečně
+  použité). Po 3. kusu `megaTask 1→2` + podpalubí vraku (`BuildHoldIfNeeded`,
+  primitiva) → E přečte 2. vzkaz (jiný text než ostrov 1, viz
+  `BROTHER_MESSAGES`) → `megaTask 2→3` + `GiveNextMegaIsland()` (megaIndex 1→2).
+- **Nápovědy**: `HasDigSpot`/`GetHint` pro "kopat"/"prohledat podpalubí",
+  stejný vzor jako strážce/trezor na ostrově 1.
+- **Oprava zjištěná při testu**: hlídková loď (`GetGuardWaterSpots`) občas
+  nenajde vodu blízko ostrova (viděno už v Kroku 2) — u ostrova 2 by to bez
+  opravy znamenalo falešné "obrana padla" hned při startu (žádná loď = rovnou
+  `megaTask=1`, žádný boj). Přidán `FindGuardWaterSpot()` s širším fallback
+  hledáním (radius až 40) + `ghostShipSpawnedOk` flag, co rozlišuje "loď se
+  nespawnula" od "loď je poražená". Stejná oprava (fallback hledání) i pro
+  ostrov 1, ať je to konzistentní.
+- **Ověřeno v Play módu** (2× od nuly): Holanďan spawne a bojuje (boss bar s
+  jeho jménem), poražení → `megaTask=1` + 3 diggable místa, kopání funguje
+  přes plnou hráčskou cestu (`TryInteract`→coroutine→`TryDig`), progress
+  toast "X/3", po 3. kusu podpalubí vznikne, E přečte správný text ostrova 2
+  (ne ostrova 1), `megaIndex 1→2`, nový ostrov (konfrontace) se postaví,
+  starý marker se zničí (**pozor při testování**: `Destroy()` může trvat víc
+  snímků, než se fakt zaznamená — nepanikařit, když `FindObjectsOfType` chvíli
+  ukazuje 2, počkat víc snímků/volání). 0 chyb v Console. Screenshot
+  Holanďana posílám — bledě modrá loď, dobře odlišitelná od pirátů.
+
+**Další krok (Krok 7 — ostrov 3, konfrontace):** boss loď na příjezd (bratrova
+loď) → vylodění → `RivalNpc.cs` (starý muž, vrstevník dědy) → dialogový strom
+s monology (zmínka o dědově synovi) → volba A ušetřit / B zabít →
+`storyDone=true`, `storyEnding=1|2`. **Tohle je citlivá část příběhu**
+(finální rozhodnutí, konec hry) — doporučuju s uživatelem probrat konkrétní
+znění monologů/voleb, než se začne stavět, ne to jen vymyslet sám. Viz plán §1
+(Ostrov 3) a §6 Krok 7.
 
 ---
 

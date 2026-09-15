@@ -962,6 +962,13 @@ public class PlayerController : MonoBehaviour
         if (isOnFoot || PBoatWrecked) return; // pěšky ani ve vodě se nerybaří/netěží
         int cx = GridX, cy = GridY;
 
+        // Mega ostrov 2 (Hřbitov lodí, Krok 6): kousek roztržené mapy v mělčině.
+        if (MegaIslandMarker.Instance != null && MegaIslandMarker.Instance.HasDigSpot(cx, cy))
+        {
+            StartCoroutine(MegaDigRoutine(cx, cy));
+            return;
+        }
+
         // Mega quest: hráč je v lodi na místě z mapy → vykopat poklad.
         MegaQuest mq = MyMegaQuest;
         if (mq != null && mq.active && !mq.dug && cx == mq.targetX && cy == mq.targetY)
@@ -997,6 +1004,28 @@ public class PlayerController : MonoBehaviour
         MyMegaQuest.dug = true;
         gridManager.Save();
         gridManager.NotifyWorldChanged();
+
+        WorkProgress = 0f;
+        isWorking = false;
+    }
+
+    // Kopání kusu roztržené mapy na ostrově 2 (Krok 6) — stejné tempo jako
+    // DigRoutine, výsledek zpracuje MegaIslandMarker.TryDig.
+    IEnumerator MegaDigRoutine(int cx, int cy)
+    {
+        isWorking = true;
+        WorkProgress = 0f;
+
+        float duration = 3f;
+        float elapsed  = 0f;
+        while (elapsed < duration)
+        {
+            elapsed += Time.deltaTime;
+            WorkProgress = elapsed / duration;
+            yield return null;
+        }
+
+        MegaIslandMarker.Instance?.TryDig(cx, cy, playerIndex);
 
         WorkProgress = 0f;
         isWorking = false;
@@ -1191,6 +1220,9 @@ public class PlayerController : MonoBehaviour
         }
         else if (!PBoatWrecked)
         {
+            if (MegaIslandMarker.Instance != null && MegaIslandMarker.Instance.HasDigSpot(GridX, GridY))
+                return $"[{skey}]  kopat (kousek mapy)";
+
             TileType here = gridManager.GetTileType(GridX, GridY);
             if (here == TileType.Water_Fish) return $"[{skey}]  rybařit";
             if (here == TileType.Treasure)   return $"[{skey}]  těžit poklad";

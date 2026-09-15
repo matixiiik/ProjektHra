@@ -27,6 +27,7 @@ public class PirateShip : MonoBehaviour
     private const float SHIP_Y       = -0.42f; // stejné "potopení" jako hráčova loď (ShipModelSwitcher)
 
     public  int    size;               // 0 = malá, 1 = střední, 2 = velká
+    public  bool   isGhost;            // kosmetika: Bludný Holanďan (ostrov 2, Krok 6) místo pirátské lodi
 
     // Hlídka nepřátelského ostrova: nezmizí sama, po souboji se vrací k ostrovu.
     // Nastavuje CombatDirector přes SetGuard().
@@ -85,22 +86,30 @@ public class PirateShip : MonoBehaviour
     public bool  Engaged { get; private set; }
 
     /// <summary>Vytvoří pirátskou loď dané velikosti na dané pozici.</summary>
-    public static PirateShip Spawn(Vector3 pos, int size)
+    public static PirateShip Spawn(Vector3 pos, int size) => SpawnInternal(pos, size, false);
+
+    /// <summary>Totéž, ale jako "Bludný Holanďan" — hlídač ostrova 2 (Krok 6, viz
+    /// story-plan.md §5). Mechanicky úplně stejná loď, jen jiný model/barva a
+    /// jiný název v boss baru.</summary>
+    public static PirateShip SpawnGhost(Vector3 pos, int size) => SpawnInternal(pos, size, true);
+
+    private static PirateShip SpawnInternal(Vector3 pos, int size, bool ghost)
     {
-        var root = new GameObject("PirateShip");
+        var root = new GameObject(ghost ? "GhostShip" : "PirateShip");
         root.transform.position = new Vector3(pos.x, SHIP_Y, pos.z);
 
         // Nejdřív zkus Kenney model z Resources; když není, postav ho z kvádrů.
-        if (!BuildKenneyModel(root.transform, size))
-            BuildPrimitiveModel(root.transform, size);
+        bool built = ghost ? BuildGhostModel(root.transform, size) : BuildKenneyModel(root.transform, size);
+        if (!built) BuildPrimitiveModel(root.transform, size);
 
-        // Pěna za lodí (jede za ní sama, ukliší se, až pirát zmizí).
-        new GameObject("PirateWake").AddComponent<BoatWake>().BindShip(root.transform);
+        // Pěna za lodí (jede za ní sama, ukliší se, až loď zmizí).
+        new GameObject(ghost ? "GhostWake" : "PirateWake").AddComponent<BoatWake>().BindShip(root.transform);
 
         var ps = root.AddComponent<PirateShip>();
-        ps.size  = size;
-        ps.maxHp = size == 0 ? 2.5f : size == 1 ? 5f : 9f;
-        ps.hp    = ps.maxHp;
+        ps.size    = size;
+        ps.isGhost = ghost;
+        ps.maxHp   = size == 0 ? 2.5f : size == 1 ? 5f : 9f;
+        ps.hp      = ps.maxHp;
         return ps;
     }
 
@@ -130,6 +139,34 @@ public class PirateShip : MonoBehaviour
         {
             string n = mr.gameObject.name.ToLowerInvariant();
             mr.sharedMaterial    = n.Contains("sail") ? sail : n.Contains("flag") ? flag : hull;
+            mr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+        }
+        foreach (var col in go.GetComponentsInChildren<Collider>(true)) Destroy(col);
+        return true;
+    }
+
+    // Bludný Holanďan: Assets/Resources/GhostShip/ship-ghost.fbx — stejný postup
+    // jako pirátská loď, jen bledá přízračná barva se slabou září místo textury/vlajky.
+    private static bool BuildGhostModel(Transform root, int size)
+    {
+        var prefab = Resources.Load<GameObject>("GhostShip/ship-ghost");
+        if (prefab == null) return false;
+
+        var go = Instantiate(prefab, root, false);
+        go.name = "Model";
+        float sc = size == 0 ? 0.12f : size == 1 ? 0.14f : 0.16f;
+        go.transform.localPosition = new Vector3(0f, -0.04f, 0f);
+        go.transform.localScale    = new Vector3(sc, sc, sc);
+
+        Material ghostMat = SharedMat(ref matGhost, new Color(0.58f, 0.64f, 0.66f));
+        if (ghostMat.HasProperty("_EmissionColor"))
+        {
+            ghostMat.EnableKeyword("_EMISSION");
+            ghostMat.SetColor("_EmissionColor", new Color(0.22f, 0.32f, 0.36f));
+        }
+        foreach (var mr in go.GetComponentsInChildren<MeshRenderer>(true))
+        {
+            mr.sharedMaterial    = ghostMat;
             mr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
         }
         foreach (var col in go.GetComponentsInChildren<Collider>(true)) Destroy(col);
@@ -312,7 +349,7 @@ public class PirateShip : MonoBehaviour
 
     // Materiály trupu / plachty / vlajky se vytvoří jen jednou pro celou hru
     // a sdílí je všechny pirátské lodě (žádný materiál navíc na každou loď).
-    private static Material matHull, matSail, matFlag;
+    private static Material matHull, matSail, matFlag, matGhost;
     private static Material SharedMat(ref Material slot, Color c)
     {
         if (slot == null) slot = MakeMat(c);

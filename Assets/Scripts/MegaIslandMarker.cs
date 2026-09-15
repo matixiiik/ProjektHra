@@ -177,7 +177,9 @@ public class MegaIslandMarker : MonoBehaviour
         for (int x = tilePos.x - 6; x <= tilePos.x + 6; x++)
             for (int y = tilePos.y - 6; y <= tilePos.y + 6; y++)
             {
-                if (x == tilePos.x && y == tilePos.y) continue; // ne přímo na obelisku
+                // Obelisk má 3×3 j širokou základnu — políčko hned vedle (vzdálenost
+                // 1) se s ní vizuálně překrývá, tak držet aspoň 2 políčka od středu.
+                if (Mathf.Max(Mathf.Abs(x - tilePos.x), Mathf.Abs(y - tilePos.y)) < 2) continue;
                 if (gridManager.GetTileType(x, y) != TileType.MegaIsland) continue;
                 cand.Add(new Vector2Int(x, y));
             }
@@ -506,7 +508,9 @@ public class MegaIslandMarker : MonoBehaviour
     /// (megaTask) řeší Update() nahoře, který sečte, co všechno ještě žije.</summary>
     public void OnGuardDestroyed(LandGuard g)
     {
-        if (CombatDirector.Instance != null) CombatDirector.Instance.Toast("Stráž poražena.");
+        if (CombatDirector.Instance == null) return;
+        CombatDirector.Instance.RewardNearestPlayer(EconomyConfig.LandGuardReward);
+        CombatDirector.Instance.Toast($"Stráž poražena.  +{EconomyConfig.LandGuardReward} minci");
     }
 
     // Vzkazy bratra na jednotlivých ostrovech (Krok 4 = ostrov 1, Krok 6 =

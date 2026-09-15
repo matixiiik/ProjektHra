@@ -10,7 +10,12 @@ using UnityEngine;
 //
 //  Hráč ho sejme tak, že k němu dojde a zmáčkne E — MegaIslandMarker.TryInteract
 //  zavolá TakeHit(PLAYER_HIT). Žádná nová zbraň pro hráče zatím není (plán
-//  počítá s tím, že se doladí později — "v1: koule jako dělo").
+//  počítá s tím, že se doladí později — "v1: koule jako dělo"). Zásah
+//  MegaIslandMarker.OnGuardDestroyed rozdá i drobnou odměnu (EconomyConfig.
+//  LandGuardReward).
+//
+//  Vzhled: Kenney model (character-male-c, stejný jako prodavači/bratr) v
+//  olivové barvě + muška — fallback na primitivního panáčka, když model chybí.
 // ─────────────────────────────────────────────────────────────────────────────
 
 public class LandGuard : MonoBehaviour
@@ -25,7 +30,6 @@ public class LandGuard : MonoBehaviour
     private Vector2Int tile;        // políčko, na kterém strážce stojí (nehýbe se)
     private float       hp = MAX_HP;
     private float       nextShot;
-    private Transform   aimPart;    // hlaveň — otáčí se k hráči
 
     /// <summary>Vytvoří strážce na daném políčku ostrova.</summary>
     public static LandGuard Spawn(Vector2Int tile, string islandKey)
@@ -36,32 +40,46 @@ public class LandGuard : MonoBehaviour
         var g = root.AddComponent<LandGuard>();
         g.tile      = tile;
         g.islandKey = islandKey;
-        g.aimPart   = g.BuildFigure();
+        g.BuildFigure();
         return g;
     }
 
-    // Jednoduchý panáček z primitivů — tmavý kabát, muška v ruce. Stejný styl
-    // jako ostatní postavy ve hře (viz StoryNpc), jen bez sezení.
-    private Transform BuildFigure()
+    // Kenney model (stejná postava jako prodavači/bratr — character-male-c),
+    // obarvený do vojenské olivové, s dlouhou muškou v ruce. Když model v
+    // Resources chybí, postaví se náhradní panáček z primitivů.
+    private void BuildFigure()
+    {
+        var model = CharacterModel.TryBuild(transform, "character-male-c",
+            CharacterModel.DEFAULT_SCALE, new Color(0.30f, 0.34f, 0.22f)); // vojenská olivová
+        if (model == null) { BuildPrimitiveFigure(); return; }
+
+        AddMusket();
+    }
+
+    // Náhrada, když Kenney model chybí — tmavý panáček s muškou (dřívější vzhled).
+    private void BuildPrimitiveFigure()
     {
         Material coat = MakeMat(new Color(0.22f, 0.20f, 0.22f));
         Material skin = MakeMat(new Color(0.72f, 0.58f, 0.47f));
-        Material dark = MakeMat(new Color(0.12f, 0.12f, 0.13f));
 
         AddPart(PrimitiveType.Capsule, "Body", new Vector3(0f, 0.55f, 0f), new Vector3(0.42f, 0.42f, 0.42f), coat);
         AddPart(PrimitiveType.Sphere,  "Head", new Vector3(0f, 1.00f, 0f), new Vector3(0.36f, 0.34f, 0.36f), skin);
+        AddMusket();
+    }
 
-        var barrel = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
-        barrel.name = "Barrel";
-        var col = barrel.GetComponent<Collider>();
+    // Dlouhá muška v ruce — stejná pro Kenney model i primitivní náhradu.
+    private void AddMusket()
+    {
+        Material dark = MakeMat(new Color(0.12f, 0.12f, 0.13f));
+        var musket = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+        musket.name = "Musket";
+        var col = musket.GetComponent<Collider>();
         if (col != null) Destroy(col);
-        barrel.transform.SetParent(transform, false);
-        barrel.transform.localPosition    = new Vector3(0f, 0.75f, 0.35f);
-        barrel.transform.localScale       = new Vector3(0.09f, 0.32f, 0.09f);
-        barrel.transform.localEulerAngles = new Vector3(90f, 0f, 0f);
-        barrel.GetComponent<MeshRenderer>().sharedMaterial = dark;
-
-        return barrel.transform;
+        musket.transform.SetParent(transform, false);
+        musket.transform.localPosition    = new Vector3(0.16f, 0.85f, 0.20f);
+        musket.transform.localScale       = new Vector3(0.05f, 0.55f, 0.05f);
+        musket.transform.localEulerAngles = new Vector3(80f, 0f, 0f);
+        musket.GetComponent<MeshRenderer>().sharedMaterial = dark;
     }
 
     void Update()

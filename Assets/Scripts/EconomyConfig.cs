@@ -39,8 +39,9 @@ public static class EconomyConfig
     public const int PirateRewardMedium = 110;
     public const int PirateRewardLarge  = 260;
     public const int IslandCannonReward = 90;
+    public const int LandGuardReward    = 30;  // stráž na mega ostrově (story-plan.md Krok 2) — menší než dělo, jen doplněk
     public const int SeaMonsterReward   = 400; // jednorázová odměna za mořskou obludu (story-plan.md Krok 5)
-    public const int FamilyTreasureReward = 2000; // rodinné dědictví od bratra (Krok 7) — stejná odměna bez ohledu na volbu, ať se nevyplácí "zabít"
+    public const int FamilyTreasureReward = 5000; // rodinné dědictví od bratra (Krok 7) — stejná odměna bez ohledu na volbu, ať se nevyplácí "zabít"
     public const int ChestCoinsMin      = 40;
     public const int ChestCoinsMax      = 120;
     public const int MegaQuestCoinsMin  = 400;

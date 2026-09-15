@@ -410,6 +410,33 @@ screenshotu byl hráčův vlastní panáček, ne duch/bug.
 
 ---
 
+## Dodatek — uživatel odpověděl na otevřené otázky (15.9.)
+Vyřešeno vše, na co jsem se ptal:
+- **`LandGuard` dostal Kenney grafiku** — stejný model jako prodavači/bratr
+  (`character-male-c`), obarvený do vojenské olivové, s muškou v ruce
+  (`AddMusket`, sdílená pro Kenney i primitivní fallback). Screenshot
+  posílám — vypadá jako voják, ne holý primitiv.
+- **`LandGuard` teď dává odměnu při zabití**: nová
+  `CombatDirector.RewardNearestPlayer(amount)` (obecná, bez vlastního
+  toastu) + `EconomyConfig.LandGuardReward = 30`, volané z
+  `MegaIslandMarker.OnGuardDestroyed`. Toast "Stráž poražena. +30 minci".
+- **Opraveno překrývání s obelisem**: `FindGuardTiles` (používá strážce,
+  trezor, podpalubí, `RivalNpc` — všechno kolem obelisku) teď vyžaduje
+  Chebyshevovu vzdálenost aspoň 2 od středu ostrova místo jen "ne přesně na
+  něm". Obelisk má 3×3 j základnu, takže vzdálenost 1 se s ní vizuálně
+  překrývala — teď už nic nestojí v jeho základně.
+- **Odměny upraveny**: `SeaMonsterReward` zůstává `400`,
+  `FamilyTreasureReward` `2000 → 5000`.
+- Ověřeno v Play módu: strážci teď 2 políčka od obelisku (dřív 1), zabití
+  dá +30 mincí, konstanty sedí (400/30/5000). 0 chyb v Console.
+
+**Tohle by měla být kompletní odpověď na "je to všechno (kromě kosmetiky)?"
+— ano, mechanicky je celý příběhový oblouk (Kroky 0–7) hotový, ověřený a
+teď i doladěný podle prvního kola zpětné vazby. Zbývá jen to, co vyleze až
+ze skutečného hraní večer.**
+
+---
+
 ## STAV 2026-09-09 — vše commitnuté a pushnuté, working tree čistý
 (kromě `Napady.txt` a `Doporuceni.txt`, které si edituje uživatel — necommitovat za něj)
 

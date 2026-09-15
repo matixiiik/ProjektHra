@@ -210,6 +210,15 @@ public class CombatDirector : MonoBehaviour
     }
 
     // ── Odměny / hlášky ──────────────────────────────────────────────────
+    /// <summary>Obecná drobná odměna (např. za LandGuard) — bez toastu, ten
+    /// si dá volající sám s vlastním textem.</summary>
+    public void RewardNearestPlayer(int amount)
+    {
+        var pc = NearestAnyPlayer();
+        if (pc != null) pc.RewardCoins(amount);
+        SoundManager.PlayCoin();
+    }
+
     public void OnPirateSunk(PirateShip p)
     {
         int reward = p.size == 0 ? EconomyConfig.PirateRewardSmall

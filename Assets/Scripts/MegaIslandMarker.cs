@@ -91,7 +91,7 @@ public class MegaIslandMarker : MonoBehaviour
     // další kroky plánu (§5 a dál v .claude/story-plan.md).
     private void BuildFortress()
     {
-        BuildSign("Mega ostrov 1 — Pevnost staré posádky (TODO: trezor)",
+        BuildSign("Mega ostrov 1 — Pevnost staré posádky. Kolem obelisku hlídkuje ozbrojená posádka — trezor je někde uvnitř.",
                    new Color(0.5f, 0.24f, 0.18f));
 
         if (gridManager == null) return;
@@ -160,11 +160,11 @@ public class MegaIslandMarker : MonoBehaviour
         => (p.x - tilePos.x) * (p.x - tilePos.x) + (p.y - tilePos.y) * (p.y - tilePos.y);
 
     private void BuildWreckGraveyard()
-        => BuildSign("Mega ostrov 2 — Hřbitov lodí (TODO: hlídač + puzzle z vraků)",
+        => BuildSign("Mega ostrov 2 — Hřbitov lodí. Zatím je tu ticho.",
                       new Color(0.32f, 0.36f, 0.42f));
 
     private void BuildConfrontation()
-        => BuildSign("Mega ostrov 3 — Kde to začalo (TODO: konfrontace s bratrem)",
+        => BuildSign("Mega ostrov 3 — Kde to začalo. Zatím je tu ticho.",
                       new Color(0.52f, 0.44f, 0.16f));
 
     // Dřevěná cedule kousek od obelisku — jen orientační, dokud nevznikne
@@ -203,6 +203,24 @@ public class MegaIslandMarker : MonoBehaviour
         if (x != tilePos.x || y != tilePos.y) return false;
         if (CombatDirector.Instance != null) CombatDirector.Instance.Toast(signText);
         return true;
+    }
+
+    /// <summary>Co udělá E na daném políčku — bez vedlejších účinků, jen na
+    /// vypsání nápovědy (viz PlayerController.GetContextHint). Vrací null, když
+    /// tam není nic k udělání.</summary>
+    public string GetHint(int x, int y)
+    {
+        foreach (var guard in myGuards)
+            if (guard != null && guard.IsAt(x, y)) return "zaútočit na stráž";
+
+        if (vault != null && vault.IsAt(x, y))
+        {
+            if (!vault.Solved) return "otevřít trezor";
+            return gridManager != null && gridManager.gameData.megaTask < 3 ? "přečíst vzkaz" : null;
+        }
+
+        if (x == tilePos.x && y == tilePos.y) return "prozkoumat obelisk";
+        return null;
     }
 
     /// <summary>Zavolá LandGuard při své smrti — jen okamžitá hláška. Skutečný postup

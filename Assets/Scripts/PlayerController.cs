@@ -1153,11 +1153,81 @@ public class PlayerController : MonoBehaviour
         TeleportTo(GridX, GridY);
     }
 
-    // ── Nápověda k opravě lodě (jednoduchý text dole na své půlce) ──────────
-    private GUIStyle repairStyle;
+    // ── Kontextová nápověda mimo maják ("[E]/[Space] ...") ──────────────────
+    // Stejný princip jako u dědy nebo v majáku (InteriorPlayer) — když hráč
+    // stojí u něčeho interaktivního, ukaž mu, co s tím udělá E/Space. Bez tohohle
+    // by první hraní nešlo poznat, že Space na rybím hejnu/pokladu vůbec něco dělá.
+    private string GetContextHint()
+    {
+        string ekey = P1 ? "E" : "Numpad 1";
+        string skey = P1 ? "Space" : "Numpad 0";
+
+        if (isOnFoot)
+        {
+            int px = GridX, py = GridY;
+            Vector2Int[] dirs = { Vector2Int.right, Vector2Int.left, Vector2Int.up, Vector2Int.down };
+            foreach (var d in dirs)
+            {
+                int tx = px + d.x, ty = py + d.y;
+
+                if (MegaIslandMarker.Instance != null)
+                {
+                    string mh = MegaIslandMarker.Instance.GetHint(tx, ty);
+                    if (mh != null) return $"[{ekey}]  {mh}";
+                }
+
+                TileType t = gridManager.GetTileType(tx, ty);
+                if (t == TileType.Lighthouse) return $"[{ekey}]  vejít do majáku";
+                if (t == TileType.Chest)      return $"[{ekey}]  otevřít bednu";
+            }
+
+            // Nasednout do lodě — plave do 1 políčka a není rozbitá (tu se jen vyleze, viz TryToggleBoatFoot).
+            if (!PBoatWrecked)
+            {
+                int dist = Mathf.Max(Mathf.Abs(px - boatGridX), Mathf.Abs(py - boatGridY));
+                if (dist <= 1 && IsBoatWater(gridManager.GetTileType(boatGridX, boatGridY)))
+                    return $"[{ekey}]  nastoupit do lodě";
+            }
+        }
+        else if (!PBoatWrecked)
+        {
+            TileType here = gridManager.GetTileType(GridX, GridY);
+            if (here == TileType.Water_Fish) return $"[{skey}]  rybařit";
+            if (here == TileType.Treasure)   return $"[{skey}]  těžit poklad";
+
+            MegaQuest mq = MyMegaQuest;
+            if (mq != null && mq.active && !mq.dug && GridX == mq.targetX && GridY == mq.targetY)
+                return $"[{skey}]  vykopat poklad z mapy";
+
+            if (FindAdjacent(GridX, GridY, TileType.Pier) != null) return $"[{ekey}]  vystoupit z lodě";
+        }
+        return null;
+    }
+
+    // ── Nápověda k opravě lodě + kontextová nápověda (dole na své půlce) ────
+    private GUIStyle repairStyle, contextHintStyle;
 
     void OnGUI()
     {
+        bool blocked = ModalOpen || isMoving || isWorking || GameConsole.IsOpen
+                     || MainMenuManager.IsVisible || DeathScreen.IsOpen || VaultMechanism.IsOpenFor(playerIndex);
+
+        if (!blocked)
+        {
+            string hint = GetContextHint();
+            if (hint != null)
+            {
+                if (contextHintStyle == null)
+                    contextHintStyle = new GUIStyle(GUI.skin.label)
+                    {
+                        fontSize = 15, fontStyle = FontStyle.Bold,
+                        alignment = TextAnchor.MiddleCenter,
+                        normal = { textColor = new Color(0.85f, 0.85f, 0.7f) }
+                    };
+                GUI.Label(new Rect(HalfX(), Screen.height - 156f, HalfW(), 24f), hint, contextHintStyle);
+            }
+        }
+
         if (!CanRepairHere()) return;
 
         int missing = BoatStats.MaxHealth - PBoatHealth;
@@ -1177,12 +1247,10 @@ public class PlayerController : MonoBehaviour
                 normal = { textColor = new Color(1f, 0.9f, 0.5f) }
             };
 
-        float w = Screen.width, x0 = 0f;
-        if (MultiplayerManager.IsMultiplayer)
-        {
-            w = Screen.width * 0.5f;
-            x0 = playerIndex == 1 ? w : 0f;
-        }
-        GUI.Label(new Rect(x0, Screen.height - 132f, w, 24f), msg, repairStyle);
+        GUI.Label(new Rect(HalfX(), Screen.height - 132f, HalfW(), 24f), msg, repairStyle);
     }
+
+    // Šířka/X začátek "své" půlky obrazovky (celá obrazovka v sólu).
+    private float HalfW() => MultiplayerManager.IsMultiplayer ? Screen.width * 0.5f : Screen.width;
+    private float HalfX() => MultiplayerManager.IsMultiplayer && playerIndex == 1 ? Screen.width * 0.5f : 0f;
 }

@@ -231,6 +231,36 @@ FEEL ještě neodladěný — viz níže, potřebuje reálné zahrání):**
   (při 50 j/s by 1,2 s pokrylo přes 25 polí — moc dlouhý "sprint"). Ověřeno
   v Play módu přes reflection přímo na konstantách (50/5 = přesně 10×).
 
+**Dodatek stejný den #2 — onboarding audit (na žádost uživatele):**
+Uživatel chtěl zkontrolovat, jestli hra prvohráče někde průběžně učí ovládání/
+ekonomiku/příběh. Zjištění: jediné místo je **jednorázový dialog s dědou**
+(storyStep 0) — WASD/E/R/M/myš. Nikde se ale nevysvětluje **Space (rybaření/
+těžba)** ani že **ryby/poklady nejsou rovnou mince** (musí se prodat ve
+výkupně v majáku). Navíc jsem našel **zapomenutý "(TODO: ...)" text**, co se
+ukazoval hráči na obelisku ostrova 1. Uživatel chtěl obojí opravit — TODO a
+kontextové nápovědy venku (stejný princip jako `InteriorPlayer` uvnitř majáku).
+
+- **`PlayerController.GetContextHint()`** (nová metoda) — jednotné místo, co
+  určí "[E]/[Space] ..." nápovědu podle toho, kde hráč zrovna je/stojí (jen
+  jedna najednou, priorita: strážce/trezor/obelisk mega ostrova → maják →
+  bedna → nastoupit do lodě, pak zvlášť na lodi: rybaření → těžba → mega quest
+  kopání → vystoupit z lodě). Kreslí se v `OnGUI()` nad existující nápovědou
+  k opravě lodě (`Screen.height-156`, oprava zůstala na `-132`), respektuje
+  stejné brány jako `Update()` (`ModalOpen`, konzole, menu, smrt, vault puzzle).
+- **`MegaIslandMarker.GetHint(x,y)`** — dotazovací verze `TryInteract` (bez
+  vedlejších účinků) pro strážce/trezor/obelisk, čte ji `GetContextHint()`.
+- **Opraveno TODO**: cedule na obelisku ostrova 1 teď říká skutečný text
+  ("Kolem obelisku hlídkuje ozbrojená posádka — trezor je někde uvnitř"),
+  ostrovy 2/3 (ještě nepostavené) mají neutrální "Zatím je tu ticho."
+- **Ověřeno v Play módu**, všechny větve zvlášť: rybaření, maják (všechny 4
+  strany), nastoupit/vystoupit z lodě, strážce mega ostrova, trezor
+  (neotevřený → "otevřít trezor", vyřešený a nepřečtený → "přečíst vzkaz",
+  přečtený → žádná nápověda), toast na obelisku bez TODO. Screenshot (posílám)
+  potvrzuje, že nová nápověda nekoliduje s dědovou. 0 chyb v Console.
+- **Co jsem NEudělal** (uživatel v odpovědi nezaškrtl): obecné vysvětlení
+  "ryby/poklady se prodávají v majáku" v dialogu s dědou — pořád to zmiňuje
+  jen u historického pokladu. Můžu doplnit, stačí říct.
+
 **Další krok (Krok 6 — ostrov 2, Hřbitov lodí):** hlídač ve stylu Bludného
 Holanďana (přesunout `ship-ghost.fbx` do `Resources/`), 3 kopací místa v
 mělčině (styl `DigRoutine`), poskládaná mapa → kód do podpalubí → 2. vzkaz +

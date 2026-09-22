@@ -19,14 +19,19 @@ public class CannonBall : MonoBehaviour
     private const float LIFETIME    = 2.4f;
     private const float HIT_RADIUS  = 1.0f;
     private const float FLIGHT_Y    = 0.1f; // těsně nad hladinou
+    private const float GRAVITY     = 15f;  // jen pro koule s náměrem (launchAngleDeg > 0)
 
     private Side    side;
     private float   damage;
-    private Vector3 vel;
+    private Vector3 vel;      // vodorovná složka rychlosti
+    private float   velY;     // svislá složka (jen když se střílí s náměrem)
     private float   life;
 
-    /// <summary>Vystřelí dělovou kouli z bodu "from" ve směru "dir".</summary>
-    public static void Fire(Vector3 from, Vector3 dir, float damage, Side side)
+    /// <summary>Vystřelí dělovou kouli z bodu "from" ve směru "dir" (vodorovně).
+    /// Nepovinný `launchAngleDeg` (0 = rovná dráha jako dřív) jí dá reálný
+    /// oblouk — viz PlayerController.TryShoot/TryShootOnFoot, kde náměr řídí
+    /// sklon kamery (přehled/oblouk podle toho, jak moc hráč kouká dolů).</summary>
+    public static void Fire(Vector3 from, Vector3 dir, float damage, Side side, float launchAngleDeg = 0f)
     {
         dir.y = 0f;
         if (dir.sqrMagnitude < 0.0001f) dir = Vector3.forward;
@@ -55,16 +60,24 @@ public class CannonBall : MonoBehaviour
 
         go.transform.position = new Vector3(from.x, FLIGHT_Y, from.z) + dir * 0.9f;
 
+        float angleRad = launchAngleDeg * Mathf.Deg2Rad;
         var cb = go.AddComponent<CannonBall>();
         cb.side   = side;
         cb.damage = damage;
-        cb.vel    = dir * SPEED;
+        cb.vel    = dir * SPEED * Mathf.Cos(angleRad);
+        cb.velY   = SPEED * Mathf.Sin(angleRad);
     }
 
     void Update()
     {
         transform.position += vel * Time.deltaTime;
-        transform.position  = new Vector3(transform.position.x, FLIGHT_Y, transform.position.z);
+
+        // Svislý pohyb — bez náměru (velY==0) se drží přesně FLIGHT_Y jako dřív;
+        // s náměrem letí obloukem (gravitace) a nikdy neklesne pod hladinu.
+        velY -= GRAVITY * Time.deltaTime;
+        float newY = transform.position.y + velY * Time.deltaTime;
+        if (newY < FLIGHT_Y) { newY = FLIGHT_Y; velY = 0f; }
+        transform.position = new Vector3(transform.position.x, newY, transform.position.z);
 
         life += Time.deltaTime;
         if (life >= LIFETIME) { Destroy(gameObject); return; }
@@ -87,6 +100,18 @@ public class CannonBall : MonoBehaviour
 
         SeaMonster monster = dir.MonsterNear(transform.position, HIT_RADIUS);
         if (monster != null) { monster.TakeHit(damage); SoundManager.PlayHit(); Destroy(gameObject); return; }
+
+        // Stacionární strážce mega ostrova (viz PlayerController.TryShootOnFoot —
+        // hráčova pěší zbraň teď na ně umí střílet, ne jen E na blízko).
+        foreach (var guard in LandGuard.All)
+        {
+            if (guard == null) continue;
+            if ((guard.transform.position - transform.position).sqrMagnitude > HIT_RADIUS * HIT_RADIUS) continue;
+            guard.TakeHit(damage);
+            SoundManager.PlayHit();
+            Destroy(gameObject);
+            return;
+        }
     }
 
     // Nepřátelská koule → hráč, který pluje, plave (rozbitá loď), NEBO je pěšky

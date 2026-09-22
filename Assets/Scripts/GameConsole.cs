@@ -197,14 +197,14 @@ public class GameConsole : MonoBehaviour
         grid.NotifyWorldChanged();
     }
 
-    // get item <map/ammo/histtreasure/sellbonus/megamap/map>
+    // get item <map/ammo/handweapon/handammo/histtreasure/sellbonus/megamap/map>
     // Vrací false, když nic nepřidal (chybu si vypíše sám).
     bool HandleGetItem(string[] p)
     {
         var d = grid.gameData;
         if (p.Length < 3)
         {
-            Log("Použití: get item <map / ammo [pocet] / histtreasure / sellbonus / megamap>");
+            Log("Použití: get item <map / ammo [pocet] / handweapon / handammo [pocet] / histtreasure / sellbonus / megamap>");
             return false;
         }
 
@@ -219,7 +219,21 @@ public class GameConsole : MonoBehaviour
                 int n = 20;
                 if (p.Length >= 4) int.TryParse(p[3], out n);
                 d.ammo += n;
-                Log($"<color=#cccccc>+{n} nábojů</color>  (celkem: {d.ammo})");
+                Log($"<color=#cccccc>+{n} nábojů do děla</color>  (celkem: {d.ammo})");
+                return true;
+
+            case "handweapon":
+            case "pistol":
+                d.hasHandWeapon = true;
+                Log("<color=#cccccc>Zbraň pro boj pěšky</color> — hotbar 1.");
+                return true;
+
+            case "handammo":
+            case "pistolammo":
+                int hn = 20;
+                if (p.Length >= 4) int.TryParse(p[3], out hn);
+                d.handAmmo += hn;
+                Log($"<color=#cccccc>+{hn} nábojů do pěší zbraně</color>  (celkem: {d.handAmmo})");
                 return true;
 
             case "histtreasure":
@@ -246,7 +260,7 @@ public class GameConsole : MonoBehaviour
                 return true;
 
             default:
-                Log($"Neznámá věc: {p[2]}  (map / ammo / histtreasure / sellbonus / megamap)");
+                Log($"Neznámá věc: {p[2]}  (map / ammo / handweapon / handammo / histtreasure / sellbonus / megamap)");
                 return false;
         }
     }

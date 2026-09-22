@@ -22,7 +22,6 @@ public class HUDCounter : MonoBehaviour
     private Text        fishText;
     private Text        treasureText;
     private Text        coinsText;
-    private Text        ammoText;    // náboje do lodního děla
     private Text        coordText;   // souřadnice hráče (levý horní roh)
     private GameObject  questPanel;
     private Text        questLine;
@@ -76,11 +75,12 @@ public class HUDCounter : MonoBehaviour
 
         canvasGO.AddComponent<GraphicRaycaster>();
 
-        // Čtyři řádky ukazatelů v pravém horním rohu (ikonka + hodnota).
+        // Tři řádky ukazatelů v pravém horním rohu (ikonka + hodnota). Munice
+        // (lodní i pěší) se od teď ukazuje v hotbaru (PlayerController.OnGUI),
+        // ne tady — tenhle roh je jen "ekonomika" (mince/ryby/poklady).
         fishText     = MakeRow(canvasGO.transform, 0, HudSkin.FishBlue,    HudSkin.IconKind.Fish);
         treasureText = MakeRow(canvasGO.transform, 1, HudSkin.TreasureTan, HudSkin.IconKind.Treasure);
         coinsText    = MakeRow(canvasGO.transform, 2, HudSkin.Gold,        HudSkin.IconKind.Coin);
-        ammoText     = MakeRow(canvasGO.transform, 3, HudSkin.AmmoGrey,    HudSkin.IconKind.Ammo);
 
         BuildCoordLabel(canvasGO.transform);
 
@@ -325,7 +325,6 @@ public class HUDCounter : MonoBehaviour
         int fish     = playerIndex == 0 ? d.fishCount     : d.player2FishCount;
         int treasure = playerIndex == 0 ? d.treasureCount : d.player2TreasureCount;
         int coins    = playerIndex == 0 ? d.coins         : d.player2Coins;
-        int ammo     = playerIndex == 0 ? d.ammo          : d.player2Ammo;
         ActiveQuest q = playerIndex == 0 ? d.activeQuest   : d.player2ActiveQuest;
 
         MegaQuest mq = playerIndex == 0 ? d.megaQuest : d.player2MegaQuest;
@@ -336,7 +335,6 @@ public class HUDCounter : MonoBehaviour
         fishText.text     = $"Ryby: {fish}";
         treasureText.text = $"Poklady: {treasure}";
         coinsText.text    = $"Mince: {coins}";
-        ammoText.text     = $"Naboje: {ammo}";
         coordText.text    = $"X: {gx}   Y: {gy}";
         RefreshQuest(q, mq);
         RefreshStory(d);
@@ -358,9 +356,12 @@ public class HUDCounter : MonoBehaviour
         {
             case 1: txt = "Ukol: prines dedovi 1000 minci + historicky poklad"; break;
             case 2: txt = $"Ukol: dopluj k ostrovu na  [{d.storyIslandX}, {d.storyIslandY}]"; break;
-            case 3: txt = d.megaTask < 3
-                        ? $"Ukol: probojuj se ostrovem {d.megaIndex + 1} a najdi, co je uvnitr"
-                        : "Ukol: vrat se za dedou"; break;
+            case 3:
+                string islandName = d.megaIndex == 0 ? "Ostrovem piratu" : $"ostrovem {d.megaIndex + 1}";
+                txt = d.megaTask < 3
+                        ? $"Ukol: probojuj se {islandName} a najdi, co je uvnitr"
+                        : "Ukol: vrat se za dedou";
+                break;
         }
 
         bool show = txt != "";

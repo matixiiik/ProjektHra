@@ -30,9 +30,12 @@ public static class EconomyConfig
     public const int ShipSmall     = 180;   // veslice → malá plachetnice
     public const int ShipMedium    = 450;   // malá → střední
     public const int ShipLarge     = 1000;  // střední → velká
-    public const int AmmoPack      = 45;    // balíček munice
+    public const int AmmoPack      = 45;    // balíček munice do lodního děla
     public const int AmmoPackSize  = 12;    // nábojů v balíčku
     public const int MapItem       = 130;   // mapa (šipka k nejbližšímu ostrovu)
+    public const int HandWeapon     = 220;  // zbraň pro boj pěšky (jednorázový nákup)
+    public const int HandAmmoPack     = 25; // balíček munice do PĚŠÍ zbraně (oddělené od lodní munice)
+    public const int HandAmmoPackSize = 8;  // nábojů v balíčku
 
     // ── Odměny ─────────────────────────────────────────────────────────────
     public const int PirateRewardSmall  = 40;

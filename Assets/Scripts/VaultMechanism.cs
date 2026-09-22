@@ -11,10 +11,13 @@ using UnityEngine;
 //  simulací), průměrně stačí ~6 kliknutí.
 //
 //  Vstup je bez myši, ať funguje i pro P2 ve split screenu (stejně jako
-//  zbytek hry): E vedle trezoru puzzle otevře (MegaIslandMarker.TryInteract),
-//  pak P1 klávesy 1/2/3 točí kolem 1/2/3, Escape zavře; P2 Numpad 4/5/6,
-//  NumpadEnter zavře. Dokud je puzzle otevřené, hráč se nehýbe (stejná brána
-//  jako u obchodů/dialogu — viz VaultMechanism.IsOpenFor v PlayerController).
+//  zbytek hry): E vedle trezoru puzzle otevře (MegaIslandMarker.TryInteract).
+//  P1: A/D přepíná, KTERÉ kolo je vybrané (pohyb po řádku tří kol), W/S otočí
+//  vybrané kolo dopředu/dozadu (pohyb ve sloupci pěti symbolů), Escape zavře.
+//  P2 (numpad má stejné rozložení): Numpad 4/6 = výběr kola, Numpad 8/2 =
+//  otočení, NumpadEnter zavře. Dokud je puzzle otevřené, hráč se nehýbe
+//  (stejná brána jako u obchodů/dialogu — viz VaultMechanism.IsOpenFor
+//  v PlayerController).
 // ─────────────────────────────────────────────────────────────────────────────
 
 public class VaultMechanism : MonoBehaviour
@@ -39,6 +42,7 @@ public class VaultMechanism : MonoBehaviour
     private Vector2Int tile;                       // políčko, na kterém trezor stojí (nehýbe se)
     private int[]  ringPos = new int[WHEEL_COUNT]; // 0-4, aktuální symbol každého kola
     private int    openFor = -1;                   // -1 = zavřeno, jinak index hráče (0/1)
+    private int    selected;                       // které kolo (0-2) zrovna vybírá A/D (resp. Numpad 4/6)
     private bool   solved;
     private Transform[] wheelVisual = new Transform[WHEEL_COUNT];
 
@@ -128,7 +132,8 @@ public class VaultMechanism : MonoBehaviour
         }
         if (openFor != -1) return true; // někdo (jiný hráč) už ho má otevřený
 
-        openFor = playerIndex;
+        openFor  = playerIndex;
+        selected = 0;
         openInstance = this;
         return true;
     }
@@ -138,26 +143,30 @@ public class VaultMechanism : MonoBehaviour
         if (openFor == -1 || solved) return;
 
         bool p1 = openFor == 0;
-        int turn = -1;
+        int selectDir = 0; // A/D (resp. Numpad 4/6) — pohyb výběru po řádku kol
+        int turnDir   = 0; // W/S (resp. Numpad 8/2) — otočení vybraného kola ve sloupci symbolů
         bool close;
 
         if (p1)
         {
-            if      (Input.GetKeyDown(KeyCode.Alpha1)) turn = 0;
-            else if (Input.GetKeyDown(KeyCode.Alpha2)) turn = 1;
-            else if (Input.GetKeyDown(KeyCode.Alpha3)) turn = 2;
+            if      (Input.GetKeyDown(KeyCode.A)) selectDir = -1;
+            else if (Input.GetKeyDown(KeyCode.D)) selectDir = 1;
+            if      (Input.GetKeyDown(KeyCode.W)) turnDir = 1;
+            else if (Input.GetKeyDown(KeyCode.S)) turnDir = -1;
             close = Input.GetKeyDown(KeyCode.Escape);
         }
         else
         {
-            if      (Input.GetKeyDown(KeyCode.Keypad4)) turn = 0;
-            else if (Input.GetKeyDown(KeyCode.Keypad5)) turn = 1;
-            else if (Input.GetKeyDown(KeyCode.Keypad6)) turn = 2;
+            if      (Input.GetKeyDown(KeyCode.Keypad4)) selectDir = -1;
+            else if (Input.GetKeyDown(KeyCode.Keypad6)) selectDir = 1;
+            if      (Input.GetKeyDown(KeyCode.Keypad8)) turnDir = 1;
+            else if (Input.GetKeyDown(KeyCode.Keypad2)) turnDir = -1;
             close = Input.GetKeyDown(KeyCode.KeypadEnter);
         }
 
         if (close) { CloseFor(openFor); return; }
-        if (turn >= 0) TurnWheel(turn);
+        if (selectDir != 0) selected = (selected + selectDir + WHEEL_COUNT) % WHEEL_COUNT;
+        if (turnDir   != 0) TurnWheel(selected, turnDir);
     }
 
     private void CloseFor(int playerIndex)
@@ -166,12 +175,14 @@ public class VaultMechanism : MonoBehaviour
         if (openInstance == this) openInstance = null;
     }
 
-    // Otoč kolo `i` o 1 dopředu, sousedy o 1 dozadu (zapadají do sebe).
-    private void TurnWheel(int i)
+    // Otoč kolo `i` o 1 pozici ve směru `dir` (+1/-1), sousedy o 1 pozici
+    // opačným směrem (zapadají do sebe — stejné řetězové pravidlo jako dřív,
+    // jen teď jde otáčet oběma směry, ne jen dopředu).
+    private void TurnWheel(int i, int dir)
     {
-        ringPos[i] = (ringPos[i] + 1) % SYMBOL_COUNT;
-        if (i - 1 >= 0)          ringPos[i - 1] = (ringPos[i - 1] - 1 + SYMBOL_COUNT) % SYMBOL_COUNT;
-        if (i + 1 < WHEEL_COUNT) ringPos[i + 1] = (ringPos[i + 1] - 1 + SYMBOL_COUNT) % SYMBOL_COUNT;
+        ringPos[i] = (ringPos[i] + dir + SYMBOL_COUNT) % SYMBOL_COUNT;
+        if (i - 1 >= 0)          ringPos[i - 1] = (ringPos[i - 1] - dir + SYMBOL_COUNT) % SYMBOL_COUNT;
+        if (i + 1 < WHEEL_COUNT) ringPos[i + 1] = (ringPos[i + 1] - dir + SYMBOL_COUNT) % SYMBOL_COUNT;
         RefreshVisual();
         SoundManager.PlayClick();
 
@@ -215,13 +226,22 @@ public class VaultMechanism : MonoBehaviour
         float wheelW = box.width / 3f;
         for (int i = 0; i < WHEEL_COUNT; i++)
         {
+            // Vybrané kolo (to, co teď otáčí W/S resp. Numpad 8/2) zvýrazni rámečkem.
+            if (i == selected)
+            {
+                var frame = new Rect(box.x + i * wheelW + 6f, box.y + 50f, wheelW - 12f, 58f);
+                GUI.color = new Color(1f, 0.85f, 0.45f, 0.5f);
+                GUI.DrawTexture(frame, Texture2D.whiteTexture);
+                GUI.color = Color.white;
+            }
             var wr = new Rect(box.x + i * wheelW, box.y + 55f, wheelW, 50f);
             GUI.Label(wr, SYMBOL_NAMES[ringPos[i]], wheelStyle);
         }
 
-        string key1 = openFor == 0 ? "1 / 2 / 3" : "Numpad 4 / 5 / 6";
-        string keyClose = openFor == 0 ? "Esc" : "Numpad Enter";
-        GUI.Label(new Rect(box.x, box.y + 115f, box.width, 24f), "Otoč kolo: " + key1, hintStyle);
+        string keySelect = openFor == 0 ? "A / D" : "Numpad 4 / 6";
+        string keyTurn   = openFor == 0 ? "W / S" : "Numpad 8 / 2";
+        string keyClose  = openFor == 0 ? "Esc"   : "Numpad Enter";
+        GUI.Label(new Rect(box.x, box.y + 115f, box.width, 24f), "Vyber kolo: " + keySelect + "   Otoč: " + keyTurn, hintStyle);
         GUI.Label(new Rect(box.x, box.y + 140f, box.width, 24f), "Zavřít: " + keyClose, hintStyle);
     }
 

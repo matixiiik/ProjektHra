@@ -130,6 +130,21 @@ public class PlayerController : MonoBehaviour
     }
     bool PHasMap => playerIndex == 0 ? gridManager.gameData.hasMap : gridManager.gameData.player2HasMap;
 
+    // ── Zbraň pro pěší boj + hotbar (koupí se v obchodě, viz UpgradeShopManager) ──
+    bool PHasHandWeapon => playerIndex == 0 ? gridManager.gameData.hasHandWeapon : gridManager.gameData.player2HasHandWeapon;
+    int  PHandAmmo
+    {
+        get => playerIndex == 0 ? gridManager.gameData.handAmmo : gridManager.gameData.player2HandAmmo;
+        set { int v = Mathf.Max(0, value);
+              if (playerIndex == 0) gridManager.gameData.handAmmo = v; else gridManager.gameData.player2HandAmmo = v; }
+    }
+    // Aktivní slot hotbaru (0=zbraň, 1=munice — jen zobrazení, 2=historický poklad).
+    int  PHotbarSlot
+    {
+        get => playerIndex == 0 ? gridManager.gameData.activeHotbarSlot : gridManager.gameData.player2ActiveHotbarSlot;
+        set { if (playerIndex == 0) gridManager.gameData.activeHotbarSlot = value; else gridManager.gameData.player2ActiveHotbarSlot = value; }
+    }
+
     /// <summary>Je hráč zrovna v lodi na vodě? (pro soubojový systém)</summary>
     public bool IsSailing  => !isOnFoot && !PBoatWrecked && enabled && gameObject.activeInHierarchy;
 
@@ -150,6 +165,12 @@ public class PlayerController : MonoBehaviour
 
     private float nextShotTime;
     private const float SHOOT_COOLDOWN = 0.55f;
+    private float nextHandShotTime;
+    private const float HAND_SHOOT_COOLDOWN = 0.45f; // trochu svižnější než lodní dělo
+    // Stejná síla jako úder E (LandGuard.PLAYER_HIT) — hlavní výhoda zbraně není
+    // víc poškození, ale že jde střílet na dálku (E funguje jen na políčko vedle
+    // strážce, co na tebe mezitím střílí ze 7 políček).
+    private const float HAND_SHOT_DAMAGE    = 2f;
     private float damageGraceUntil; // krátká nezranitelnost po "potopení" lodě
     private float lastDamageTime = -999f; // kdy hráč naposledy dostal zásah (kvůli regeneraci)
     private float healAccum;             // nasbírané zlomky HP při regeneraci pěšky
@@ -251,6 +272,9 @@ public class PlayerController : MonoBehaviour
         // Animace pěší postavičky (idle/walk/sprint podle rychlosti).
         UpdateFigureAnim();
 
+        // Pistole v ruce se ukáže/schová podle hotbaru (levné, jen bool porovnání).
+        UpdateWeaponVisual();
+
         // Regenerace zdraví panáčka — když je pěšky v bezpečí (na ostrově se po
         // něm nestřílí) a aspoň 6 s nedostal zásah, pomalu se léčí (2 HP/s).
         if (isOnFoot && !PBoatWrecked && PPlayerHealth < 100
@@ -310,9 +334,35 @@ public class PlayerController : MonoBehaviour
         // R / Numpad-děleno → oprava lodě, když pěšky stojíš u svého člunu na molu.
         if (isOnFoot && CanRepairHere() && KeyDown(KeyCode.R, KeyCode.KeypadDivide)) TryRepairBoat();
 
-        // Levé tlačítko myši (P1) / Numpad * (P2) → výstřel z lodního děla (jen z celé lodě).
+        // Hotbar (1/2/3 u P1, Numpad 7/8/9 u P2 — horní řada numpadu) — vybere,
+        // CO je zrovna "v ruce" (0=zbraň, 1=munice, 2=historický poklad);
+        // reálný účinek má jen slot 0 (zbraň, viz TryShootOnFoot). Stisk STEJNÉ
+        // klávesy podruhé věc zase "položí" (-1 = nic v ruce).
+        if      (KeyDown(KeyCode.Alpha1, KeyCode.Keypad7)) PHotbarSlot = PHotbarSlot == 0 ? -1 : 0;
+        else if (KeyDown(KeyCode.Alpha2, KeyCode.Keypad8)) PHotbarSlot = PHotbarSlot == 1 ? -1 : 1;
+        else if (KeyDown(KeyCode.Alpha3, KeyCode.Keypad9)) PHotbarSlot = PHotbarSlot == 2 ? -1 : 2;
+
+        // Levé tlačítko myši (P1) / Numpad * (P2) → výstřel. Na lodi z děla,
+        // pěšky z koupené zbraně (jen když je vybraná v hotbaru — slot 0).
         bool shoot = P1 ? Input.GetMouseButtonDown(0) : Input.GetKeyDown(KeyCode.KeypadMultiply);
-        if (shoot && !isOnFoot && !PBoatWrecked) TryShoot();
+        if (shoot)
+        {
+            if (!isOnFoot && !PBoatWrecked) TryShoot();
+            else if (isOnFoot) TryShootOnFoot();
+        }
+    }
+
+    // Sklon kamery řídí náměr výstřelu (boat i pěší zbraň) — čím víc hráč kouká
+    // kamerou dolů, tím vyšším obloukem koule letí (a naopak skoro rovně, když
+    // kamera kouká víc k horizontu). Umožňuje trefit i vyvýšené cíle jako dělo
+    // na věži hradby (viz MegaIslandMarker.BuildWalls). forward.y je záporné,
+    // když kamera kouká dolů, proto mínus.
+    private const float MAX_LAUNCH_ANGLE = 55f;
+    private float LaunchAngleFromCamera()
+    {
+        if (viewCamera == null) return 0f;
+        float downAmount = Mathf.Clamp01(-viewCamera.forward.y);
+        return downAmount * MAX_LAUNCH_ANGLE;
     }
 
     // ── Střelba z lodního děla ─────────────────────────────────────────────
@@ -328,10 +378,32 @@ public class PlayerController : MonoBehaviour
         Vector3 dir  = boatModel != null ? boatModel.forward : transform.forward;
         Vector3 from = transform.position;
         CombatDirector.Ensure();
-        CannonBall.Fire(from, dir, BoatStats.CannonDamage(PShipLevel), CannonBall.Side.Player);
+        CannonBall.Fire(from, dir, BoatStats.CannonDamage(PShipLevel), CannonBall.Side.Player, LaunchAngleFromCamera());
 
         SoundManager.PlayCannon();
         gridManager.NotifyWorldChanged(); // překresli munici v HUD
+    }
+
+    // ── Střelba z pěší zbraně (hotbar slot 0) ────────────────────────────────
+    // Koupí se v obchodě (UpgradeShopManager.DrawWeaponRow) a má vlastní munici
+    // (PHandAmmo), oddělenou od lodní (PAmmo). Funguje jen, když je zbraň zrovna
+    // vybraná v hotbaru — vybrat munici/poklad zbraň "schová" (viz PHotbarSlot).
+    void TryShootOnFoot()
+    {
+        if (!PHasHandWeapon || PHotbarSlot != 0) return;
+        if (PHandAmmo <= 0) return;
+        if (Time.time < nextHandShotTime) return;
+        nextHandShotTime = Time.time + HAND_SHOOT_COOLDOWN;
+
+        PHandAmmo -= 1;
+
+        Vector3 dir  = transform.forward;
+        Vector3 from = transform.position + Vector3.up * 0.9f;
+        CombatDirector.Ensure();
+        CannonBall.Fire(from, dir, HAND_SHOT_DAMAGE, CannonBall.Side.Player, LaunchAngleFromCamera());
+
+        SoundManager.PlayCannon();
+        gridManager.NotifyWorldChanged(); // překresli munici v hotbaru
     }
 
     /// <summary>Zásah do lodě (volá soubojový systém). Když loď plave → ubírá jí
@@ -471,6 +543,8 @@ public class PlayerController : MonoBehaviour
         figureAnimator = CharacterModel.GetAnimator(model);
         figurePrevPos  = new Vector3(transform.position.x, 0f, transform.position.z); // ať anim nezačne "sprintem"
 
+        BuildHeldItemProps();
+
         if (found)
         {
             var p = model.transform.position;
@@ -482,7 +556,108 @@ public class PlayerController : MonoBehaviour
             if (child != model.transform) child.gameObject.SetActive(false);
     }
 
-    private Animator figureAnimator;   // animátor pěší postavičky (idle/walk/sprint)
+    // Věci "v ruce" postavičky — pistole (hotbar 0), váček s náboji (1),
+    // historický poklad (2). Bez napojení na kost, jen pevný offset od KOŘENE
+    // hráče (transform, ne model postavy — ten má v CharacterModel.TryBuild
+    // vlastní kompenzační škálování podle rodiče, což dělalo věci v ruce
+    // maličké a úplně mimo). Pozice = před tělem, trochu vpravo, v pase
+    // (podobně jako drží věc postavička v Robloxu). Vytvoří se rovnou, ale
+    // skryté — zobrazí/schová je UpdateWeaponVisual() podle hotbaru.
+    private static readonly Vector3 HELD_ITEM_ANCHOR = new Vector3(0.20f, 0.60f, 0.42f);
+
+    private void BuildHeldItemProps()
+    {
+        weaponProp   = BuildPistolProp();
+        ammoProp     = BuildAmmoPouchProp();
+        treasureProp = BuildTreasureProp();
+
+        weaponProp.SetActive(false);
+        ammoProp.SetActive(false);
+        treasureProp.SetActive(false);
+    }
+
+    // Pistole — hlaveň + pažba, dost velká, ať je v ruce vidět (dřív byla
+    // směšně malá). Hlaveň míří dopředu = lokální +Z = kam se panáček dívá.
+    private GameObject BuildPistolProp()
+    {
+        var root = new GameObject("WeaponProp");
+        root.transform.SetParent(transform, false);
+        root.transform.localPosition = HELD_ITEM_ANCHOR;
+
+        Material dark = MakeHeldMat(new Color(0.10f, 0.10f, 0.11f));
+        Material wood = MakeHeldMat(new Color(0.32f, 0.22f, 0.14f));
+
+        AddHeldPart(root.transform, PrimitiveType.Cylinder, "Barrel", new Vector3(0f, 0.05f, 0.15f), new Vector3(0.05f, 0.15f, 0.05f), new Vector3(90f, 0f, 0f), dark);
+        AddHeldPart(root.transform, PrimitiveType.Cube,     "Grip",   new Vector3(0f, -0.09f, -0.02f), new Vector3(0.07f, 0.17f, 0.06f), new Vector3(-22f, 0f, 0f), wood);
+        return root;
+    }
+
+    // Váček s náboji do zbraně — jednoduchá kostička, aby bylo poznat, že hráč
+    // zrovna drží munici (hotbar slot 1), ne zbraň.
+    private GameObject BuildAmmoPouchProp()
+    {
+        var root = new GameObject("AmmoProp");
+        root.transform.SetParent(transform, false);
+        root.transform.localPosition = HELD_ITEM_ANCHOR;
+
+        Material leather = MakeHeldMat(new Color(0.36f, 0.25f, 0.15f));
+        AddHeldPart(root.transform, PrimitiveType.Cube, "Pouch", new Vector3(0f, 0f, 0.06f), new Vector3(0.14f, 0.12f, 0.10f), Vector3.zero, leather);
+        return root;
+    }
+
+    // Historický poklad — malá zlatá truhlička (hotbar slot 2, jen když ho hráč má).
+    private GameObject BuildTreasureProp()
+    {
+        var root = new GameObject("TreasureProp");
+        root.transform.SetParent(transform, false);
+        root.transform.localPosition = HELD_ITEM_ANCHOR;
+
+        Material gold = MakeHeldMat(new Color(0.85f, 0.68f, 0.20f));
+        AddHeldPart(root.transform, PrimitiveType.Cube, "Chest", new Vector3(0f, 0f, 0.06f), new Vector3(0.16f, 0.12f, 0.12f), Vector3.zero, gold);
+        return root;
+    }
+
+    private static Material MakeHeldMat(Color c)
+    {
+        Shader sh = Shader.Find("Universal Render Pipeline/Lit") ?? Shader.Find("Standard");
+        var m = new Material(sh);
+        if (m.HasProperty("_BaseColor")) m.SetColor("_BaseColor", c);
+        if (m.HasProperty("_Color"))     m.SetColor("_Color", c);
+        return m;
+    }
+
+    private static void AddHeldPart(Transform parent, PrimitiveType type, string name, Vector3 localPos, Vector3 scale, Vector3 euler, Material mat)
+    {
+        var go = GameObject.CreatePrimitive(type);
+        go.name = name;
+        var col = go.GetComponent<Collider>();
+        if (col != null) Destroy(col);
+        go.transform.SetParent(parent, false);
+        go.transform.localPosition    = localPos;
+        go.transform.localScale       = scale;
+        go.transform.localEulerAngles = euler;
+        go.GetComponent<MeshRenderer>().sharedMaterial = mat;
+    }
+
+    // Ukaž přesně tu jednu věc v ruce, co odpovídá vybranému hotbar slotu
+    // (-1 = nic v ruce, viz "zase stiskni stejnou klávesu" v Update()); na
+    // lodi se nedrží nic (ruce jsou na kormidle). Levné volání (int
+    // porovnání), klidně z Update() každý snímek.
+    private void UpdateWeaponVisual()
+    {
+        if (weaponProp == null) return;
+        int show = isOnFoot ? PHotbarSlot : -1;
+        if (show == heldPropShown) return;
+        heldPropShown = show;
+
+        weaponProp.SetActive(show == 0 && PHasHandWeapon);
+        ammoProp.SetActive(show == 1);
+        treasureProp.SetActive(show == 2 && gridManager.gameData.hasHistoricalTreasure);
+    }
+
+    private Animator   figureAnimator;   // animátor pěší postavičky (idle/walk/sprint)
+    private GameObject weaponProp, ammoProp, treasureProp; // věci "v ruce" — jen jedna vidět podle PHotbarSlot
+    private int         heldPropShown = -2; // -2 = ještě nespočteno (donutí první Update() přepočítat)
     private Vector3  figurePrevPos;    // pozice z minulého snímku (na výpočet rychlosti)
     private float    figureAnimSpeed;  // vyhlazená rychlost pro blend tree
 
@@ -1255,6 +1430,58 @@ public class PlayerController : MonoBehaviour
         return null;
     }
 
+    // ── Hotbar (zbraň / munice / historický poklad) — pravý horní roh, pod
+    // ukazateli mincí/ryb/pokladů z HUDCounter (ty munici od teď neukazují,
+    // viz HUDCounter.BuildHUD). Kreslí se, jen když hráč aspoň jednu z věcí má.
+    private GUIStyle hotbarStyle, hotbarSelStyle, hotbarKeyStyle;
+
+    private void DrawHotbar()
+    {
+        bool hasWeapon   = PHasHandWeapon;
+        bool hasTreasure = gridManager.gameData.hasHistoricalTreasure;
+        if (!hasWeapon && !hasTreasure) return;
+
+        if (hotbarStyle == null)
+        {
+            hotbarStyle    = new GUIStyle(GUI.skin.label) { fontSize = 13, alignment = TextAnchor.MiddleCenter, normal = { textColor = new Color(0.85f, 0.85f, 0.8f) } };
+            hotbarSelStyle = new GUIStyle(hotbarStyle)    { fontStyle = FontStyle.Bold, normal = { textColor = new Color(1f, 0.85f, 0.45f) } };
+            hotbarKeyStyle = new GUIStyle(GUI.skin.label) { fontSize = 11, alignment = TextAnchor.MiddleCenter, normal = { textColor = new Color(0.7f, 0.7f, 0.65f) } };
+        }
+
+        string[] labels =
+        {
+            hasWeapon ? "Zbraň" : "Zbraň (nekoupena)",
+            $"Náboje: {PHandAmmo}",
+            hasTreasure ? "Hist. poklad" : "",
+        };
+        bool[] owned = { hasWeapon, hasWeapon, hasTreasure };
+
+        const float boxW = 130f, boxH = 30f, gap = 4f;
+        float right = HalfX() + HalfW() - 20f;
+        float top   = 20f;
+
+        for (int i = 0; i < 3; i++)
+        {
+            if (i == 2 && !hasTreasure) continue; // slot 3 se neukazuje, dokud poklad nemáš
+            var r = new Rect(right - boxW, top + i * (boxH + gap), boxW, boxH);
+
+            GUI.color = owned[i] ? new Color(0.06f, 0.07f, 0.10f, 0.85f) : new Color(0.06f, 0.07f, 0.10f, 0.4f);
+            GUI.DrawTexture(r, Texture2D.whiteTexture);
+            GUI.color = Color.white;
+
+            if (i == PHotbarSlot)
+            {
+                var frame = new Rect(r.x - 2f, r.y - 2f, r.width + 4f, r.height + 4f);
+                GUI.color = new Color(1f, 0.85f, 0.45f, 0.35f);
+                GUI.DrawTexture(frame, Texture2D.whiteTexture);
+                GUI.color = Color.white;
+            }
+
+            string keyLabel = P1 ? $"{i + 1}" : $"Np{7 + i}";
+            GUI.Label(r, $"[{keyLabel}] {labels[i]}", i == PHotbarSlot ? hotbarSelStyle : hotbarStyle);
+        }
+    }
+
     // ── Nápověda k opravě lodě + kontextová nápověda (dole na své půlce) ────
     private GUIStyle repairStyle, contextHintStyle;
 
@@ -1262,6 +1489,8 @@ public class PlayerController : MonoBehaviour
     {
         bool blocked = ModalOpen || isMoving || isWorking || GameConsole.IsOpen
                      || MainMenuManager.IsVisible || DeathScreen.IsOpen || VaultMechanism.IsOpenFor(playerIndex);
+
+        DrawHotbar();
 
         if (!blocked)
         {

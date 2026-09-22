@@ -1,9 +1,12 @@
+using System.Collections.Generic;
 using UnityEngine;
 
 // ─────────────────────────────────────────────────────────────────────────────
 //  LandGuard.cs
 //  Stacionární strážce na pevnině — zatím jen na mega ostrovech příběhu (viz
-//  .claude/story-plan.md, ostrov 1 "Pevnost staré posádky"). Nehýbe se z místa;
+//  .claude/story-plan.md, Ostrov pirátů "Pevnost staré posádky"). Dokud je
+//  hráč daleko, jen tiše stojí na místě (WAKE_RANGE) — teprve když se přiblíží,
+//  strážce "ožije" (otáčí se, střílí). Nehýbe se z místa ani vzhůru nohama;
 //  když je hráč PĚŠKY v dostřelu, střílí po něm stejně jako ostrovní dělo
 //  (CannonBall, Side.Enemy — CannonBall to pak pošle do PlayerController.
 //  DamagePlayer, ne DamageBoat, protože hráč je pěšky).
@@ -21,10 +24,18 @@ using UnityEngine;
 public class LandGuard : MonoBehaviour
 {
     private const float RANGE      = 7f;   // dostřel (v políčkách)
+    private const float WAKE_RANGE = 14f;  // dokud hráč (kterýkoliv) není blíž, strážce jen stojí — neotáčí se, nestřílí
     private const float RELOAD     = 2.2f; // pauza mezi výstřely
     private const float DAMAGE     = 6f;   // kolik ubere hráči jeden zásah
     private const float MAX_HP     = 8f;   // kolik "úderů" hráče vydrží (viz PLAYER_HIT)
     public  const float PLAYER_HIT = 2f;   // kolik ubere strážci jeden zásah od hráče (E)
+
+    // Statický seznam živých strážců (stejný vzor jako PlayerController.All) —
+    // CannonBall (hráčova pěší zbraň, viz PlayerController.TryShootOnFoot) si
+    // přes něj najde nejbližšího strážce, na kterého trefila.
+    public static readonly List<LandGuard> All = new List<LandGuard>();
+    void OnEnable()  { All.Add(this); }
+    void OnDisable() { All.Remove(this); }
 
     public  string     islandKey;   // klíč mega ostrova ("mega"), pro budoucí rozšíření
     private Vector2Int tile;        // políčko, na kterém strážce stojí (nehýbe se)
@@ -84,6 +95,16 @@ public class LandGuard : MonoBehaviour
 
     void Update()
     {
+        // Dokud není žádný hráč ani na dohled (WAKE_RANGE), strážce "spí" —
+        // nehýbe se, netočí se, nestřílí. Zabraňuje to i tomu, aby celá
+        // hlídka na ostrově vypadala "bugle" naskládaná do jedné pózy dřív,
+        // než k ní hráč vůbec dopluje.
+        bool playerNearby = false;
+        foreach (var pc in PlayerController.All)
+            if ((pc.transform.position - transform.position).sqrMagnitude <= WAKE_RANGE * WAKE_RANGE)
+            { playerNearby = true; break; }
+        if (!playerNearby) return;
+
         // Nejbližší hráč PĚŠKY v dostřelu (strážce je na pevnině, na lodě/plavce nestřílí).
         PlayerController target = null;
         float bestSq = RANGE * RANGE;

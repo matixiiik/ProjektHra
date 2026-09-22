@@ -126,6 +126,12 @@ public class UpgradeShopManager : MonoBehaviour
     int  Ammo()              => buyerIndex == 0 ? Data.ammo : Data.player2Ammo;
     void AddAmmo(int n)       { if (buyerIndex == 0) Data.ammo += n; else Data.player2Ammo += n; }
 
+    // Zbraň pro pěší boj — oddělená od lodní munice (viz GameData.hasHandWeapon/handAmmo).
+    bool HasHandWeapon()      => buyerIndex == 0 ? Data.hasHandWeapon : Data.player2HasHandWeapon;
+    void GiveHandWeapon()     { if (buyerIndex == 0) Data.hasHandWeapon = true; else Data.player2HasHandWeapon = true; }
+    int  HandAmmo()           => buyerIndex == 0 ? Data.handAmmo : Data.player2HandAmmo;
+    void AddHandAmmo(int n)   { if (buyerIndex == 0) Data.handAmmo += n; else Data.player2HandAmmo += n; }
+
     bool HasMap()             => buyerIndex == 0 ? Data.hasMap : Data.player2HasMap;
     void GiveMap()            { if (buyerIndex == 0) Data.hasMap = true; else Data.player2HasMap = true; }
 
@@ -243,6 +249,10 @@ public class UpgradeShopManager : MonoBehaviour
         GUILayout.Space(8);
         DrawAmmoRow();
         GUILayout.Space(8);
+        DrawWeaponRow();
+        GUILayout.Space(8);
+        DrawHandAmmoRow();
+        GUILayout.Space(8);
         DrawMapRow();
         GUILayout.Space(8);
         DrawRepairRow();
@@ -302,6 +312,44 @@ public class UpgradeShopManager : MonoBehaviour
             {
                 SetCoins(Coins() - cost);
                 AddAmmo(EconomyConfig.AmmoPackSize);
+                Persist();
+            }
+        }
+        GUI.enabled = true;
+        GUILayout.EndHorizontal();
+    }
+
+    // Zbraň pro boj pěšky — jednorázový nákup (jako mapa). Pak jde v hotbaru
+    // (klávesa 1 u P1) vybrat a střílet LMB / Numpad*, když je hráč pěšky.
+    private void DrawWeaponRow()
+    {
+        DrawRow("Zbran pro boj pesky  —  hotbar 1, strili se jako z lode",
+            PriceOf(EconomyConfig.HandWeapon), HasHandWeapon(), () =>
+            {
+                int cost = PriceOf(EconomyConfig.HandWeapon);
+                if (HasHandWeapon() || Coins() < cost) return;
+                SetCoins(Coins() - cost);
+                GiveHandWeapon();
+                Persist();
+            });
+    }
+
+    // Munice do pěší zbraně — dá se kupovat opakovaně, oddělená od lodní munice.
+    private void DrawHandAmmoRow()
+    {
+        int cost = PriceOf(EconomyConfig.HandAmmoPack);
+        GUILayout.BeginHorizontal();
+        GUILayout.Label($"Naboje do pesi zbrane  —  balicek {EconomyConfig.HandAmmoPackSize} naboju  (mas {HandAmmo()})",
+            rowStyle, GUILayout.ExpandWidth(true));
+        GUILayout.Label($"{cost} minci", rowStyle, GUILayout.Width(90));
+
+        GUI.enabled = Coins() >= cost;
+        if (SoundManager.Click(GUILayout.Button("Koupit", buyStyle, GUILayout.Width(90), GUILayout.Height(28))))
+        {
+            if (Coins() >= cost)
+            {
+                SetCoins(Coins() - cost);
+                AddHandAmmo(EconomyConfig.HandAmmoPackSize);
                 Persist();
             }
         }

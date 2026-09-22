@@ -328,8 +328,13 @@ public class PirateShip : MonoBehaviour
         Destroy(gameObject);
     }
 
+    // Jen vodorovná vzdálenost — viz HostileIslandCannon.IsNear (koule teď
+    // umí i oblouk s náměrem, souboj je záměrně "2D nad mořem").
     public bool IsNear(Vector3 pos, float radius)
-        => (transform.position - pos).sqrMagnitude <= radius * radius;
+    {
+        float dx = transform.position.x - pos.x, dz = transform.position.z - pos.z;
+        return dx * dx + dz * dz <= radius * radius;
+    }
 
     // ── pomůcky ────────────────────────────────────────────────────────────
     private static void Strip(GameObject go, Material mat)

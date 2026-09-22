@@ -154,8 +154,14 @@ public class HostileIslandCannon : MonoBehaviour
         }
     }
 
+    // Jen vodorovná vzdálenost (ne 3D) — dělo může stát vysoko na věži (viz
+    // MegaIslandMarker.BuildWalls), ale koule letí v konstantní/obloukové výšce,
+    // ne na úrovni děla. Souboj v týhle hře je záměrně "2D nad mořem", ne 3D.
     public bool IsNear(Vector3 pos, float radius)
-        => (transform.position - pos).sqrMagnitude <= radius * radius;
+    {
+        float dx = transform.position.x - pos.x, dz = transform.position.z - pos.z;
+        return dx * dx + dz * dz <= radius * radius;
+    }
 
     // ── pomůcky ────────────────────────────────────────────────────────────
     private static void StripCollider(GameObject go, Material mat)

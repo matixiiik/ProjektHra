@@ -163,6 +163,21 @@ public class GameData
     public bool storyDone;      // celý oblouk (3 ostrovy + finále) dohraný
     public int  storyEnding;    // 0=nevybráno, 1=bratr ušetřen, 2=bratr zabit
 
+    // ── Zbraň panáčka (pěší boj) + hotbar ─────────────────────────────────────
+    // Zbraň se kupuje v obchodě s vylepšeními a střílí se jí PĚŠKY (na rozdíl
+    // od `ammo`, což je munice do LODNÍHO děla — viz PlayerController.TryShoot
+    // vs. TryShootOnFoot). Hotbar má 3 sloty (klávesy 1/2/3 u P1, viz
+    // PlayerController): 0 = zbraň (jediný slot, co se dá reálně použít —
+    // LMB/Numpad* střílí, jen když je vybraný a hráč má zbraň i munici),
+    // 1 = munice (jen zobrazení stavu), 2 = historický poklad (jen když ho
+    // hráč má — hasHistoricalTreasure).
+    public bool hasHandWeapon;
+    public int  handAmmo;
+    public int  activeHotbarSlot;      // 0/1/2, viz výše
+    public bool player2HasHandWeapon;
+    public int  player2HandAmmo;
+    public int  player2ActiveHotbarSlot;
+
     // ── Verzování save souboru ───────────────────────────────────────────────
     // Nejnovější verze formátu. Zvednout při každé změně, která by vyžadovala
     // migraci starších uložených her (např. přečíslování TileType, změna

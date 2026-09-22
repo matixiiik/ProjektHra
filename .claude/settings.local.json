@@ -42,5 +42,9 @@
       "Bash(git reset --hard:*)",
       "Bash(git clean -fdx:*)"
     ]
+  },
+  "enabledPlugins": {
+    "ponytail@ponytail": false,
+    "graphify@pleaseai": false
   }
 }

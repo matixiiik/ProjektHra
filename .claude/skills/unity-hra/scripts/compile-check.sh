@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # ─────────────────────────────────────────────────────────────────────────────
 #  compile-check.sh
-#  Zkontroluje, jestli se herní kód (Assembly-CSharp) přeloží — BEZ nutnosti
+#  Zkontroluje, jestli se herní kód (Game.Runtime — Assets/Scripts/*.cs) přeloží
+#  — BEZ nutnosti
 #  otevírat Unity. Používá Roslyn kompilátor zabalený v Unity a přesně ty
 #  parametry, které Unity používá při normální kompilaci (Bee response file).
 #
@@ -33,9 +34,9 @@ CSC="$EDITOR/DotNetSdkRoslyn/csc.dll"
 [ -f "$CSC" ]    || { echo "❌ Chybí $CSC"; exit 2; }
 
 # 2) Bee response file (parametry kompilace). Bereme ne-Dbg variantu.
-RSP="$(ls -t Library/Bee/artifacts/*.dag/Assembly-CSharp.rsp 2>/dev/null | grep -v 'Dbg.dag' | head -1)"
-[ -z "$RSP" ] && RSP="$(ls -t Library/Bee/artifacts/*.dag/Assembly-CSharp.rsp 2>/dev/null | head -1)"
-[ -z "$RSP" ] && { echo "❌ Nenašel jsem Assembly-CSharp.rsp (otevři projekt v Unity aspoň jednou, ať se vygeneruje)"; exit 2; }
+RSP="$(ls -t Library/Bee/artifacts/*.dag/Game.Runtime.rsp 2>/dev/null | grep -v 'Dbg.dag' | head -1)"
+[ -z "$RSP" ] && RSP="$(ls -t Library/Bee/artifacts/*.dag/Game.Runtime.rsp 2>/dev/null | head -1)"
+[ -z "$RSP" ] && { echo "❌ Nenašel jsem Game.Runtime.rsp (otevři projekt v Unity aspoň jednou, ať se vygeneruje)"; exit 2; }
 
 # 3) Kopie rsp s přesměrovaným výstupem. Výstup jde do Temp/ (gitignored,
 #    Unity si ho nehlídá) a cesta je RELATIVNÍ ke kořeni projektu — csc.exe
@@ -48,7 +49,16 @@ sed -e 's#-out:"[^"]*"#-out:"'"$OUT_DIR"'/check.dll"#' \
     -e '/additionalfile/d' \
     "$RSP" > "$CHECK_RSP"
 
-echo "🔨 Kompiluji Assembly-CSharp (Unity $VER)…"
+# 3b) RSP je snapshot z POSLEDNÍHO Unity kompilu — soubor, co teprve přibyl
+#     (Unity ho ještě nezkompilovalo), v něm chybí a bez něj by check hlásil
+#     falešné chyby ("type not found" u nové třídy). Dopiš chybějící .cs
+#     soubory z Assets/Scripts ručně.
+while IFS= read -r -d '' f; do
+    rel="${f#"$PROJECT_ROOT"/}"
+    grep -qF "\"$rel\"" "$CHECK_RSP" || printf '"%s"\n' "$rel" >> "$CHECK_RSP"
+done < <(find "$PROJECT_ROOT/Assets/Scripts" -name '*.cs' -print0)
+
+echo "🔨 Kompiluji Game.Runtime (Unity $VER)…"
 OUTPUT="$("$DOTNET" "$CSC" "@$CHECK_RSP" 2>&1)"
 CODE=$?
 

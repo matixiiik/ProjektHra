@@ -39,8 +39,9 @@ public class PauseMenu : MonoBehaviour
         // Když je vidět hlavní menu, pauza se neřeší.
         if (MainMenuManager.IsVisible) return;
 
-        // Když je otevřená velká mapa, Esc patří jí (zavře ji), ne pauze.
+        // Když je otevřená velká mapa nebo deník, Esc patří jim (zavře je), ne pauze.
         if (MapScreen.IsOpen) return;
+        if (JournalScreen.IsOpen) return;
 
         // Esc vždy; Enter na numpadu jen v multiplayeru (P2 nemá Esc po ruce).
         bool pausePressed = Input.GetKeyDown(KeyCode.Escape)
@@ -59,11 +60,12 @@ public class PauseMenu : MonoBehaviour
     void OnGUI()
     {
         if (!isOpen) return;
+        if (JournalScreen.IsOpen) return; // deník kreslí svůj vlastní overlay přes celou obrazovku
         InitStyles();
 
         bool  mp = MultiplayerManager.IsMultiplayer;
         float w  = 360;
-        float h  = mp ? 420 : 260; // v multiplayeru je okno vyšší kvůli převodu peněz
+        float h  = (mp ? 420 : 260) + 52; // v multiplayeru je okno vyšší kvůli převodu peněz; +52 = tlačítko Deník
 
         // Tmavý overlay přes celou obrazovku.
         GUI.color = new Color(0f, 0f, 0f, 0.75f);
@@ -87,6 +89,9 @@ public class PauseMenu : MonoBehaviour
 
         if (SoundManager.Click(GUILayout.Button("Pokračovat", buttonStyle, GUILayout.Height(44))))
             ContinueGame();
+        GUILayout.Space(8);
+        if (SoundManager.Click(GUILayout.Button("Deník", buttonStyle, GUILayout.Height(44))))
+            JournalScreen.Toggle();
         GUILayout.Space(8);
         if (SoundManager.Click(GUILayout.Button("Nová hra", buttonStyle, GUILayout.Height(44))))
             NewGame();

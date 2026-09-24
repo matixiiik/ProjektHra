@@ -527,8 +527,27 @@ public class MinimapUIRenderer : MonoBehaviour
             case TileType.Pier:       return pierColor;
             case TileType.Lighthouse: return lighthouseColor;
             case TileType.Chest:      return chestColor;
-            case TileType.MegaIsland: return new Color(0.55f, 0.35f, 0.7f, 1f); // příběhový ostrov — fialová
+            case TileType.MegaIsland: return MegaIslandColor(x, y);
             default:                  return waterColor; // staré shopy apod. bereme jako vodu
         }
+    }
+
+    // Příběhový mega ostrov je běžně fialový. Dokud ale hráč nesloží jeho
+    // obranu (děla/strážce/hlídkovou loď — megaTask==0), obarví se do
+    // červenohněda, ať je na mapě vidět, že ostrov je ještě "pod obranou".
+    // Staré, už opuštěné mega ostrovy (tileData typ zůstává napořád) nejsou
+    // tímhle dotčené — kontroluje se vzdálenost od AKTUÁLNÍHO ostrova
+    // (gameData.storyIslandX/Y), ne jen typ dlaždice.
+    private static readonly Color MegaIslandSafeColor  = new Color(0.55f, 0.35f, 0.70f, 1f);
+    private static readonly Color MegaIslandDangerColor = new Color(0.85f, 0.30f, 0.15f, 1f);
+
+    Color MegaIslandColor(int x, int y)
+    {
+        GameData d = grid.gameData;
+        if (!d.storyIslandActive || d.megaTask != 0) return MegaIslandSafeColor;
+
+        int dx = x - d.storyIslandX, dy = y - d.storyIslandY;
+        bool isCurrentIsland = dx * dx + dy * dy <= 22 * 22;
+        return isCurrentIsland ? MegaIslandDangerColor : MegaIslandSafeColor;
     }
 }

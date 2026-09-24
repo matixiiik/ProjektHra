@@ -31,6 +31,7 @@ public class SoundManager : MonoBehaviour
     private AudioClip cannonClip;
     private AudioClip hitClip;
     private AudioClip sinkClip;
+    private AudioClip handgunClip;
 
     // Najde existující SoundManager ve scéně, nebo si ho (i s AudioSource) vytvoří.
     public static SoundManager Ensure()
@@ -58,9 +59,10 @@ public class SoundManager : MonoBehaviour
         splashClip = MakeSplashClip();
         doorClip   = MakeDoorClip();
         waveClip   = MakeWaveClip();
-        cannonClip = MakeCannonClip();
-        hitClip    = MakeHitClip();
-        sinkClip   = MakeSinkClip();
+        cannonClip  = MakeCannonClip();
+        hitClip     = MakeHitClip();
+        sinkClip    = MakeSinkClip();
+        handgunClip = MakeHandgunClip();
     }
 
     void OnDestroy()
@@ -76,6 +78,7 @@ public class SoundManager : MonoBehaviour
     public static void PlayCannon() { SoundManager m = Ensure(); m.PlayOneShotInternal(m.cannonClip, 0.9f); }
     public static void PlayHit()    { SoundManager m = Ensure(); m.PlayOneShotInternal(m.hitClip); }
     public static void PlaySink()   { SoundManager m = Ensure(); m.PlayOneShotInternal(m.sinkClip, 0.85f); }
+    public static void PlayHandgun(){ SoundManager m = Ensure(); m.PlayOneShotInternal(m.handgunClip, 0.75f); }
 
     // Spustí smyčku hukotu moře (jednou, další volání nic nedělá, pokud už hraje).
     public static void StartWaves()
@@ -244,6 +247,28 @@ public class SoundManager : MonoBehaviour
             data[i] = (tone * 0.6f + prev * 0.5f) * env;
         }
         return MakeClip("SinkSfx", data, sr);
+    }
+
+    // Výstřel pěší zbraně (pistole) — mnohem kratší a ostřejší než dělová rána,
+    // žádné hluboké dunění, jen rychlé "prásk" (jasný šum) + krátký klesající tón.
+    AudioClip MakeHandgunClip()
+    {
+        int sr = 22050;
+        int n  = Mathf.RoundToInt(sr * 0.12f);
+        float[] data = new float[n];
+        System.Random rng = new System.Random(14);
+        float prev = 0f;
+        for (int i = 0; i < n; i++)
+        {
+            float u    = i / (float)n;
+            float t    = i / (float)sr;
+            float env  = Mathf.Exp(-26f * u);                                  // rychlý útlum, kratší než dělo
+            float crack = (float)(rng.NextDouble() * 2.0 - 1.0);
+            prev = prev * 0.5f + crack * 0.5f;                                 // méně filtrovaný šum = jasnější "prásk"
+            float tone = Mathf.Sin(2f * Mathf.PI * Mathf.Lerp(950f, 380f, u) * t);
+            data[i] = (prev * 0.75f + tone * 0.4f) * env;
+        }
+        return MakeClip("HandgunSfx", data, sr);
     }
 
     // Hukot moře na pozadí — filtrovaný šum s pomalým "dýcháním" hlasitosti, smyčka.

@@ -266,9 +266,26 @@ public class MapScreen : MonoBehaviour
             case TileType.Pier:       return CPier;
             case TileType.Lighthouse: return CLight;
             case TileType.Chest:      return CChest;
-            case TileType.MegaIsland: return new Color(0.55f, 0.35f, 0.7f); // příběhový ostrov
+            case TileType.MegaIsland: return MegaIslandColor(x, y);
             default:                  return CWater;
         }
+    }
+
+    // Stejné pravidlo jako na minimapě (MinimapUIRenderer.MegaIslandColor) —
+    // aktuální mega ostrov je červenohnědý, dokud na něm hráč nesloží obranu
+    // (megaTask==0), pak fialový jako dřív. Staré opuštěné mega ostrovy
+    // (tileData jim zůstává napořád) se podle vzdálenosti od storyIslandX/Y
+    // nepletou s tím aktuálním.
+    private static readonly Color CMegaSafe   = new Color(0.55f, 0.35f, 0.7f);
+    private static readonly Color CMegaDanger = new Color(0.85f, 0.30f, 0.15f);
+
+    Color MegaIslandColor(int x, int y)
+    {
+        GameData d = grid.gameData;
+        if (!d.storyIslandActive || d.megaTask != 0) return CMegaSafe;
+
+        int dx = x - d.storyIslandX, dy = y - d.storyIslandY;
+        return dx * dx + dy * dy <= 22 * 22 ? CMegaDanger : CMegaSafe;
     }
 
     // Křížek na políčku [tileX,tileY] o poloměru r pixelů.

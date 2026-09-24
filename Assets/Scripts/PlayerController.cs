@@ -402,7 +402,7 @@ public class PlayerController : MonoBehaviour
         CombatDirector.Ensure();
         CannonBall.Fire(from, dir, HAND_SHOT_DAMAGE, CannonBall.Side.Player, LaunchAngleFromCamera());
 
-        SoundManager.PlayCannon();
+        SoundManager.PlayHandgun();
         gridManager.NotifyWorldChanged(); // překresli munici v hotbaru
     }
 

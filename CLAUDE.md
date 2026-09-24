@@ -67,8 +67,14 @@ ostrově). Podporuje lokální split-screen pro dva hráče.
   **nepřátelských** (`gameData.hostileIslands`) — mají dělo (`HostileIslandCannon`).
 - Hladký terén ostrova = generovaný mesh (`IslandTerrain.Build` + `BuildGrass`).
 - `OnWorldChanged` event → překreslení HUD, minimapy.
-- **Mega ostrovy** (`PlaceMegaIsland`, typ `MegaIsland`) — velká příběhová plocha,
-  zatím jen země + obelisk (`MegaIslandMarker`). Vede k nim příběh.
+- **Mega ostrovy** (`PlaceMegaIsland`, typ `MegaIsland`) — velké příběhové ostrovy,
+  vždy aktivní nejvýš jeden. `MegaIslandMarker.megaIndex` (0-2) určuje obsah:
+  0 = Ostrov pirátů (hradby + děla na věžích + strážci + hlídková loď, po
+  poražení trezor s hádankou ozubených kol, pak vzkaz), 1 = Hřbitov lodí
+  (Bludný Holanďan, 3 vykopávané kusy mapy z mělčiny, podpalubí se vzkazem),
+  2 = Konfrontace (bratrova loď, `RivalNpc`, volba ušetřit/zabít → 2 koncovky).
+  `megaTask` (0-3) sleduje postup na aktuálním ostrově; `GridManager.
+  GiveNextMegaIsland()` zničí starý marker a postaví další.
 
 ### Hráč (`PlayerController`, ~850 řádků)
 - **Volný pohyb podle kamery** (ne skákání po políčkách): `Move(h,v)` jede ve
@@ -150,12 +156,20 @@ ostrově). Podporuje lokální split-screen pro dva hráče.
   ostrov se pak vždy přegeneruje, i po úklidu dlaždic).
 - Odměny za potopení v `EconomyConfig`.
 
-### Příběh (`StoryNpc` — „starý námořník" / děda)
-- Sedí u startovního ostrova (nad hladinou, políčko bez dekorace —
+### Příběh (`StoryNpc` — „starý námořník" / děda, `RivalNpc` — jeho ztracený bratr)
+- Děda sedí u startovního ostrova (nad hladinou, políčko bez dekorace —
   `GridManager.ReserveNpcTile`). `E` = rozhovor (`IsTalkingWith` mrazí ovládání).
-- `gameData.storyStep` řídí repliky: 0 start → 1 „kup si loď a přines mi 1000
-  mincí + historický poklad" → 2 dostal souřadnice mega ostrova → 3 našel stopu → …
-- „Historický poklad" (`hasHistoricalTreasure`) padá z vyplacení mega questu (~20 %).
+- `gameData.storyStep`: 0 start → 1 „kup si loď a přines mi 1000 mincí +
+  historický poklad" → 2 dostal souřadnice mega ostrova, šipka na minimapě →
+  3 na mega ostrově (dál repliky řídí `megaTask`/`megaIndex` — `storyStep` se
+  odtud už neposouvá). „Historický poklad" (`hasHistoricalTreasure`) padá
+  z vyplacení mega questu (~20 %).
+- **Celý oblouk je hotový**: tři mega ostrovy za sebou (`megaIndex` 0→1→2, viz
+  výš) — po přečtení vzkazu na druhém z nich se na třetím objeví bratrova loď
+  (`RivalNpc.Spawn` po jejím potopení), dlouhý monolog a volba **ušetřit /
+  zabít** → `gameData.storyDone=true`, `storyEnding` (1/2) mění dědovu
+  poslední repliku. Detail: `.claude/story-plan.md`, historie kroků:
+  `.claude/handoff.md`.
 
 ### UI
 - **IMGUI (`OnGUI`)**: `MainMenuManager`, `PauseMenu`, `GameConsole`,

@@ -238,4 +238,5 @@ neřídí `Time.timeScale` (jako obchod/mapa), v sólu ji pauzuje `SoloPause`.
   ```
 - **Git LFS** zatím vypnuto. `.gitignore` ignoruje `Library/`, `Temp/`,
   `Assets/Screenshots/`, IDE soubory a buildy.
-- Feature backlog + příběhové nápady: `Napady.txt` v kořeni repa.
+- Starý feature backlog + příběhové nápady (archiv, většina hotová):
+  `.claude/archiv/Napady.txt`. Aktivní backlog momentálně žádný není.

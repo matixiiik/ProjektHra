@@ -43,6 +43,16 @@ public class PauseMenu : MonoBehaviour
         if (MapScreen.IsOpen) return;
         if (JournalScreen.IsOpen) return;
 
+        // Stejně tak dialog (děda/bratr) a trezorový puzzle — i ty zavírá Esc
+        // (StoryNpc/RivalNpc/VaultMechanism čtou Input.GetKeyDown(Escape) samy
+        // ve svém Update()). Bez týhle pojistky by Esc zavřel dialog A ZÁROVEŇ
+        // otevřel pauzu ve stejném snímku (PauseMenu běží dřív, viz
+        // DefaultExecutionOrder), takže by hráč skončil koukat na pauzu místo
+        // zpátky ve hře.
+        if (StoryNpc.Instance != null && StoryNpc.Instance.IsTalking) return;
+        if (RivalNpc.Instance != null && (RivalNpc.Instance.IsTalkingWith(0) || RivalNpc.Instance.IsTalkingWith(1))) return;
+        if (VaultMechanism.IsOpenFor(0) || VaultMechanism.IsOpenFor(1)) return;
+
         // Esc vždy; Enter na numpadu jen v multiplayeru (P2 nemá Esc po ruce).
         bool pausePressed = Input.GetKeyDown(KeyCode.Escape)
                          || (MultiplayerManager.IsMultiplayer && Input.GetKeyDown(KeyCode.KeypadEnter));

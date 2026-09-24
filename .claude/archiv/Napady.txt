@@ -1,3 +1,14 @@
+# ARCHIVOVÁNO 2026-09-24 — už není aktivní backlog
+#
+# Drtivá většina věcí odsud je dávno implementovaná (ověřeno kontrolou kódu,
+# viz PR #1 na claude/upbeat-brown-gd0t07). Soubor byl jeden dlouhý
+# nesetříděný výpis nápadů z chatu, bez odškrtávání — nešlo z něj poznat,
+# co ještě chybí. Necháno tu jen jako historická poznámka / kontext pro
+# příběhová a designová rozhodnutí, ne jako TODO list.
+#
+# Nový backlog (pokud vznikne) patří do čerstvého souboru v kořeni repa.
+# ─────────────────────────────────────────────────────────────────────────
+
 predelej tresuery (co jsou na mori na grafiku ship-wreck, aby to vypadalo jako ze lovi poklad z ty lodi), udelej jeste kdyz ve split screenu nekdo vejde do majaku tak at na druhe obrazovce nejde videt ten panacek na ostrove (vpodstate u vseho musi byt pouze na jednom miste - ostrov, lod, majak zatim), jeset uprav ze kdyz mas split screen tak player jedna vsechno co otevira pismeno - e tak bude delat u player 2 - 1 a takhle se vsim ale jenom u split screenu
 
 predel to ze kdyz vejdes do majaku je to ctverec - uprav to nejak aby to bylo kolo a tam ty shopy oka atd (kdyz to je kulaty majak tak je napicu kdyz to vypada pak jako ctverec), nikde nesmi fungovat na player 1 sipky na chozeni (jenom na pyer 2 jenom ve split screenu)
@@ -33,4 +44,3 @@ Vrak po rozbité lodi zůstane chvíli na hladině — doplaveš k němu a zachr
 Pauza při otevřeném obchodu/dialogu — teď hra běží dál a pirát tě může sejmout, když nakupuješ v majáku (pokud to není záměr).
 Krátká nápověda na startu (třeba od dědy): LMB = střelba, E = maják/přístav, R = oprava. Nový hráč ovládání netuší.
 Pěna i za pirátskými loděmi — teď kloužou po vodě bez stopy, působí staticky.
-

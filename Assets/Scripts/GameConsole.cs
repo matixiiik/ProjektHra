@@ -118,7 +118,7 @@ public class GameConsole : MonoBehaviour
                 Log("<color=#ffff88>get fish</color> <pocet>             přidá ryby");
                 Log("<color=#ffff88>get treasure</color> <pocet>         přidá poklady");
                 Log("<color=#ffff88>get boat</color> row/small/medium/large   změní loď");
-                Log("<color=#ffff88>get item</color> map/ammo/histtreasure/sellbonus/megamap");
+                Log("<color=#ffff88>get item</color> map/ammo/handweapon/handammo/histtreasure/sellbonus/megamap");
                 Log("<color=#ffff88>upgrade</color> speed/rod/mining      odemkne upgrade");
                 Log("<color=#ffff88>tp</color> <x> <y>                   teleport");
                 Log("<color=#ffff88>explore</color> [radius]             odhalí mapu");

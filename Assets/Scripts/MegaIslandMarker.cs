@@ -112,12 +112,11 @@ public class MegaIslandMarker : MonoBehaviour
         }
     }
 
-    // Postaví trezor, jakmile obrana padla (megaTask >= 1) — buď hned po
-    // zničení poslední hlídky (výše v Update()), nebo při načtení savu, kde
-    // už obrana dřív padla (viz BuildFortress, větev pro megaTask > 0).
+    // Postaví trezor. Volá se hned při vzniku ostrova (BuildFortress) —
+    // nečeká už na megaTask >= 1 (padlou obranu), viz tamní komentář.
     private void BuildVaultIfNeeded()
     {
-        if (vaultBuilt || gridManager == null || gridManager.gameData.megaTask < 1) return;
+        if (vaultBuilt || gridManager == null) return;
         vaultBuilt = true;
 
         Vector2Int spot = tilePos; // nouzovka, kdyby se nenašlo nic lepšího
@@ -137,15 +136,21 @@ public class MegaIslandMarker : MonoBehaviour
         if (gridManager == null) return;
 
         // Hradby + věže jsou čistě kosmetické (nezávisí na megaTask) — stavíme
-        // je vždy, i po reloadu, kdy je obrana už dávno poražená. Vrátí null,
-        // když už (v týhle scéně) stojí — pak se dole ani děla nerozmisťují
-        // znovu (byla by to stejná duplicita jako dřív u hradeb).
+        // je vždy, i po reloadu, kdy je obrana už dávno poražená. Když hradba
+        // v týhle scéně už stojí (další "Nová hra" bez restartu Unity),
+        // BuildWalls ji podruhé nepostaví, ale pozice věží (deterministické)
+        // vrátí i tak — podle nich se dole rozmisťují děla.
         var towerCorners = BuildWalls();
 
+        // Trezor je přístupný HNED, i když obrana ještě stojí (na žádost
+        // playtestu — nemá smysl nutit hráče vyřídit VŠECHNA děla/strážce/
+        // loď, než se vůbec dostane k puzzlu). BuildVaultIfNeeded si sám
+        // hlídá, že se nepostaví dvakrát.
+        BuildVaultIfNeeded();
+
         // Obrana se staví, jen když ještě nebyla vyřízená (staré savy po
-        // reloadu ať znovu nespawnou už poražené hlídky) — místo toho rovnou
-        // postav trezor, ten na megaTask 0 nezávisí.
-        if (gridManager.gameData.megaTask > 0) { BuildVaultIfNeeded(); return; }
+        // reloadu ať znovu nespawnou už poražené hlídky).
+        if (gridManager.gameData.megaTask > 0) return;
 
         // 2–3 strážci, deterministicky podle pozice ostrova. Děla teď sedí NA
         // věžích (viz PlaceCannonsOnTowers), ne na okraji ostrova jako dřív.
@@ -550,13 +555,22 @@ public class MegaIslandMarker : MonoBehaviour
         // hra"/"Pokračovat" bez restartu Unity) by je postavilo podruhé na
         // sebe. Kontrola podle jména v AKTUÁLNÍ scéně (ne statické pole — to
         // by přežívalo i Stop/Play, kde se scéna vždy staví od nuly).
+        //
+        // Pozice věží (towerCorners) se ale musí vrátit VŽDY, i když hradby už
+        // stojí — jinak PlaceCannonsOnTowers dostane null a při další "Nové
+        // hře" ostrov zůstane bez děl. PickTowerCorners je deterministický
+        // (hash pozice, žádný Random.value), takže vrátí stejné pozice jako
+        // při prvním postavení hradby.
         string wallsName = $"Walls_{tilePos.x}_{tilePos.y}";
-        if (GameObject.Find(wallsName) != null) return null;
+        bool wallsAlreadyBuilt = GameObject.Find(wallsName) != null;
 
         var loop = TraceIslandBoundary();
         if (loop == null) return null;
         var runs = MergeIntoStraightRuns(loop);
         if (runs.Count == 0) return null;
+
+        var towerCorners = PickTowerCorners(runs, 5);
+        if (wallsAlreadyBuilt) return towerCorners;
 
         // Směr k molu = stejný vzorec jako v GridManager.PlaceMegaIsland (mola
         // se vždy dává na stranu přivrácenou ke světovému počátku) — brána jde
@@ -584,7 +598,6 @@ public class MegaIslandMarker : MonoBehaviour
         var wallsGo = new GameObject(wallsName);
         wallsGo.transform.position = new Vector3(tilePos.x, 0f, tilePos.y);
 
-        var towerCorners = PickTowerCorners(runs, 5);
         foreach (var corner in towerCorners)
         {
             Vector2 inward = center - corner; // věž "vchodem" dovnitř pevnosti

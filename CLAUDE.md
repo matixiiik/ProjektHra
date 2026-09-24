@@ -129,6 +129,10 @@ ostrově). Podporuje lokální split-screen pro dva hráče.
 - Ekonomiky oddělené; převod peněz mezi hráči v `PauseMenu`.
 - Ovládání: **P1 = WASD, E, Space, M, R, LMB, Esc**; **P2 = šipky, Numpad 1/0/2,
   Numpad `/`, Numpad `*`, Numpad Enter**.
+- **Síťový multiplayer (2 PC přes síť, sdílená mapa) je jen naplánovaný, ne
+  implementovaný** — architektura, fáze a otevřené otázky v
+  `.claude/network-multiplayer-plan.md`. Nezačínat, dokud se všechny souběžné
+  větve nesjednotí (viz git historie k datu plánu).
 
 ### Maják (`LighthouseManager` + `LighthouseInterior` + `InteriorPlayer` / `InteriorInteractable`)
 - Pěšky u majáku `E` → `LighthouseManager.Enter(playerIndex)`.
@@ -181,11 +185,13 @@ ostrově). Podporuje lokální split-screen pro dva hráče.
   kompas + waypoint šipka).
 
 ### Vstup blokovaný přes flagy (respektuj v novém ovládání)
-`GameConsole.IsOpen`, `MainMenuManager.IsVisible`, `DeathScreen.IsOpen`,
-`MapScreen.IsOpenFor(playerIndex)`, `UpgradeShopManager.AnyShopOpen` (static,
-scanuje `FindObjectsByType`), per-hráč `…ShopManager.IsOpenForBuyer(playerIndex)`,
-`StoryNpc.IsTalkingWith(playerIndex)`. **Ve split screenu obchod/mapa/dialog
-jednoho hráče nemrazí druhého.**
+Globální (mrazí oba hráče): `GameConsole.IsOpen`, `MainMenuManager.IsVisible`.
+Per-hráč (mrazí jen toho, co má okno otevřené): `MapScreen.IsOpenFor(playerIndex)`,
+`DeathScreen.IsOpenFor(playerIndex)`, `UpgradeShopManager.AnyShopOpen` (static,
+scanuje `FindObjectsByType`) společně s per-hráč `…ShopManager.IsOpenForBuyer
+(playerIndex)`, `StoryNpc.IsTalkingWith(playerIndex)`. **Ve split screenu
+obchod/mapa/dialog/smrt jednoho hráče nemrazí druhého** — `DeathScreen` sama
+neřídí `Time.timeScale` (jako obchod/mapa), v sólu ji pauzuje `SoloPause`.
 
 ### Herní konzole (cheaty) — `GameConsole`, klávesa `` ` ``
 `get money/fish/treasure`, `get boat row/small/medium/large`,
@@ -232,4 +238,5 @@ jednoho hráče nemrazí druhého.**
   ```
 - **Git LFS** zatím vypnuto. `.gitignore` ignoruje `Library/`, `Temp/`,
   `Assets/Screenshots/`, IDE soubory a buildy.
-- Feature backlog + příběhové nápady: `Napady.txt` v kořeni repa.
+- Starý feature backlog + příběhové nápady (archiv, většina hotová):
+  `.claude/archiv/Napady.txt`. Aktivní backlog momentálně žádný není.

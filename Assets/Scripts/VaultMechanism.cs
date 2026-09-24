@@ -196,7 +196,9 @@ public class VaultMechanism : MonoBehaviour
         openFor = -1;
         if (openInstance == this) openInstance = null;
 
-        if (gridManager != null && gridManager.gameData.megaTask == 1)
+        // < 2, ne == 1 — trezor teď jde vyřešit i s obranou ještě naživu
+        // (megaTask pořád 0), takže sem hráč může dorazit s oběma hodnotami.
+        if (gridManager != null && gridManager.gameData.megaTask < 2)
         {
             gridManager.gameData.megaTask = 2;
             gridManager.Save();

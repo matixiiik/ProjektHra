@@ -294,7 +294,7 @@ public class PlayerController : MonoBehaviour
         // s koupenou mapou. M (P1) / Numpad 2 (P2). Řeší otevření i zavření
         // (Toggle), proto je to nad "zámkem" ovládání níž.
         if (KeyDown(KeyCode.M, KeyCode.Keypad2) && !PBoatWrecked && PHasMap
-            && !GameConsole.IsOpen && !MainMenuManager.IsVisible && !DeathScreen.IsOpen)
+            && !GameConsole.IsOpen && !MainMenuManager.IsVisible && !DeathScreen.IsOpenFor(playerIndex))
         {
             MapScreen.Toggle(playerIndex, gridManager);
             return;
@@ -308,7 +308,7 @@ public class PlayerController : MonoBehaviour
                         || (RivalNpc.Instance != null && RivalNpc.Instance.IsTalkingWith(playerIndex));
         bool myVaultOpen = VaultMechanism.IsOpenFor(playerIndex); // puzzle na trezoru mega ostrova (Krok 3)
         if (isMoving || isWorking || myShopOpen || myTalkOpen || myVaultOpen || MapScreen.IsOpenFor(playerIndex)
-            || GameConsole.IsOpen || MainMenuManager.IsVisible || DeathScreen.IsOpen) return;
+            || GameConsole.IsOpen || MainMenuManager.IsVisible || DeathScreen.IsOpenFor(playerIndex)) return;
 
         // E / Numpad1 → nastup/vystup z lodě, nebo vejdi do sousední budovy (maják).
         if (KeyDown(KeyCode.E, KeyCode.Keypad1))
@@ -412,7 +412,7 @@ public class PlayerController : MonoBehaviour
     /// Když hráč zrovna plave (rozbitá loď), zásah jde přímo do panáčka.</summary>
     public void DamageBoat(int dmg)
     {
-        if (isOnFoot || dmg <= 0 || DeathScreen.IsOpen) return;
+        if (isOnFoot || dmg <= 0 || DeathScreen.IsOpenFor(playerIndex)) return;
         if (Time.time < damageGraceUntil) return;
         if (ModalOpen) return; // hráč zrovna nakupuje / mluví / je v majáku → nezraní ho to
 
@@ -481,7 +481,7 @@ public class PlayerController : MonoBehaviour
     /// <summary>Ubere hráči (panáčkovi) zdraví přímo. Při 0 → obrazovka smrti.</summary>
     public void DamagePlayer(int dmg)
     {
-        if (dmg <= 0 || DeathScreen.IsOpen) return;
+        if (dmg <= 0 || DeathScreen.IsOpenFor(playerIndex)) return;
         if (ModalOpen) return;
 
         lastDamageTime = Time.time;
@@ -1433,13 +1433,17 @@ public class PlayerController : MonoBehaviour
     // ── Hotbar (zbraň / munice / historický poklad) — pravý horní roh, pod
     // ukazateli mincí/ryb/pokladů z HUDCounter (ty munici od teď neukazují,
     // viz HUDCounter.BuildHUD). Kreslí se, jen když hráč aspoň jednu z věcí má.
+    // Čtvrtý řádek (munice do LODNÍHO děla) se přidá jen za plavby s dělem —
+    // není to vybíratelný slot (hotbar je jinak jen pro pěší výbavu), proto
+    // nemá "[klávesa]" prefix jako ostatní řádky.
     private GUIStyle hotbarStyle, hotbarSelStyle, hotbarKeyStyle;
 
     private void DrawHotbar()
     {
-        bool hasWeapon   = PHasHandWeapon;
-        bool hasTreasure = gridManager.gameData.hasHistoricalTreasure;
-        if (!hasWeapon && !hasTreasure) return;
+        bool hasWeapon     = PHasHandWeapon;
+        bool hasTreasure   = gridManager.gameData.hasHistoricalTreasure;
+        bool hasCannonBoat = !isOnFoot && BoatStats.HasCannon(PShipLevel);
+        if (!hasWeapon && !hasTreasure && !hasCannonBoat) return;
 
         if (hotbarStyle == null)
         {
@@ -1453,16 +1457,18 @@ public class PlayerController : MonoBehaviour
             hasWeapon ? "Zbraň" : "Zbraň (nekoupena)",
             $"Náboje: {PHandAmmo}",
             hasTreasure ? "Hist. poklad" : "",
+            hasCannonBoat ? $"Náboje do děla: {PAmmo}" : "",
         };
-        bool[] owned = { hasWeapon, hasWeapon, hasTreasure };
+        bool[] owned = { hasWeapon, hasWeapon, hasTreasure, hasCannonBoat };
 
         const float boxW = 130f, boxH = 30f, gap = 4f;
         float right = HalfX() + HalfW() - 20f;
         float top   = 20f;
 
-        for (int i = 0; i < 3; i++)
+        for (int i = 0; i < 4; i++)
         {
-            if (i == 2 && !hasTreasure) continue; // slot 3 se neukazuje, dokud poklad nemáš
+            if (i == 2 && !hasTreasure)   continue; // slot 3 se neukazuje, dokud poklad nemáš
+            if (i == 3 && !hasCannonBoat) continue; // řádek s municí do děla jen za plavby s dělem
             var r = new Rect(right - boxW, top + i * (boxH + gap), boxW, boxH);
 
             GUI.color = owned[i] ? new Color(0.06f, 0.07f, 0.10f, 0.85f) : new Color(0.06f, 0.07f, 0.10f, 0.4f);
@@ -1478,7 +1484,10 @@ public class PlayerController : MonoBehaviour
             }
 
             string keyLabel = P1 ? $"{i + 1}" : $"Np{7 + i}";
-            GUI.Label(r, $"[{keyLabel}] {labels[i]}", i == PHotbarSlot ? hotbarSelStyle : hotbarStyle);
+            string label = i == 3
+                ? labels[i] // munice do děla: informativní řádek, nejde vybrat klávesou
+                : $"[{keyLabel}] {labels[i]}";
+            GUI.Label(r, label, i == PHotbarSlot ? hotbarSelStyle : hotbarStyle);
         }
     }
 
@@ -1488,7 +1497,7 @@ public class PlayerController : MonoBehaviour
     void OnGUI()
     {
         bool blocked = ModalOpen || isMoving || isWorking || GameConsole.IsOpen
-                     || MainMenuManager.IsVisible || DeathScreen.IsOpen || VaultMechanism.IsOpenFor(playerIndex);
+                     || MainMenuManager.IsVisible || DeathScreen.IsOpenFor(playerIndex) || VaultMechanism.IsOpenFor(playerIndex);
 
         DrawHotbar();
 

@@ -3,12 +3,14 @@ using UnityEngine;
 // ─────────────────────────────────────────────────────────────────────────────
 //  SoloPause.cs
 //  V SÓLO hře zastaví čas (Time.timeScale = 0), když má hráč otevřený obchod,
-//  dialog s dědou nebo velkou mapu — ať ho pirát nesejme, když nakupuje.
+//  dialog s dědou, velkou mapu nebo obrazovku smrti — ať ho pirát nesejme,
+//  když nakupuje (a obrazovka smrti sama žádný čas neřídí, viz DeathScreen.cs).
 //
 //  V COOPU se NEpauzuje (druhý hráč hraje dál). Tam místo toho platí, že hráč
-//  s otevřeným oknem nedostane zásah — to řeší PlayerController.ModalOpen.
+//  s otevřeným oknem nedostane zásah — to řeší PlayerController.ModalOpen
+//  (a DeathScreen.IsOpenFor pro samotnou smrt).
 //
-//  Pauza z menu / smrti / hlavního menu si timeScale řídí sama — SoloPause do
+//  Pauza z menu / hlavního menu si timeScale řídí sama — SoloPause do
 //  toho nešahá a vrací čas do chodu jen tehdy, když ho sám zastavil.
 //
 //  POZOR: interiér majáku (LighthouseInterior) je vlastní scéna, kde se CHODÍ —
@@ -41,12 +43,13 @@ public class SoloPause : MonoBehaviour
         // V coopu se nepauzuje.
         if (MultiplayerManager.IsMultiplayer) { Release(); return; }
 
-        // Jiný "vlastník" časomíry (menu / smrt) — nešahej na to.
-        if (MainMenuManager.IsVisible || DeathScreen.IsOpen || PauseMenu.IsPaused)
+        // Jiný "vlastník" časomíry (menu) — nešahej na to.
+        if (MainMenuManager.IsVisible || PauseMenu.IsPaused)
             return;
 
         bool modal = UpgradeShopManager.AnyShopOpen
                   || MapScreen.IsOpen
+                  || DeathScreen.IsOpen
                   || (StoryNpc.Instance != null && StoryNpc.Instance.IsTalking);
 
         if (modal && !weStoppedTime)

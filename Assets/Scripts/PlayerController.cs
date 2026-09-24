@@ -294,7 +294,7 @@ public class PlayerController : MonoBehaviour
         // s koupenou mapou. M (P1) / Numpad 2 (P2). Řeší otevření i zavření
         // (Toggle), proto je to nad "zámkem" ovládání níž.
         if (KeyDown(KeyCode.M, KeyCode.Keypad2) && !PBoatWrecked && PHasMap
-            && !GameConsole.IsOpen && !MainMenuManager.IsVisible && !DeathScreen.IsOpen)
+            && !GameConsole.IsOpen && !MainMenuManager.IsVisible && !DeathScreen.IsOpenFor(playerIndex))
         {
             MapScreen.Toggle(playerIndex, gridManager);
             return;
@@ -308,7 +308,7 @@ public class PlayerController : MonoBehaviour
                         || (RivalNpc.Instance != null && RivalNpc.Instance.IsTalkingWith(playerIndex));
         bool myVaultOpen = VaultMechanism.IsOpenFor(playerIndex); // puzzle na trezoru mega ostrova (Krok 3)
         if (isMoving || isWorking || myShopOpen || myTalkOpen || myVaultOpen || MapScreen.IsOpenFor(playerIndex)
-            || GameConsole.IsOpen || MainMenuManager.IsVisible || DeathScreen.IsOpen) return;
+            || GameConsole.IsOpen || MainMenuManager.IsVisible || DeathScreen.IsOpenFor(playerIndex)) return;
 
         // E / Numpad1 → nastup/vystup z lodě, nebo vejdi do sousední budovy (maják).
         if (KeyDown(KeyCode.E, KeyCode.Keypad1))
@@ -412,7 +412,7 @@ public class PlayerController : MonoBehaviour
     /// Když hráč zrovna plave (rozbitá loď), zásah jde přímo do panáčka.</summary>
     public void DamageBoat(int dmg)
     {
-        if (isOnFoot || dmg <= 0 || DeathScreen.IsOpen) return;
+        if (isOnFoot || dmg <= 0 || DeathScreen.IsOpenFor(playerIndex)) return;
         if (Time.time < damageGraceUntil) return;
         if (ModalOpen) return; // hráč zrovna nakupuje / mluví / je v majáku → nezraní ho to
 
@@ -481,7 +481,7 @@ public class PlayerController : MonoBehaviour
     /// <summary>Ubere hráči (panáčkovi) zdraví přímo. Při 0 → obrazovka smrti.</summary>
     public void DamagePlayer(int dmg)
     {
-        if (dmg <= 0 || DeathScreen.IsOpen) return;
+        if (dmg <= 0 || DeathScreen.IsOpenFor(playerIndex)) return;
         if (ModalOpen) return;
 
         lastDamageTime = Time.time;
@@ -1497,7 +1497,7 @@ public class PlayerController : MonoBehaviour
     void OnGUI()
     {
         bool blocked = ModalOpen || isMoving || isWorking || GameConsole.IsOpen
-                     || MainMenuManager.IsVisible || DeathScreen.IsOpen || VaultMechanism.IsOpenFor(playerIndex);
+                     || MainMenuManager.IsVisible || DeathScreen.IsOpenFor(playerIndex) || VaultMechanism.IsOpenFor(playerIndex);
 
         DrawHotbar();
 

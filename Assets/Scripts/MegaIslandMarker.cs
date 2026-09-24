@@ -112,12 +112,11 @@ public class MegaIslandMarker : MonoBehaviour
         }
     }
 
-    // Postaví trezor, jakmile obrana padla (megaTask >= 1) — buď hned po
-    // zničení poslední hlídky (výše v Update()), nebo při načtení savu, kde
-    // už obrana dřív padla (viz BuildFortress, větev pro megaTask > 0).
+    // Postaví trezor. Volá se hned při vzniku ostrova (BuildFortress) —
+    // nečeká už na megaTask >= 1 (padlou obranu), viz tamní komentář.
     private void BuildVaultIfNeeded()
     {
-        if (vaultBuilt || gridManager == null || gridManager.gameData.megaTask < 1) return;
+        if (vaultBuilt || gridManager == null) return;
         vaultBuilt = true;
 
         Vector2Int spot = tilePos; // nouzovka, kdyby se nenašlo nic lepšího
@@ -143,10 +142,15 @@ public class MegaIslandMarker : MonoBehaviour
         // vrátí i tak — podle nich se dole rozmisťují děla.
         var towerCorners = BuildWalls();
 
+        // Trezor je přístupný HNED, i když obrana ještě stojí (na žádost
+        // playtestu — nemá smysl nutit hráče vyřídit VŠECHNA děla/strážce/
+        // loď, než se vůbec dostane k puzzlu). BuildVaultIfNeeded si sám
+        // hlídá, že se nepostaví dvakrát.
+        BuildVaultIfNeeded();
+
         // Obrana se staví, jen když ještě nebyla vyřízená (staré savy po
-        // reloadu ať znovu nespawnou už poražené hlídky) — místo toho rovnou
-        // postav trezor, ten na megaTask 0 nezávisí.
-        if (gridManager.gameData.megaTask > 0) { BuildVaultIfNeeded(); return; }
+        // reloadu ať znovu nespawnou už poražené hlídky).
+        if (gridManager.gameData.megaTask > 0) return;
 
         // 2–3 strážci, deterministicky podle pozice ostrova. Děla teď sedí NA
         // věžích (viz PlaceCannonsOnTowers), ne na okraji ostrova jako dřív.

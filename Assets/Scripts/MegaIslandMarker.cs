@@ -137,9 +137,10 @@ public class MegaIslandMarker : MonoBehaviour
         if (gridManager == null) return;
 
         // Hradby + věže jsou čistě kosmetické (nezávisí na megaTask) — stavíme
-        // je vždy, i po reloadu, kdy je obrana už dávno poražená. Vrátí null,
-        // když už (v týhle scéně) stojí — pak se dole ani děla nerozmisťují
-        // znovu (byla by to stejná duplicita jako dřív u hradeb).
+        // je vždy, i po reloadu, kdy je obrana už dávno poražená. Když hradba
+        // v týhle scéně už stojí (další "Nová hra" bez restartu Unity),
+        // BuildWalls ji podruhé nepostaví, ale pozice věží (deterministické)
+        // vrátí i tak — podle nich se dole rozmisťují děla.
         var towerCorners = BuildWalls();
 
         // Obrana se staví, jen když ještě nebyla vyřízená (staré savy po
@@ -550,13 +551,22 @@ public class MegaIslandMarker : MonoBehaviour
         // hra"/"Pokračovat" bez restartu Unity) by je postavilo podruhé na
         // sebe. Kontrola podle jména v AKTUÁLNÍ scéně (ne statické pole — to
         // by přežívalo i Stop/Play, kde se scéna vždy staví od nuly).
+        //
+        // Pozice věží (towerCorners) se ale musí vrátit VŽDY, i když hradby už
+        // stojí — jinak PlaceCannonsOnTowers dostane null a při další "Nové
+        // hře" ostrov zůstane bez děl. PickTowerCorners je deterministický
+        // (hash pozice, žádný Random.value), takže vrátí stejné pozice jako
+        // při prvním postavení hradby.
         string wallsName = $"Walls_{tilePos.x}_{tilePos.y}";
-        if (GameObject.Find(wallsName) != null) return null;
+        bool wallsAlreadyBuilt = GameObject.Find(wallsName) != null;
 
         var loop = TraceIslandBoundary();
         if (loop == null) return null;
         var runs = MergeIntoStraightRuns(loop);
         if (runs.Count == 0) return null;
+
+        var towerCorners = PickTowerCorners(runs, 5);
+        if (wallsAlreadyBuilt) return towerCorners;
 
         // Směr k molu = stejný vzorec jako v GridManager.PlaceMegaIsland (mola
         // se vždy dává na stranu přivrácenou ke světovému počátku) — brána jde
@@ -584,7 +594,6 @@ public class MegaIslandMarker : MonoBehaviour
         var wallsGo = new GameObject(wallsName);
         wallsGo.transform.position = new Vector3(tilePos.x, 0f, tilePos.y);
 
-        var towerCorners = PickTowerCorners(runs, 5);
         foreach (var corner in towerCorners)
         {
             Vector2 inward = center - corner; // věž "vchodem" dovnitř pevnosti

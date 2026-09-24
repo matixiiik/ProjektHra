@@ -1575,6 +1575,7 @@ public class GridManager : MonoBehaviour
             d.fishCount = 0; d.treasureCount = 0; d.ammo = 0;
             d.hasSpeedUpgrade = d.hasRodUpgrade = d.hasMiningUpgrade = false;
             d.hasMap = false; d.sellBonus = false;
+            d.hasHandWeapon = false; d.handAmmo = 0;
             d.shipLevel = 0;
             d.activeQuest.Reset();
             d.boatHealth = 100; d.playerHealth = 100; d.boatWrecked = false; d.boatNeedsRehome = false;
@@ -1587,6 +1588,7 @@ public class GridManager : MonoBehaviour
             d.player2FishCount = 0; d.player2TreasureCount = 0; d.player2Ammo = 0;
             d.player2HasSpeedUpgrade = d.player2HasRodUpgrade = d.player2HasMiningUpgrade = false;
             d.player2HasMap = false; d.player2SellBonus = false;
+            d.player2HasHandWeapon = false; d.player2HandAmmo = 0;
             d.player2ShipLevel = 0;
             d.player2ActiveQuest.Reset();
             d.player2BoatHealth = 100; d.player2PlayerHealth = 100;

@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -16,6 +17,15 @@ using UnityEngine;
 
 public class PirateShip : MonoBehaviour
 {
+    // Seznam všech živých pirátských lodí. Minimapa ho čte několikrát za sekundu,
+    // takže místo FindObjectsByType (scan celé scény) si loď sama hlídá, jestli
+    // je v seznamu — stejný vzor jako PlayerController.All.
+    private static readonly List<PirateShip> activeInstances = new List<PirateShip>();
+    public static IReadOnlyList<PirateShip> All => activeInstances;
+
+    void OnEnable()  { activeInstances.Add(this); }
+    void OnDisable() { activeInstances.Remove(this); }
+
     private const float AGGRO_RANGE  = 11f;  // odtud začne pronásledovat + boss bar
     private const float GIVEUP_RANGE = 20f;  // za tímhle to po chvíli vzdá
     private const float GIVEUP_TIME  = 12f;

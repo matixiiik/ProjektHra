@@ -109,13 +109,13 @@ public class JournalScreen : MonoBehaviour
                 "You proved yourself. The old sailor entrusted you with the coordinates of a distant island, and you set sail."));
 
         if (Reached(d, 0, 1)) list.Add(Loc.T(
-            "Ostrov pirátů: zlomil jsi jeho obranu — umlčel jsi děla na hradebních věžích, přemohl ozbrojenou posádku i hlídkovou loď.",
+            "Pirátský ostrov: zlomil jsi jeho obranu — umlčel jsi děla na hradebních věžích, přemohl ozbrojenou posádku i hlídkovou loď.",
             "Pirate Island: you broke its defenses — silenced the cannons on the wall towers and overpowered the armed crew and the patrol ship."));
         if (Reached(d, 0, 2)) list.Add(Loc.T(
-            "Ostrov pirátů: vyřešil jsi hádanku ze tří ozubených kol a otevřel trezor.",
+            "Pirátský ostrov: vyřešil jsi hádanku ze tří ozubených kol a otevřel trezor.",
             "Pirate Island: you solved the puzzle of the three gears and opened the vault."));
         if (Reached(d, 0, 3)) list.Add(Loc.T(
-            "Ostrov pirátů: v trezoru čekal vzkaz. Přečetl jsi ho a vydal ses po stopě dál.",
+            "Pirátský ostrov: v trezoru čekal vzkaz. Přečetl jsi ho a vydal ses po stopě dál.",
             "Pirate Island: a message was waiting in the vault. You read it and followed the trail onward."));
 
         if (Reached(d, 1, 1)) list.Add(Loc.T(

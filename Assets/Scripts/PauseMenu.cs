@@ -53,6 +53,11 @@ public class PauseMenu : MonoBehaviour
         if (RivalNpc.Instance != null && (RivalNpc.Instance.IsTalkingWith(0) || RivalNpc.Instance.IsTalkingWith(1))) return;
         if (VaultMechanism.IsOpenFor(0) || VaultMechanism.IsOpenFor(1)) return;
 
+        // Vývojářská konzole (zavírá ji Esc / `) a obrazovka smrti (má vlastní tlačítka)
+        // pauzu taky neotevírají — jinak by Esc zavřel konzoli a rovnou otevřel pauzu.
+        if (GameConsole.IsOpen) return;
+        if (DeathScreen.IsOpen) return;
+
         // Esc vždy; Enter na numpadu jen v multiplayeru (P2 nemá Esc po ruce).
         bool pausePressed = Input.GetKeyDown(KeyCode.Escape)
                          || (MultiplayerManager.IsMultiplayer && Input.GetKeyDown(KeyCode.KeypadEnter));

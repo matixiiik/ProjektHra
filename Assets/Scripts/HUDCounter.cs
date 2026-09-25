@@ -102,7 +102,7 @@ public class HUDCounter : MonoBehaviour
         storyPanelRT.anchorMin = storyPanelRT.anchorMax = new Vector2(ax, 1f);
         storyPanelRT.pivot     = new Vector2(0.5f, 1f);
         storyPanelRT.anchoredPosition = new Vector2(0f, -62f);
-        storyPanelRT.sizeDelta        = new Vector2(360f, 32f);
+        storyPanelRT.sizeDelta        = new Vector2(STORY_W_SOLO, STORY_H);
 
         var bg = new GameObject("BG");
         bg.transform.SetParent(storyPanel.transform, false);
@@ -116,7 +116,20 @@ public class HUDCounter : MonoBehaviour
         storyLine = MakeText(storyPanel.transform,
             new Vector2(12, 0), new Vector2(-12, 0),
             Vector2.zero, Vector2.one,
-            15f, new Color(1f, 0.9f, 0.65f), FontStyle.Bold, TextAnchor.MiddleCenter);
+            21f, new Color(1f, 0.9f, 0.65f), FontStyle.Bold, TextAnchor.MiddleCenter);
+        storyLine.horizontalOverflow = HorizontalWrapMode.Wrap; // dlouhý úkol se zalomí na 2 řádky
+    }
+
+    // Příběhový panel pod quest panelem: pozice podle aktuální výšky quest panelu,
+    // ať se nepřekrývají. Když quest panel není vidět, sedí těsně pod horním okrajem
+    // (ne výš než souřadnice hráče vlevo nahoře).
+    void PlaceStoryPanel()
+    {
+        if (storyPanelRT == null) return;
+        float top = (questPanel != null && questPanel.activeSelf)
+            ? 16f + questPanelRT.sizeDelta.y + 8f
+            : 16f;
+        storyPanelRT.anchoredPosition = new Vector2(0f, -Mathf.Max(62f, top));
     }
 
     // (Health bary lodě a hráče kreslí MinimapUIRenderer — sedí nad minimapou.)
@@ -160,7 +173,7 @@ public class HUDCounter : MonoBehaviour
         questPanelRT.anchorMax        = new Vector2(qax, 1f);
         questPanelRT.pivot            = new Vector2(0.5f, 1f);
         questPanelRT.anchoredPosition = new Vector2(0, -16f);
-        questPanelRT.sizeDelta        = new Vector2(280f, 38f);
+        questPanelRT.sizeDelta        = new Vector2(QUEST_W_SOLO, QUEST_H_1LINE);
 
         // Dřevěný panel na pozadí.
         var bg = new GameObject("BG");
@@ -186,8 +199,9 @@ public class HUDCounter : MonoBehaviour
         questLine = MakeText(questPanel.transform,
             new Vector2(10, 0), new Vector2(-10, 0),
             Vector2.zero, Vector2.one,
-            18f, Color.white, FontStyle.Bold, TextAnchor.MiddleCenter);
+            21f, Color.white, FontStyle.Bold, TextAnchor.MiddleCenter);
         questLine.supportRichText = true;
+        questLine.horizontalOverflow = HorizontalWrapMode.Wrap;
     }
 
     // Pomocná: vytvoří jeden Text s daným umístěním a stínem.
@@ -296,13 +310,16 @@ public class HUDCounter : MonoBehaviour
             questPanelRT.anchorMin = questPanelRT.anchorMax = new Vector2(questAnchorX, 1f);
             questPanelRT.pivot     = new Vector2(0.5f, 1f);
             questPanelRT.anchoredPosition = new Vector2(0, -16f);
+            // V split screenu je půlka obrazovky užší → užší panel.
+            questPanelRT.sizeDelta = new Vector2(isSplit ? QUEST_W_SPLIT : QUEST_W_SOLO, questPanelRT.sizeDelta.y);
         }
 
         if (storyPanelRT != null)
         {
             storyPanelRT.anchorMin = storyPanelRT.anchorMax = new Vector2(questAnchorX, 1f);
             storyPanelRT.pivot     = new Vector2(0.5f, 1f);
-            storyPanelRT.anchoredPosition = new Vector2(0, -62f);
+            storyPanelRT.sizeDelta = new Vector2(isSplit ? STORY_W_SPLIT : STORY_W_SOLO, STORY_H);
+            PlaceStoryPanel();
         }
 
         // Souřadnice: P1 vlevo nahoře (0), P2 při splitu na začátek pravé půlky (0.5).
@@ -367,7 +384,7 @@ public class HUDCounter : MonoBehaviour
                 if (d.megaTask >= 3)
                     txt = Loc.T("Úkol: vrať se za dědou", "Quest: return to the old sailor");
                 else if (d.megaIndex == 0)
-                    txt = Loc.T("Úkol: probojuj se Ostrovem pirátů a najdi, co skrývá",
+                    txt = Loc.T("Úkol: probojuj se Pirátským ostrovem a najdi, co skrývá",
                                 "Quest: fight your way across Pirate Island and find what it hides");
                 else if (d.megaIndex == 1)
                     txt = Loc.T("Úkol: prozkoumej Hřbitov lodí a najdi, co skrývá",

@@ -45,6 +45,12 @@ public class GameConsole : MonoBehaviour
             IsOpen = !IsOpen;
             if (IsOpen) input = "";
         }
+        // Esc konzoli zavře. PauseMenu (běží dřív) při otevřené konzoli Esc ignoruje,
+        // takže se ve stejném snímku neotevře i pauza.
+        else if (IsOpen && Input.GetKeyDown(KeyCode.Escape))
+        {
+            IsOpen = false;
+        }
     }
 
     void OnGUI()

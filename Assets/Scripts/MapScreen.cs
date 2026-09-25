@@ -41,7 +41,7 @@ public class MapScreen : MonoBehaviour
     private Vector2 dragLast;
     private bool    draggedFar;             // odlišení "táhnutí" od "kliknutí"
 
-    private GUIStyle titleStyle, hintStyle, compassStyle;
+    private GUIStyle titleStyle, hintStyle, compassStyle, coordStyle;
 
     // Barvy — sladěné s minimapou.
     private static readonly Color CWater  = new Color(0.16f, 0.55f, 0.72f);
@@ -111,6 +111,10 @@ public class MapScreen : MonoBehaviour
         // Světové strany u okrajů mapy (sladěno s minimapou: S nahoře, V vpravo).
         DrawCompass(mapRect);
 
+        // Souřadnice políčka pod kurzorem (levý horní roh mapy) — pomůže při hledání
+        // cíle podle souřadnic (např. z dopisu v trezoru).
+        DrawCursorCoords(mapRect);
+
         // Titulek + nápověda.
         GUI.Label(new Rect(halfX, 34f, halfW, 34f), Loc.T("MAPA", "MAP"), titleStyle);
         GUI.Label(new Rect(halfX, mapRect.yMax + 10f, halfW, 26f),
@@ -176,14 +180,35 @@ public class MapScreen : MonoBehaviour
         }
     }
 
-    // Klik do mapy → přepočet na políčko → nastav / zruš cíl.
-    void SetWaypointFromScreen(Vector2 mouse, Rect mapRect)
+    // Pozice myši na obrazovce → políčko světa (stejný přepočet pro klik i pro popisek).
+    void ScreenToTile(Vector2 mouse, Rect mapRect, out int tileX, out int tileY)
     {
         float sx = (mouse.x - mapRect.x) / mapRect.width;         // 0..1 zleva
         float sy = 1f - (mouse.y - mapRect.y) / mapRect.height;   // 0..1 zdola (obraceně než GUI)
 
-        int tileX = Mathf.FloorToInt(centerTile.x + (sx - 0.5f) * TEX * zoom);
-        int tileY = Mathf.FloorToInt(centerTile.y + (sy - 0.5f) * TEX * zoom);
+        tileX = Mathf.FloorToInt(centerTile.x + (sx - 0.5f) * TEX * zoom);
+        tileY = Mathf.FloorToInt(centerTile.y + (sy - 0.5f) * TEX * zoom);
+    }
+
+    // Popisek "X: … Y: …" v rohu mapy, jen když je kurzor nad mapou.
+    void DrawCursorCoords(Rect mapRect)
+    {
+        Event e = Event.current;
+        if (e == null || !mapRect.Contains(e.mousePosition)) return;
+
+        ScreenToTile(e.mousePosition, mapRect, out int tx, out int ty);
+
+        var box = new Rect(mapRect.x + 8f, mapRect.y + 8f, 150f, 26f);
+        GUI.color = new Color(0f, 0f, 0f, 0.6f);
+        GUI.DrawTexture(box, Texture2D.whiteTexture);
+        GUI.color = Color.white;
+        GUI.Label(new Rect(box.x + 8f, box.y, box.width - 8f, box.height), $"X: {tx}   Y: {ty}", coordStyle);
+    }
+
+    // Klik do mapy → přepočet na políčko → nastav / zruš cíl.
+    void SetWaypointFromScreen(Vector2 mouse, Rect mapRect)
+    {
+        ScreenToTile(mouse, mapRect, out int tileX, out int tileY);
 
         var d = grid.gameData;
         bool hadWp = owner == 0 ? d.hasWaypoint : d.player2HasWaypoint;
@@ -364,6 +389,11 @@ public class MapScreen : MonoBehaviour
         {
             fontSize = 13, alignment = TextAnchor.MiddleCenter,
             normal = { textColor = new Color(0.75f, 0.78f, 0.82f) }
+        };
+        coordStyle = new GUIStyle(GUI.skin.label)
+        {
+            fontSize = 15, fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleLeft,
+            normal = { textColor = new Color(1f, 0.9f, 0.65f) }
         };
     }
 }

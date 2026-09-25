@@ -377,8 +377,7 @@ public class MinimapUIRenderer : MonoBehaviour
 
         // Když jsou na moři piráti, překresluj minimapu i bez změny světa (ať se
         // červené tečky hýbou). Throttle, ať to nestojí výkon každý snímek.
-        if (Time.time >= nextCombatRefresh
-            && FindObjectsByType<PirateShip>(FindObjectsSortMode.None).Length > 0)
+        if (Time.time >= nextCombatRefresh && PirateShip.All.Count > 0)
         {
             nextCombatRefresh = Time.time + 0.25f;
             Refresh();
@@ -475,10 +474,11 @@ public class MinimapUIRenderer : MonoBehaviour
         }
 
         // Piráti — červené tečky (2×2 px, ať jsou vidět).
-        foreach (var pirate in FindObjectsByType<PirateShip>(FindObjectsSortMode.None))
+        var pirates = PirateShip.All;
+        for (int i = 0; i < pirates.Count; i++)
         {
-            int rx = Mathf.RoundToInt(pirate.transform.position.x) - cx + viewRadius;
-            int ry = Mathf.RoundToInt(pirate.transform.position.z) - cy + viewRadius;
+            int rx = Mathf.RoundToInt(pirates[i].transform.position.x) - cx + viewRadius;
+            int ry = Mathf.RoundToInt(pirates[i].transform.position.z) - cy + viewRadius;
             StampDot(rx, ry, hostileColor);
         }
 
@@ -526,12 +526,14 @@ public class MinimapUIRenderer : MonoBehaviour
     // Vrátí barvu pro políčko na souřadnicích [x, y].
     Color GetTileColor(int x, int y)
     {
-        string key = $"{x},{y}";
+        // GetTileStatus používá cache klíčů ve GridManageru — tahle metoda se volá
+        // pro každý pixel minimapy (~2600×), skládání textu "x,y" by při každém
+        // překreslení vytvořilo stovky KB odpadu pro garbage collector.
+        var st = grid.GetTileStatus(x, y);
 
         // Políčko ještě neexistuje (nevygenerované) → mlha.
-        if (!grid.gameData.tileData.ContainsKey(key)) return fogColor;
+        if (st == null) return fogColor;
 
-        var st = grid.gameData.tileData[key];
         if (!st.isExplored) return fogColor; // existuje, ale hráč tam nebyl
 
         switch ((TileType)st.type)

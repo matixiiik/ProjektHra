@@ -681,7 +681,11 @@ public class PlayerController : MonoBehaviour
 
         // Vyhlaď, ať blend tree neposkakuje.
         figureAnimSpeed = Mathf.Lerp(figureAnimSpeed, Mathf.Min(raw, 8f), 12f * Time.deltaTime);
-        figureAnimator.SetFloat("Speed", figureAnimSpeed);
+
+        // Panáček je při plavbě na lodi vypnutý — neaktivnímu animátoru se parametr
+        // nastavovat nedá (Unity by každý snímek vypsalo varování a zbytečně plnilo Console).
+        if (figureAnimator.gameObject.activeInHierarchy)
+            figureAnimator.SetFloat("Speed", figureAnimSpeed);
     }
 
     // Loď (plovoucí kopie) má existovat právě když je hráč pěšky s celou lodí.

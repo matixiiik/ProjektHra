@@ -130,8 +130,8 @@ public class MegaIslandMarker : MonoBehaviour
     // ── Obsah ostrova podle megaIndex — viz rozpis v hlavičce souboru ─────
     private void BuildFortress()
     {
-        BuildSign("Ostrov pirátů — pevnost staré posádky. Kolem obelisku hlídkuje ozbrojená posádka, trezor je někde uvnitř.",
-                  "Pirate Island — the old crew's fortress. An armed crew patrols around the obelisk; the vault is somewhere inside.",
+        BuildSign("Pirátský ostrov — pevnost staré posádky. Hlídá ji ozbrojená posádka a děla na věžích, trezor je někde uvnitř.",
+                  "Pirate Island — the old crew's fortress. An armed crew and tower cannons guard it; the vault is somewhere inside.",
                    new Color(0.5f, 0.24f, 0.18f));
 
         if (gridManager == null) return;

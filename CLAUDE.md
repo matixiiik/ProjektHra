@@ -223,7 +223,7 @@ neřídí `Time.timeScale` (jako obchod/mapa), v sólu ji pauzuje `SoloPause`.
   — samo o sobě OK, je to jednorázové. Vyhýbej se `FindObjectsByType` volanému
   **opakovaně za běhu** (`Update`/`LateUpdate`/static property čtená každý
   snímek) — radši statický seznam udržovaný přes `OnEnable`/`OnDisable`, viz
-  `PlayerController.All`, `QuestShopManager.All` (žádný nový `Instance`
+  `PlayerController.All`, `QuestShopManager.All`, `PirateShip.All` (žádný nový `Instance`
   singleton, jen `IReadOnlyList`).
 - **Singletony** (`public static X Instance`): `GameSession` (jediný zdroj
   pravdy pro `GameData`), `CombatDirector`, `ChestManager` — a dál přibyly

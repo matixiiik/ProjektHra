@@ -316,17 +316,29 @@ public class CombatDirector : MonoBehaviour
         if (boss != null)
         {
             string name = boss.isGhost
-                ? "BLUDNY HOLANDAN"
-                : (boss.size == 0 ? "PIRAT (mala lod)" : boss.size == 1 ? "PIRAT (stredni lod)" : "PIRAT (velka lod)");
+                ? Loc.T("BLUDNÝ HOLANĎAN", "FLYING DUTCHMAN")
+                : (boss.size == 0 ? Loc.T("PIRÁT (malá loď)",   "PIRATE (small ship)")
+                :  boss.size == 1 ? Loc.T("PIRÁT (střední loď)", "PIRATE (medium ship)")
+                :                   Loc.T("PIRÁT (velká loď)",   "PIRATE (large ship)"));
             DrawBossBar(boss.HpFraction, name);
         }
         else if (monster != null && monster.Engaged)
         {
-            DrawBossBar(monster.HpFraction, "MORSKA OBLUDA");
+            DrawBossBar(monster.HpFraction, Loc.T("MOŘSKÁ OBLUDA", "SEA MONSTER"));
         }
 
         if (Time.time < toastUntil && !string.IsNullOrEmpty(toastText))
-            GUI.Label(new Rect(0f, Screen.height - 168f, Screen.width, 26f), toastText, toastStyle);
+        {
+            // Dlouhé vzkazy (bratrův vzkaz má ~150 znaků) se zalomí na víc řádků, ať se
+            // v užším okně neuříznou; krátké zůstanou na jednom řádku jako dřív.
+            // Po stranách zůstává místo pro zdraví/minimapu (vlevo) a počítadla (vpravo).
+            float width  = Mathf.Clamp(Screen.width - 360f, 300f, 900f);
+            float height = Mathf.Max(26f, toastStyle.CalcHeight(new GUIContent(toastText), width));
+            // Spodní okraj je 198 px nad dolním okrajem obrazovky — o kousek nad
+            // kontextovou nápovědou hráče ("[E] vejít do majáku"), ať se nepřekrývají.
+            GUI.Label(new Rect((Screen.width - width) / 2f, Screen.height - 172f - height, width, height),
+                      toastText, toastStyle);
+        }
     }
 
     private void DrawBossBar(float hpFraction, string name)
@@ -355,6 +367,7 @@ public class CombatDirector : MonoBehaviour
         toastStyle = new GUIStyle(GUI.skin.label)
         {
             fontSize = 16, fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleCenter,
+            wordWrap = true, // dlouhé vzkazy se zalamují (viz OnGUI)
             normal = { textColor = new Color(1f, 0.9f, 0.55f) }
         };
     }

@@ -20,7 +20,7 @@ using UnityEngine;
 
 public class StoryNpc : MonoBehaviour
 {
-    private const string NpcName   = "Děda";
+    private static string NpcName => Loc.T("Děda", "Grandpa"); // jméno v rámečku dialogu
     private const float  HintRange = 2.4f; // na kolik políček se ukáže nápověda "zmáčkni E"
 
     public static StoryNpc Instance { get; private set; }
@@ -81,61 +81,105 @@ public class StoryNpc : MonoBehaviour
         int shipLevel  = talkingWith == 0 ? Data.shipLevel : Data.player2ShipLevel;
         int coins      = talkingWith == 0 ? Data.coins     : Data.player2Coins;
 
+        // Klávesy se liší podle hráče (P1 = WASD + myš, P2 = šipky + numpad) — děda
+        // je říká správně tomu, kdo s ním zrovna mluví. Česky i anglicky zvlášť,
+        // protože česká věta se skloňuje ("klávesami W A S D" × "šipkami").
+        bool   p1        = talkingWith == 0;
+        string csMove    = p1 ? "klávesami W A S D"  : "šipkami";
+        string enMove    = p1 ? "W A S D"            : "the arrow keys";
+        string csShoot   = p1 ? "myší"               : "klávesou Numpad *";
+        string enShoot   = p1 ? "the mouse"          : "Numpad *";
+        string kEnter    = p1 ? "E"                  : "Numpad 1";
+        string kRepair   = p1 ? "R"                  : "Numpad /";
+        string kMap      = p1 ? "M"                  : "Numpad 2";
+        string csAction  = p1 ? "Mezerníkem"         : "Klávesou Numpad 0";
+        string enAction  = p1 ? "Space"              : "Numpad 0";
+
         switch (StoryStep)
         {
             case 0:
                 if (shipLevel <= 0)
-                    activeLines = new[]
-                    {
-                        "Á, návštěva. Vidím, že jsi vyplul na obyčejném voru.",
-                        "Takhle daleko se nedostaneš, chlapče.",
-                        "Kup si aspoň malou plachetnici v majáku a vrať se za mnou.",
-                        "A pamatuj: pluješ klávesami W A S D, myší střílíš z děla.",
-                        "Klávesou E vejdeš do majáku nebo přístavu, R opraví loď " +
-                        "u mola a M ti otevře velkou mapu.",
-                        "Mezerníkem rybaříš na hejnech a těžíš poklady z vraků — samo o " +
-                        "sobě to ale mince nedá.",
-                        "Ulovené ryby a poklady prodáš ve výkupně (zelený pult v majáku) " +
-                        "— teprve pak jsou to mince.",
-                    };
+                    activeLines = Loc.Pick(
+                        new[]
+                        {
+                            "Á, návštěva. A vyplul jsi na obyčejné veslici, vidím.",
+                            "Takhle daleko se nedostaneš, chlapče.",
+                            "Kup si v majáku aspoň malou plachetnici a vrať se za mnou.",
+                            $"A pamatuj: pluješ {csMove}, z děla střílíš {csShoot}.",
+                            $"Klávesou {kEnter} vejdeš do majáku, {kRepair} opraví loď u mola a {kMap} ti otevře velkou mapu.",
+                            $"{csAction} rybaříš na hejnech a těžíš poklady z vraků — jenže samo o sobě to mince nedá.",
+                            "Úlovky a poklady prodáš ve výkupně, na zeleném pultu v majáku. Teprve pak z nich budou mince.",
+                        },
+                        new[]
+                        {
+                            "Ah, a visitor. And you sailed out on a plain old rowboat, I see.",
+                            "You won't get far like that, lad.",
+                            "Buy at least a small sailboat at the lighthouse and come back to me.",
+                            $"And remember: you sail with {enMove}, and you fire the cannon with {enShoot}.",
+                            $"Press {kEnter} to enter the lighthouse, {kRepair} repairs your boat at the pier, and {kMap} opens the big map.",
+                            $"{enAction} lets you fish the shoals and salvage treasure from wrecks — but that alone won't put coins in your pocket.",
+                            "Sell your catch and treasure at the trading post — the green counter in the lighthouse. Only then does it turn into coins.",
+                        });
                 else
-                    activeLines = new[]
-                    {
-                        "Á, teď už máš pořádnou loď. Dobře.",
-                        "Než tě pošlu za tím, co hledám, musím vědět, že ti můžu věřit.",
-                        "Přines mi 1000 mincí a historický poklad.",
-                        "Historický poklad občas bývá v pokladech ze starých map — z beden.",
-                        "Ryby a poklady, co uloví tvoje loď, prodáš ve výkupně (zelený pult v majáku).",
-                        "Vrať se, až budeš mít obojí.",
-                    };
+                    activeLines = Loc.Pick(
+                        new[]
+                        {
+                            "Á, teď už máš pořádnou loď. To se mi líbí.",
+                            "Než tě pošlu za tím, co hledám, musím vědět, že ti můžu věřit.",
+                            "Přines mi 1000 mincí a historický poklad.",
+                            "Historický poklad se občas skrývá v pokladech ze starých map — těch z beden.",
+                            "Ryby a poklady, co uloví tvoje loď, prodáš ve výkupně (zelený pult v majáku).",
+                            "Vrať se, až budeš mít obojí.",
+                        },
+                        new[]
+                        {
+                            "Ah, now you have a proper ship. I like that.",
+                            "Before I send you after what I'm looking for, I need to know I can trust you.",
+                            "Bring me 1,000 coins and a historic treasure.",
+                            "A historic treasure sometimes hides among the loot from old maps — the ones found in chests.",
+                            "Whatever your ship catches or salvages, you sell at the trading post — the green counter in the lighthouse.",
+                            "Come back when you have both.",
+                        });
                 break;
 
             case 1:
                 if (coins >= PROVE_COST && Data.hasHistoricalTreasure)
                 {
-                    activeLines = new[]
-                    {
-                        "Tak co, máš pro mě 1000 mincí a ten historický poklad?",
-                    };
+                    activeLines = Loc.Pick(
+                        new[] { "Tak co, máš pro mě 1000 mincí a ten historický poklad?" },
+                        new[] { "Well then — do you have 1,000 coins and that historic treasure for me?" });
                     showGiveButton = true;
                 }
                 else
                 {
-                    activeLines = new[]
-                    {
-                        "Ještě to nemáš. Chci 1000 mincí a historický poklad.",
-                        "Ten historický vyplať ve výkupně (zeleny pult v majáku) — poznáš ho.",
-                    };
+                    activeLines = Loc.Pick(
+                        new[]
+                        {
+                            "Ještě to nemáš. Chci 1000 mincí a historický poklad.",
+                            "Ten historický ti může vypadnout, když ve výkupně (zelený pult v majáku) vyplatíš poklad z mapy. Poznáš ho.",
+                        },
+                        new[]
+                        {
+                            "You don't have it yet. I want 1,000 coins and a historic treasure.",
+                            "The historic one can turn up when you cash in a map treasure at the trading post (the green counter in the lighthouse). You'll know it when you see it.",
+                        });
                 }
                 break;
 
             case 2:
-                activeLines = new[]
-                {
-                    $"Ostrov je na souřadnicích [{Data.storyIslandX}, {Data.storyIslandY}].",
-                    "Máš to nahoře na obrazovce a na minimapě šipku. Drž se jí.",
-                    "Je to daleko. Až tam budeš, poznáš to.",
-                };
+                activeLines = Loc.Pick(
+                    new[]
+                    {
+                        $"Ostrov leží na souřadnicích [{Data.storyIslandX}, {Data.storyIslandY}].",
+                        "Najdeš je nahoře na obrazovce a na minimapě uvidíš šipku. Drž se jí.",
+                        "Je to daleko. Až tam dorazíš, poznáš to.",
+                    },
+                    new[]
+                    {
+                        $"The island lies at [{Data.storyIslandX}, {Data.storyIslandY}].",
+                        "You'll see the coordinates at the top of the screen, and an arrow on the minimap. Follow it.",
+                        "It's far. When you get there, you'll know.",
+                    });
                 break;
 
             case 3:
@@ -143,24 +187,35 @@ public class StoryNpc : MonoBehaviour
                 // dá mu děda jen obecné povzbuzení — detailní repliky přidají
                 // další kroky, až bude mít ostrov skutečný obsah.
                 if (Data.megaTask < 3)
-                    activeLines = new[]
-                    {
-                        "Byl jsi tam, co? Cítím to na tobě.",
-                        "Ale ještě jsi tam neskončil. Dokonči to, co jsi začal, a vrať se za mnou.",
-                    };
+                    activeLines = Loc.Pick(
+                        new[]
+                        {
+                            "Byl jsi tam, co? Cítím to na tobě.",
+                            "Ale ještě jsi to nedokončil. Dokonči, co jsi začal, a vrať se za mnou.",
+                        },
+                        new[]
+                        {
+                            "So you've been there, haven't you? I can feel it on you.",
+                            "But you're not finished yet. See it through, then come back to me.",
+                        });
                 else
-                    activeLines = new[]
-                    {
-                        "Tak povídej, co jsi tam našel.",
-                        "Nech mě přemýšlet. Řeknu ti víc, až tomu porozumím.",
-                    };
+                    activeLines = Loc.Pick(
+                        new[]
+                        {
+                            "Tak povídej, co jsi tam našel.",
+                            "Nech mě přemýšlet. Řeknu ti víc, až tomu porozumím.",
+                        },
+                        new[]
+                        {
+                            "Well, tell me — what did you find there?",
+                            "Let me think. I'll tell you more once I understand it.",
+                        });
                 break;
 
             default:
-                activeLines = new[]
-                {
-                    "Ta stopa nás dovede dál. Buď trpělivý, chlapče.",
-                };
+                activeLines = Loc.Pick(
+                    new[] { "Ta stopa nás dovede dál. Buď trpělivý, chlapče." },
+                    new[] { "That trail will lead us further. Be patient, lad." });
                 break;
         }
     }
@@ -169,23 +224,42 @@ public class StoryNpc : MonoBehaviour
     // (Data.storyEnding: 1 = bratr ušetřen, 2 = bratr zabit).
     private void BuildEndingDialog()
     {
-        activeLines = Data.storyEnding == 1
-            ? new[]
-              {
-                  "Ty... to není možné.",
-                  "Bratře. Po tolika letech.",
-                  "Celý život jsem si myslel, že jsme tě tam nechali umřít.",
-                  "Odpusť mi to, chlapče. Konečně jsi doma.",
-              }
-            : new[]
-              {
-                  "Máš to. Dědictví.",
-                  "A on?",
-                  "...Rozumím. Neptám se dál.",
-                  "Víš, měl jsem syna. Taky si ho vzalo moře — jednou vyplul a nevrátil se.",
-                  "Čekal jsem u okna roky, stejně jako čekal on tam na útesu.",
-                  "Možná si to moře od naší rodiny vždycky jen půjčuje. A jednou si to zase vezme zpátky.",
-              };
+        if (Data.storyEnding == 1)
+            activeLines = Loc.Pick(
+                new[]
+                {
+                    "Ty… to není možné.",
+                    "Bratře. Po tolika letech.",
+                    "Celý život jsem si myslel, že jsme tě tam nechali umřít.",
+                    "Odpusť mi to, chlapče. Konečně jsi doma.",
+                },
+                new[]
+                {
+                    "You… it can't be.",
+                    "Brother. After all these years.",
+                    "All my life I believed we left you there to die.",
+                    "Forgive me, lad. You're finally home.",
+                });
+        else
+            activeLines = Loc.Pick(
+                new[]
+                {
+                    "Máš to. Dědictví.",
+                    "A on?",
+                    "…Rozumím. Dál se neptám.",
+                    "Víš, měl jsem syna. Taky si ho vzalo moře — jednou vyplul a už se nevrátil.",
+                    "Roky jsem čekal u okna, stejně jako čekal on tam na útesu.",
+                    "Možná si moře od naší rodiny všechno jen půjčuje. A jednou si to vezme zpátky.",
+                },
+                new[]
+                {
+                    "You have it. The inheritance.",
+                    "And him?",
+                    "…I see. I won't ask.",
+                    "You know, I had a son. The sea took him too — he sailed out one day and never came back.",
+                    "I waited by the window for years, just as he waited out there on the cliff.",
+                    "Perhaps the sea only ever borrows from our family. And one day it takes it all back.",
+                });
     }
 
     // Volá se, když hráč dočte poslední repliku (nebo dialog ukončí).
@@ -231,12 +305,19 @@ public class StoryNpc : MonoBehaviour
         SoundManager.PlayCoin();
 
         // Pokračuj rovnou navazujícími replikami.
-        activeLines = new[]
-        {
-            "Výborně. Přesně tohle jsem potřeboval.",
-            $"To, co hledám, je na ostrově na [{sx}, {sy}]. Daleko na moři.",
-            "Máš to nahoře na obrazovce a na minimapě šipku. Vydej se tam.",
-        };
+        activeLines = Loc.Pick(
+            new[]
+            {
+                "Výborně. Přesně tohle jsem potřeboval.",
+                $"To, co hledám, leží na ostrově na [{sx}, {sy}]. Daleko na moři.",
+                "Souřadnice máš nahoře na obrazovce a na minimapě šipku. Vydej se tam.",
+            },
+            new[]
+            {
+                "Excellent. This is exactly what I needed.",
+                $"What I'm looking for lies on the island at [{sx}, {sy}]. Far out at sea.",
+                "You'll see the coordinates at the top of the screen and an arrow on the minimap. Set sail.",
+            });
         line = 0;
         showGiveButton = false;
         ignoreKeyUntil = Time.unscaledTime + 0.2f;
@@ -256,7 +337,8 @@ public class StoryNpc : MonoBehaviour
         if (grid != null) grid.NotifyWorldChanged();
 
         if (CombatDirector.Instance != null)
-            CombatDirector.Instance.Toast("Ostrov není prázdný — něco ho hlídá. Budeš se muset probojovat dál.");
+            CombatDirector.Instance.Toast(Loc.T("Ostrov není prázdný — něco ho hlídá. Budeš se muset probojovat dál.",
+                                                "The island isn't empty — something is guarding it. You'll have to fight your way through."));
     }
 
     // ───────────────────────────────────────────────────────────────────────
@@ -565,7 +647,7 @@ public class StoryNpc : MonoBehaviour
         Rect half = HalfRect(playerIndex);
         string key = playerIndex == 0 ? "E" : "Numpad 1";
         var r = new Rect(half.x, half.yMax - 90f, half.width, 26f);
-        GUI.Label(r, "[" + key + "]  promluv s dědou", hintStyle);
+        GUI.Label(r, "[" + key + "]  " + Loc.T("promluv s dědou", "talk to Grandpa"), hintStyle);
     }
 
     private void DrawDialog(int playerIndex)
@@ -594,12 +676,13 @@ public class StoryNpc : MonoBehaviour
         if (showGiveButton && lastLine)
         {
             var br = new Rect(box.x + box.width / 2f - 150f, box.yMax - 30f, 300f, 24f);
-            if (SoundManager.Click(GUI.Button(br, "Dát mu 1000 minci + historicky poklad", giveStyle)))
+            if (SoundManager.Click(GUI.Button(br, Loc.T("Dát mu 1000 mincí + historický poklad", "Give him 1,000 coins + the historic treasure"), giveStyle)))
                 GiveToSailor();
         }
         else
         {
-            string more = lastLine ? "[" + key + "] konec" : "[" + key + "] dál";
+            string more = lastLine ? "[" + key + "] " + Loc.T("konec", "close")
+                                   : "[" + key + "] " + Loc.T("dál",   "next");
             GUI.Label(new Rect(box.x + 18f, box.yMax - 24f, box.width - 36f, 20f), more, hintStyle);
         }
     }

@@ -126,8 +126,16 @@ public class GridManager : MonoBehaviour
         SoloPause.Ensure();      // v sólu pauza při otevřeném obchodu / dialogu / mapě
     }
 
-    // Při zavření hry ulož.
-    void OnApplicationQuit() => Save();
+    // Při zavření hry / ztrátě okna / zničení scény ulož, co je rozdělané.
+    void OnApplicationQuit() { saveDirty = true; FlushSaveBlocking(); }
+    void OnApplicationFocus(bool hasFocus) { if (!hasFocus) FlushSave(); }
+    void OnDestroy() => FlushSaveBlocking();
+
+    void Update()
+    {
+        // Odložené uložení (viz Save) — nejvýš jednou za SAVE_INTERVAL sekund.
+        if (saveDirty && Time.unscaledTime - lastSaveTime >= SAVE_INTERVAL) FlushSave();
+    }
 
     // ── Moře jako celek: hladina + dno + obloha ────────────────────────────
     // Místo stovek malých vodních dlaždic je celé moře jedna poloprůhledná
@@ -160,20 +168,70 @@ public class GridManager : MonoBehaviour
         sky.AddComponent<SkyClouds>().Init(p1);
     }
 
-    /// <summary>Uklidí zbytečná data a uloží hru na disk.</summary>
-    public void Save()
+    // ── Ukládání (odložené) ─────────────────────────────────────────────────
+    // Save() se volá z desítek míst (každá ryba, výplata, potopená loď…) a save
+    // má několik MB — zápis při každé takové události dělal půlvteřinová
+    // zaseknutí. Proto Save() jen poznamená "něco se změnilo" (saveDirty) a
+    // skutečné uložení proběhne:
+    //   • nejvýš jednou za SAVE_INTERVAL sekund (Update),
+    //   • hned při ukončení hry, ztrátě okna a zničení scény,
+    //   • na požádání (SaveNow / FlushSaveBlocking) před přechodem do majáku,
+    //     do hlavního menu nebo při změně slotu.
+    // Samotný zápis souboru běží na pozadí (SaveManager.SaveGameAsync).
+    // Cena: při pádu hry se ztratí nanejvýš posledních pár sekund postupu.
+    private bool  saveDirty;
+    private float lastSaveTime;
+    private const float SAVE_INTERVAL = 8f;
+
+    /// <summary>Označí, že se data změnila — uloží se za chvíli (viz výš).</summary>
+    public void Save() { saveDirty = true; }
+
+    /// <summary>Uloží hned (zápis na pozadí) — před přechodem do jiné scény apod.</summary>
+    public void SaveNow() { saveDirty = true; FlushSave(); }
+
+    /// <summary>Uloží a počká, až je soubor opravdu na disku (konec hry, hlavní menu, změna slotu).</summary>
+    public void FlushSaveBlocking()
     {
+        FlushSave();
+        SaveManager.WaitForPendingWrites();
+    }
+
+    // Uklidí zbytečná data a odešle uložení na pozadí (jen když je co ukládat).
+    private void FlushSave()
+    {
+        if (!saveDirty) return;
+        if (gameData == null) return; // GameSession už neexistuje (konec hry)
+
+        saveDirty    = false;
+        lastSaveTime = Time.unscaledTime;
         CleanupWorldData();
-        SaveManager.SaveGame(gameData);
+        SaveManager.SaveGameAsync(gameData);
     }
 
     // ── Práce s klíči slovníku ("x,y") ──────────────────────────────────────
-    private static string GridKey(int x, int y) => $"{x},{y}";
+    // Slovník světa je podle těchto klíčů a používají se neustále (při každém kroku
+    // hráče se jich prochází ~3000, plus dotazy lodí a strážců). Skládání textu
+    // pokaždé znovu by zbytečně tvořilo odpad pro garbage collector, proto se už
+    // sestavené klíče pamatují. Formát klíče ("x,y") se NEMĚNÍ — save zůstává kompatibilní.
+    private static readonly Dictionary<long, string> gridKeyCache = new Dictionary<long, string>();
+    private const int GRID_KEY_CACHE_LIMIT = 250000; // pojistka proti růstu paměti při velmi dlouhé hře
 
+    private static string GridKey(int x, int y)
+    {
+        long id = ((long)x << 32) | (uint)y;
+        if (gridKeyCache.TryGetValue(id, out string key)) return key;
+
+        if (gridKeyCache.Count >= GRID_KEY_CACHE_LIMIT) gridKeyCache.Clear();
+        key = $"{x},{y}";
+        gridKeyCache.Add(id, key);
+        return key;
+    }
+
+    // Rozloží klíč "x,y" zpátky na čísla — bez Split() a bez vedlejších řetězců.
     private static (int x, int y) ParseGridKey(string key)
     {
-        var p = key.Split(',');
-        return (int.Parse(p[0]), int.Parse(p[1]));
+        int comma = key.IndexOf(',');
+        return (int.Parse(key.AsSpan(0, comma)), int.Parse(key.AsSpan(comma + 1)));
     }
 
     // ── Úklid uložených dat ─────────────────────────────────────────────────
@@ -1269,8 +1327,7 @@ public class GridManager : MonoBehaviour
     /// <summary>Typ políčka (nevygenerované bere jako vodu).</summary>
     public TileType GetTileType(int x, int y)
     {
-        string key = GridKey(x, y);
-        return gameData.tileData.ContainsKey(key) ? (TileType)gameData.tileData[key].type : TileType.Water;
+        return gameData.tileData.TryGetValue(GridKey(x, y), out var status) ? (TileType)status.type : TileType.Water;
     }
 
     /// <summary>Je na světové pozici [x,z] pevnina (ostrov / molo / maják)? Pro kolize pirátských lodí.</summary>
@@ -1280,8 +1337,7 @@ public class GridManager : MonoBehaviour
     /// <summary>Celý stav políčka, nebo null když neexistuje.</summary>
     public TileStatus GetTileStatus(int x, int y)
     {
-        string key = GridKey(x, y);
-        return gameData.tileData.ContainsKey(key) ? gameData.tileData[key] : null;
+        return gameData.tileData.TryGetValue(GridKey(x, y), out var status) ? status : null;
     }
 
     /// <summary>Ručně vyvolá OnWorldChanged (překreslí HUD a minimapu).</summary>
@@ -1764,13 +1820,14 @@ public class GridManager : MonoBehaviour
 
         GenerateInitialWorld();
         GenerateWorld(0, 0);
-        Save();
+        SaveNow();
         OnWorldChanged?.Invoke();
     }
 
     /// <summary>Načte existující save v daném slotu (volá hlavní menu).</summary>
     public void LoadSlot(int slot)
     {
+        FlushSaveBlocking(); // rozdělaný postup předchozí hry patří ještě do starého slotu
         SaveManager.CurrentSlot = slot;
         PlayerPrefs.SetInt("LastSlot", slot);
 
@@ -1779,13 +1836,14 @@ public class GridManager : MonoBehaviour
         GameSession.Ensure().SetData(SaveManager.LoadGame());
         if (gameData.tileData.Count == 0) GenerateInitialWorld();
         GenerateWorld(gameData.playerGridX, gameData.playerGridY);
-        Save();
+        SaveNow();
         OnWorldChanged?.Invoke();
     }
 
     /// <summary>Spustí novou hru v daném slotu (volá hlavní menu).</summary>
     public void NewGameSlot(int slot)
     {
+        FlushSaveBlocking(); // rozdělaný postup předchozí hry patří ještě do starého slotu
         SaveManager.CurrentSlot = slot;
         PlayerPrefs.SetInt("LastSlot", slot);
         SaveManager.DeleteSave();
@@ -1796,7 +1854,7 @@ public class GridManager : MonoBehaviour
         gameData.shipLevel = 0;
         GenerateInitialWorld();
         GenerateWorld(0, 0);
-        Save();
+        SaveNow();
         OnWorldChanged?.Invoke();
     }
 

@@ -112,14 +112,19 @@ public class MapScreen : MonoBehaviour
         DrawCompass(mapRect);
 
         // Titulek + nápověda.
-        GUI.Label(new Rect(halfX, 34f, halfW, 34f), "MAPA", titleStyle);
+        GUI.Label(new Rect(halfX, 34f, halfW, 34f), Loc.T("MAPA", "MAP"), titleStyle);
         GUI.Label(new Rect(halfX, mapRect.yMax + 10f, halfW, 26f),
-            "táhni myší = posun    kolečko = přiblížení    klik = cíl", hintStyle);
+            Loc.T("táhni myší = posun    kolečko = přiblížení    klik = cíl",
+                  "drag = pan    wheel = zoom    click = set target"), hintStyle);
 
+        // Klávesy, které mapu zavírají, jsou pro každého hráče jiné.
+        string closeKeys = owner == 0 ? "M / Esc" : "Numpad2 / NumpadEnter";
         bool hasWp = owner == 0 ? grid.gameData.hasWaypoint : grid.gameData.player2HasWaypoint;
         GUI.Label(new Rect(halfX, mapRect.yMax + 34f, halfW, 24f),
-            hasWp ? "cíl nastaven — na minimapě tě k němu vede azurová šipka  (M / Numpad2 zavře)"
-                  : "klikni do mapy a nastav si cíl  (M / Numpad2 zavře)", hintStyle);
+            hasWp ? Loc.T($"cíl nastaven — vede tě k němu azurová šipka na minimapě  ({closeKeys} = zavřít)",
+                          $"target set — the cyan arrow on the minimap leads you there  ({closeKeys} = close)")
+                  : Loc.T($"klikni do mapy a nastav si cíl  ({closeKeys} = zavřít)",
+                          $"click the map to set a target  ({closeKeys} = close)"), hintStyle);
     }
 
     // ── Vstup (tažení / zoom / klik) ─────────────────────────────────────────
@@ -318,10 +323,11 @@ public class MapScreen : MonoBehaviour
                 normal = { textColor = new Color(1f, 0.92f, 0.6f) }
             };
 
-        CompassLetter("S", new Rect(m.center.x - 14f, m.y + 4f,          28f, 22f));
-        CompassLetter("J", new Rect(m.center.x - 14f, m.yMax - 26f,      28f, 22f));
-        CompassLetter("V", new Rect(m.xMax - 26f,     m.center.y - 11f,  22f, 22f));
-        CompassLetter("Z", new Rect(m.x + 4f,         m.center.y - 11f,  22f, 22f));
+        // Česky S/J/V/Z, anglicky N/S/E/W (pozor: "S" je v češtině sever, v angličtině jih).
+        CompassLetter(Loc.T("S", "N"), new Rect(m.center.x - 14f, m.y + 4f,          28f, 22f));
+        CompassLetter(Loc.T("J", "S"), new Rect(m.center.x - 14f, m.yMax - 26f,      28f, 22f));
+        CompassLetter(Loc.T("V", "E"), new Rect(m.xMax - 26f,     m.center.y - 11f,  22f, 22f));
+        CompassLetter(Loc.T("Z", "W"), new Rect(m.x + 4f,         m.center.y - 11f,  22f, 22f));
     }
 
     // Písmeno + tmavý stín pod ním, ať je čitelné i nad světlou mapou.

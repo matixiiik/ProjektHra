@@ -56,9 +56,9 @@ public static class BoatStats
     /// <summary>Krátký popis výhody dané úrovně (do obchodu).</summary>
     public static string Perk(int level)
     {
-        if (level <= 0) return "veslice — pomala, bez dela";
-        if (level == 1) return "+rychlost, 1 delo (0.5 posk.)";
-        if (level == 2) return "+25% rychlost, rychlejsi tezba, delo 1.0";
-        return "+50% rychlost, +1 ryba, delo 2.0";
+        if (level <= 0) return Loc.T("veslice — pomalá, bez děla",                      "rowboat — slow, no cannon");
+        if (level == 1) return Loc.T("+rychlost, 1 dělo (0.5 poškození)",               "+speed, 1 cannon (0.5 damage)");
+        if (level == 2) return Loc.T("+25 % rychlost, rychlejší těžba, dělo 1.0",       "+25% speed, faster mining, cannon 1.0");
+        return                  Loc.T("+50 % rychlost, +1 ryba, dělo 2.0",              "+50% speed, +1 fish, cannon 2.0");
     }
 }

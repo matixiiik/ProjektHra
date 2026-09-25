@@ -18,7 +18,7 @@ using UnityEngine;
 
 public class RivalNpc : MonoBehaviour
 {
-    private const string NpcName   = "Starší bratr";
+    private static string NpcName => Loc.T("Starší bratr", "Elder Brother"); // jméno v rámečku dialogu
     private const float  HintRange = 2.4f;
 
     public static RivalNpc Instance { get; private set; }
@@ -79,22 +79,36 @@ public class RivalNpc : MonoBehaviour
         if (Data.storyDone)
         {
             activeLines = Data.storyEnding == 1
-                ? new[] { "Připrav loď. Pojedu s tebou." }
-                : new[] { "Máš, cos chtěl. Zbytek je tvoje věc." };
+                ? Loc.Pick(new[] { "Připrav loď. Pojedu s tebou." },
+                           new[] { "Get the boat ready. I'm coming with you." })
+                : Loc.Pick(new[] { "Máš, cos chtěl. Zbytek je tvoje věc." },
+                           new[] { "You have what you wanted. The rest is your business." });
             return;
         }
 
-        activeLines = new[]
-        {
-            "Tak přece jsi přijel.",
-            "Roky jsem čekal, že se pro mě někdo vrátí. Nikdo nepřijel.",
-            "Otec s malým bratrem odpluli domů. Mě nechali na tom prokletém útesu.",
-            "Vyrostl jsem tady sám. Živil se, jak se dalo. Zestárl jsem u moře, co mi vzalo rodinu.",
-            "Rodina? Ta si po letech řekla, že jsem utonul. Pohřbili mě, jako bych byl nikdo.",
-            "Potkal jsem cestou i jeho syna, víš. I toho si nakonec vzalo moře — bere si, co chce, a nikoho se neptá.",
-            "Tohle je to, co jste s dědou celou dobu hledali — rodinné dědictví. Měl jsem ho u sebe celou dobu.",
-            "Tak co bude, chlapče? Vezmeš mě domů, nebo si vezmeš jen tohle?",
-        };
+        activeLines = Loc.Pick(
+            new[]
+            {
+                "Tak přece jsi přijel.",
+                "Roky jsem čekal, že se pro mě někdo vrátí. Nikdo nepřijel.",
+                "Otec s malým bratrem odpluli domů. Mě nechali na tom prokletém útesu.",
+                "Vyrostl jsem tady sám a živil se, jak se dalo. Zestárl jsem u moře, které mi vzalo rodinu.",
+                "Rodina? Ta si po letech řekla, že jsem utonul. Pohřbili mě, jako bych byl nikdo.",
+                "Potkal jsem dokonce i jeho syna, víš. I toho si nakonec vzalo moře — bere si, co chce, a nikoho se neptá.",
+                "Tohle jste s dědou tak dlouho hledali — rodinné dědictví. Celé ty roky jsem ho měl u sebe.",
+                "Tak co bude, chlapče? Vezmeš mě domů, nebo si vezmeš jen tohle?",
+            },
+            new[]
+            {
+                "So you came after all.",
+                "For years I waited for someone to come back for me. Nobody came.",
+                "Father and my little brother sailed home. They left me on this cursed cliff.",
+                "I grew up here alone, living off whatever I could find. I grew old beside the sea that took my family.",
+                "Family? After some years they decided I had drowned. They buried me as if I were nobody.",
+                "I even met his son along the way, you know. The sea took him too in the end — it takes what it wants and asks no one.",
+                "This is what you and Grandpa have been searching for all this time — the family inheritance. I've had it with me all these years.",
+                "So what will it be, lad? Will you take me home, or will you take only this?",
+            });
         showChoiceButtons = true;
     }
 
@@ -112,8 +126,10 @@ public class RivalNpc : MonoBehaviour
         SoundManager.PlayCoin();
 
         activeLines = ending == 1
-            ? new[] { "Bratr mlčky přikývne a sedne si k veslu. \"Tak jedem,\" řekne nakonec." }
-            : new[] { "Vezmeš dědictví. Za zády necháš jen šumění vody a prázdný útes." };
+            ? Loc.Pick(new[] { "Bratr mlčky přikývne a sedne si k veslu. „Tak jedem,“ řekne nakonec." },
+                       new[] { "The brother nods in silence and sits down at the oar. “Let’s go, then,” he says at last." })
+            : Loc.Pick(new[] { "Vezmeš si dědictví. Za zády zůstane jen šumění vody a prázdný útes." },
+                       new[] { "You take the inheritance. Behind you there is only the murmur of the water and an empty cliff." });
         line = 0;
         showChoiceButtons = false;
         ignoreKeyUntil = Time.unscaledTime + 0.2f;
@@ -213,7 +229,7 @@ public class RivalNpc : MonoBehaviour
         Rect half = HalfRect(playerIndex);
         string key = playerIndex == 0 ? "E" : "Numpad 1";
         var r = new Rect(half.x, half.yMax - 90f, half.width, 26f);
-        GUI.Label(r, "[" + key + "]  promluv s bratrem", hintStyle);
+        GUI.Label(r, "[" + key + "]  " + Loc.T("promluv s bratrem", "talk to the brother"), hintStyle);
     }
 
     private void DrawDialog(int playerIndex)
@@ -243,12 +259,13 @@ public class RivalNpc : MonoBehaviour
             float bw = 220f;
             var brSpare = new Rect(box.x + box.width / 2f - bw - 10f, box.yMax - 30f, bw, 24f);
             var brKill  = new Rect(box.x + box.width / 2f + 10f,      box.yMax - 30f, bw, 24f);
-            if (SoundManager.Click(GUI.Button(brSpare, "Ušetřit — vzít domů", spareStyle))) ChooseSpare();
-            if (SoundManager.Click(GUI.Button(brKill,  "Zabít — vzít dědictví", killStyle))) ChooseKill();
+            if (SoundManager.Click(GUI.Button(brSpare, Loc.T("Ušetřit — vzít domů",    "Spare him — take him home"),      spareStyle))) ChooseSpare();
+            if (SoundManager.Click(GUI.Button(brKill,  Loc.T("Zabít — vzít dědictví", "Kill him — take the inheritance"), killStyle))) ChooseKill();
         }
         else
         {
-            string more = lastLine ? "[" + key + "] konec" : "[" + key + "] dál";
+            string more = lastLine ? "[" + key + "] " + Loc.T("konec", "close")
+                                   : "[" + key + "] " + Loc.T("dál",   "next");
             GUI.Label(new Rect(box.x + 18f, box.yMax - 24f, box.width - 36f, 20f), more, hintStyle);
         }
     }

@@ -102,6 +102,13 @@ ostrově). Podporuje lokální split-screen pro dva hráče.
   `HUDCounter` + obchody).
 
 ### Ukládání (`SaveManager`, `GameData`)
+- **`GridManager.Save()` je ODLOŽENÉ** — jen nastaví `saveDirty`; skutečný zápis proběhne
+  nejvýš 1× za 8 s (`Update`), při ukončení / ztrátě okna / zničení `GridManager` a na
+  požádání: `SaveNow()` (hned, zápis na pozadí) a `FlushSaveBlocking()` (počká na disk —
+  před hlavním menu, změnou slotu). Důvod: save má několik MB a zápis při každé rybě
+  dělal půlvteřinové záseky. `SaveManager.SaveGameAsync` píše na pozadí přes `.tmp` +
+  `File.Replace`, JSON je kompaktní. `SaveManager.SaveGame` (synchronní) zůstává pro
+  `GameSession.Save()` v majáku. Náhledy slotů do menu: `PeekSlotSummary` (jen 3 čísla).
 - Statická třída, JSON přes `JsonUtility` do `Application.persistentDataPath`.
 - **3 sloty**: `save_0.json`…`save_2.json`. `SaveManager.CurrentSlot`,
   `PlayerPrefs["LastSlot"]`.
@@ -174,6 +181,17 @@ ostrově). Podporuje lokální split-screen pro dva hráče.
   zabít** → `gameData.storyDone=true`, `storyEnding` (1/2) mění dědovu
   poslední repliku. Detail: `.claude/story-plan.md`, historie kroků:
   `.claude/handoff.md`.
+
+### Lokalizace (`Loc.cs`) — čeština / angličtina
+- Obě verze textu stojí vedle sebe v kódu: `Loc.T("Nová hra", "New Game")`; dialogy jako
+  pole stránek `Loc.Pick(csPages, enPages)`; věty s počtem přes `Loc.Plural(...)` /
+  `Loc.CoinsWord(n)`; větvit interpolované řetězce v `OnGUI` raději `Loc.En ? $"…" : $"…"`.
+- Jazyk v `PlayerPrefs["Lang"]` (NE v savu). Přepíná se tlačítkem v hlavním menu a v pauze
+  (`Loc.Toggle()` + `grid.NotifyWorldChanged()` — HUD a minimapa se překreslí).
+- Text uložený v savu se do HUD/obchodu skládá znovu (`QuestShopManager.DescribeQuest`),
+  aby po přepnutí jazyka nezůstal starý. Světové strany: česky S/J/V/Z, anglicky N/S/E/W.
+- **Nepřeloženo záměrně:** `GameConsole` (vývojářská konzole), `Debug.Log`, legacy `HarborManager`.
+- Každý nový hráčem viditelný text = `Loc.T`/`Loc.Pick` (obě verze), jinak zůstane česky.
 
 ### UI
 - **IMGUI (`OnGUI`)**: `MainMenuManager`, `PauseMenu`, `GameConsole`,

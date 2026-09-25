@@ -216,8 +216,9 @@ public class MinimapUIRenderer : MonoBehaviour
         int boatHp   = playerIndex == 0 ? d.boatHealth   : d.player2BoatHealth;
         int playerHp = playerIndex == 0 ? d.playerHealth : d.player2PlayerHealth;
 
-        SetHpBar(boatHpFillRT,   boatHpLabel,   "Lod",     boatHp,   HpBoatColor);
-        SetHpBar(playerHpFillRT, playerHpLabel, "Panacek", playerHp, HpPlayerColor);
+        SetHpBar(boatHpFillRT,   boatHpLabel,   Loc.T("Loď",    "Boat"),   boatHp,   HpBoatColor);
+        SetHpBar(playerHpFillRT, playerHpLabel, Loc.T("Panáček", "Sailor"), playerHp, HpPlayerColor);
+        RefreshCompassLetters(); // po přepnutí jazyka se sem dostaneme přes OnWorldChanged
     }
 
     void SetHpBar(RectTransform fillRT, Text label, string name, int hp, Color healthyColor)
@@ -313,17 +314,32 @@ public class MinimapUIRenderer : MonoBehaviour
 
     // Písmena světových stran (S / J / V / Z) při okraji minimapy zevnitř —
     // minimapa je v rohu obrazovky, ven by se místy nevešla.
+    // Odkazy na 4 popisky (sever, jih, východ, západ), ať jde písmeno přepsat při
+    // změně jazyka — česky S/J/V/Z, anglicky N/S/E/W ("S" je sever i jih!).
+    private readonly Text[] compassTexts = new Text[4];
+
     void CreateCompassLabels()
     {
-        MakeCompassLabel("S", new Vector2(0.5f, 1f), new Vector2(0f,  -11f));
-        MakeCompassLabel("J", new Vector2(0.5f, 0f), new Vector2(0f,   11f));
-        MakeCompassLabel("V", new Vector2(1f, 0.5f), new Vector2(-11f,  0f));
-        MakeCompassLabel("Z", new Vector2(0f, 0.5f), new Vector2( 11f,  0f));
+        compassTexts[0] = MakeCompassLabel("North", new Vector2(0.5f, 1f), new Vector2(0f,  -11f));
+        compassTexts[1] = MakeCompassLabel("South", new Vector2(0.5f, 0f), new Vector2(0f,   11f));
+        compassTexts[2] = MakeCompassLabel("East",  new Vector2(1f, 0.5f), new Vector2(-11f,  0f));
+        compassTexts[3] = MakeCompassLabel("West",  new Vector2(0f, 0.5f), new Vector2( 11f,  0f));
+        RefreshCompassLetters();
     }
 
-    void MakeCompassLabel(string letter, Vector2 anchor, Vector2 offset)
+    // Nastaví písmena kompasu podle jazyka (volá se při vzniku a po každém překreslení HUD).
+    void RefreshCompassLetters()
     {
-        var go = new GameObject("Compass_" + letter);
+        if (compassTexts[0] == null) return;
+        compassTexts[0].text = Loc.T("S", "N");
+        compassTexts[1].text = Loc.T("J", "S");
+        compassTexts[2].text = Loc.T("V", "E");
+        compassTexts[3].text = Loc.T("Z", "W");
+    }
+
+    Text MakeCompassLabel(string dirName, Vector2 anchor, Vector2 offset)
+    {
+        var go = new GameObject("Compass_" + dirName);
         go.transform.SetParent(minimapImage.transform, false);
         var rt = go.AddComponent<RectTransform>();
         rt.anchorMin = rt.anchorMax = anchor;
@@ -342,7 +358,7 @@ public class MinimapUIRenderer : MonoBehaviour
         var sh = go.AddComponent<Shadow>();
         sh.effectColor    = new Color(0f, 0f, 0f, 0.9f);
         sh.effectDistance = new Vector2(1f, -1f);
-        txt.text = letter;
+        return txt;
     }
 
     private float nextCombatRefresh;

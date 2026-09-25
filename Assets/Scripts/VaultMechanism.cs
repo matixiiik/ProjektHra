@@ -24,7 +24,8 @@ public class VaultMechanism : MonoBehaviour
 {
     private const int WHEEL_COUNT  = 3;
     private const int SYMBOL_COUNT = 5;
-    private static readonly string[] SYMBOL_NAMES  = { "KOTVA", "LEBKA", "KOMPAS", "VLNA", "MINCE" };
+    private static readonly string[] SYMBOL_NAMES    = { "KOTVA", "LEBKA", "KOMPAS", "VLNA", "MINCE" };
+    private static readonly string[] SYMBOL_NAMES_EN = { "ANCHOR", "SKULL", "COMPASS", "WAVE", "COIN" };
     private static readonly Color[]  SYMBOL_COLORS =
     {
         new Color(0.30f, 0.55f, 0.85f), // kotva  — modrá
@@ -127,7 +128,7 @@ public class VaultMechanism : MonoBehaviour
     {
         if (solved)
         {
-            if (CombatDirector.Instance != null) CombatDirector.Instance.Toast("Trezor je už otevřený.");
+            if (CombatDirector.Instance != null) CombatDirector.Instance.Toast(Loc.T("Trezor je už otevřený.", "The vault is already open."));
             return true;
         }
         if (openFor != -1) return true; // někdo (jiný hráč) už ho má otevřený
@@ -205,7 +206,7 @@ public class VaultMechanism : MonoBehaviour
             gridManager.NotifyWorldChanged();
         }
         SoundManager.PlayCoin();
-        if (CombatDirector.Instance != null) CombatDirector.Instance.Toast("Trezor otevřen!");
+        if (CombatDirector.Instance != null) CombatDirector.Instance.Toast(Loc.T("Trezor otevřen!", "Vault opened!"));
     }
 
     // ── UI ─────────────────────────────────────────────────────────────────
@@ -223,7 +224,8 @@ public class VaultMechanism : MonoBehaviour
         GUI.DrawTexture(box, Texture2D.whiteTexture);
         GUI.color = Color.white;
 
-        GUI.Label(new Rect(box.x, box.y + 10f, box.width, 24f), "Trezor — sjednoť tři kola na stejný symbol", boxStyle);
+        GUI.Label(new Rect(box.x, box.y + 10f, box.width, 24f),
+            Loc.T("Trezor — sjednoť tři kola na stejný symbol", "Vault — line up all three wheels on the same symbol"), boxStyle);
 
         float wheelW = box.width / 3f;
         for (int i = 0; i < WHEEL_COUNT; i++)
@@ -237,14 +239,15 @@ public class VaultMechanism : MonoBehaviour
                 GUI.color = Color.white;
             }
             var wr = new Rect(box.x + i * wheelW, box.y + 55f, wheelW, 50f);
-            GUI.Label(wr, SYMBOL_NAMES[ringPos[i]], wheelStyle);
+            GUI.Label(wr, Loc.T(SYMBOL_NAMES[ringPos[i]], SYMBOL_NAMES_EN[ringPos[i]]), wheelStyle);
         }
 
         string keySelect = openFor == 0 ? "A / D" : "Numpad 4 / 6";
         string keyTurn   = openFor == 0 ? "W / S" : "Numpad 8 / 2";
         string keyClose  = openFor == 0 ? "Esc"   : "Numpad Enter";
-        GUI.Label(new Rect(box.x, box.y + 115f, box.width, 24f), "Vyber kolo: " + keySelect + "   Otoč: " + keyTurn, hintStyle);
-        GUI.Label(new Rect(box.x, box.y + 140f, box.width, 24f), "Zavřít: " + keyClose, hintStyle);
+        GUI.Label(new Rect(box.x, box.y + 115f, box.width, 24f),
+            Loc.T("Vyber kolo: ", "Select wheel: ") + keySelect + Loc.T("   Otoč: ", "   Turn: ") + keyTurn, hintStyle);
+        GUI.Label(new Rect(box.x, box.y + 140f, box.width, 24f), Loc.T("Zavřít: ", "Close: ") + keyClose, hintStyle);
     }
 
     // Obrazovka celá (sólo) nebo levá / pravá půlka (split screen).

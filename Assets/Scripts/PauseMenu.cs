@@ -75,7 +75,7 @@ public class PauseMenu : MonoBehaviour
 
         bool  mp = MultiplayerManager.IsMultiplayer;
         float w  = 360;
-        float h  = (mp ? 420 : 260) + 52; // v multiplayeru je okno vyšší kvůli převodu peněz; +52 = tlačítko Deník
+        float h  = (mp ? 420 : 260) + 104; // v multiplayeru je okno vyšší kvůli převodu peněz; +104 = tlačítka Deník a Jazyk
 
         // Tmavý overlay přes celou obrazovku.
         GUI.color = new Color(0f, 0f, 0f, 0.75f);
@@ -94,20 +94,26 @@ public class PauseMenu : MonoBehaviour
 
         GUILayout.BeginArea(new Rect(px + 20, py + 20, w - 40, h - 40));
 
-        GUILayout.Label("PAUZA", titleStyle);
+        GUILayout.Label(Loc.T("PAUZA", "PAUSED"), titleStyle);
         GUILayout.Space(14);
 
-        if (SoundManager.Click(GUILayout.Button("Pokračovat", buttonStyle, GUILayout.Height(44))))
+        if (SoundManager.Click(GUILayout.Button(Loc.T("Pokračovat", "Resume"), buttonStyle, GUILayout.Height(44))))
             ContinueGame();
         GUILayout.Space(8);
-        if (SoundManager.Click(GUILayout.Button("Deník", buttonStyle, GUILayout.Height(44))))
+        if (SoundManager.Click(GUILayout.Button(Loc.T("Deník", "Journal"), buttonStyle, GUILayout.Height(44))))
             JournalScreen.Toggle();
         GUILayout.Space(8);
-        if (SoundManager.Click(GUILayout.Button("Nová hra", buttonStyle, GUILayout.Height(44))))
+        if (SoundManager.Click(GUILayout.Button(Loc.T("Nová hra", "New Game"), buttonStyle, GUILayout.Height(44))))
             NewGame();
         GUILayout.Space(8);
-        if (SoundManager.Click(GUILayout.Button("Hlavní menu", buttonStyle, GUILayout.Height(44))))
+        if (SoundManager.Click(GUILayout.Button(Loc.T("Hlavní menu", "Main Menu"), buttonStyle, GUILayout.Height(44))))
             GoToMainMenu();
+        GUILayout.Space(8);
+        if (SoundManager.Click(GUILayout.Button(Loc.En ? "Language: English  (→ Čeština)" : "Jazyk: Čeština  (→ English)", buttonStyle, GUILayout.Height(44))))
+        {
+            Loc.Toggle();
+            if (grid != null) grid.NotifyWorldChanged(); // HUD a minimapa si překreslí popisky
+        }
 
         // ── Převod peněz mezi hráči (jen v multiplayeru) ─────────────────────
         if (mp && grid != null)
@@ -118,12 +124,13 @@ public class PauseMenu : MonoBehaviour
             GUI.color = Color.white;
 
             GUILayout.Space(6);
-            GUILayout.Label("PŘEVOD PENĚZ", transferTitleStyle);
+            GUILayout.Label(Loc.T("PŘEVOD PENĚZ", "TRANSFER COINS"), transferTitleStyle);
             GUILayout.Space(4);
 
             GUILayout.BeginHorizontal();
-            GUILayout.Label($"P1: {grid.gameData.coins} mincí",        coinInfoStyle, GUILayout.ExpandWidth(true));
-            GUILayout.Label($"P2: {grid.gameData.player2Coins} mincí",  coinInfoStyle, GUILayout.ExpandWidth(true));
+            int c1 = grid.gameData.coins, c2 = grid.gameData.player2Coins;
+            GUILayout.Label($"P1: {c1} " + Loc.Plural(c1, "mince", "mince", "mincí", "coin", "coins"), coinInfoStyle, GUILayout.ExpandWidth(true));
+            GUILayout.Label($"P2: {c2} " + Loc.Plural(c2, "mince", "mince", "mincí", "coin", "coins"), coinInfoStyle, GUILayout.ExpandWidth(true));
             GUILayout.EndHorizontal();
 
             GUILayout.Space(4);

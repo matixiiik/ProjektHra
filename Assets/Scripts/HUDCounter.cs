@@ -332,9 +332,9 @@ public class HUDCounter : MonoBehaviour
         int gx = playerIndex == 0 ? d.playerGridX : d.player2GridX;
         int gy = playerIndex == 0 ? d.playerGridY : d.player2GridY;
 
-        fishText.text     = $"Ryby: {fish}";
-        treasureText.text = $"Poklady: {treasure}";
-        coinsText.text    = $"Mince: {coins}";
+        fishText.text     = Loc.T("Ryby: ",   "Fish: ")     + fish;
+        treasureText.text = Loc.T("Poklady: ", "Treasure: ") + treasure;
+        coinsText.text    = Loc.T("Mince: ",  "Coins: ")    + coins;
         coordText.text    = $"X: {gx}   Y: {gy}";
         RefreshQuest(q, mq);
         RefreshStory(d);
@@ -354,13 +354,27 @@ public class HUDCounter : MonoBehaviour
         }
         else switch (d.storyStep)
         {
-            case 1: txt = "Ukol: prines dedovi 1000 minci + historicky poklad"; break;
-            case 2: txt = $"Ukol: dopluj k ostrovu na  [{d.storyIslandX}, {d.storyIslandY}]"; break;
+            case 1:
+                txt = Loc.T("Úkol: přines dědovi 1000 mincí a historický poklad",
+                            "Quest: bring the old sailor 1,000 coins and a historic treasure");
+                break;
+            case 2:
+                txt = Loc.T($"Úkol: dopluj k ostrovu na  [{d.storyIslandX}, {d.storyIslandY}]",
+                            $"Quest: sail to the island at  [{d.storyIslandX}, {d.storyIslandY}]");
+                break;
             case 3:
-                string islandName = d.megaIndex == 0 ? "Ostrovem piratu" : $"ostrovem {d.megaIndex + 1}";
-                txt = d.megaTask < 3
-                        ? $"Ukol: probojuj se {islandName} a najdi, co je uvnitr"
-                        : "Ukol: vrat se za dedou";
+                // Názvy ostrovů stejné jako v deníku (JournalScreen).
+                if (d.megaTask >= 3)
+                    txt = Loc.T("Úkol: vrať se za dědou", "Quest: return to the old sailor");
+                else if (d.megaIndex == 0)
+                    txt = Loc.T("Úkol: probojuj se Ostrovem pirátů a najdi, co skrývá",
+                                "Quest: fight your way across Pirate Island and find what it hides");
+                else if (d.megaIndex == 1)
+                    txt = Loc.T("Úkol: prozkoumej Hřbitov lodí a najdi, co skrývá",
+                                "Quest: explore the Ship Graveyard and find what it hides");
+                else
+                    txt = Loc.T("Úkol: prozkoumej Poslední ostrov a najdi, co skrývá",
+                                "Quest: explore the Final Island and find what it hides");
                 break;
         }
 
@@ -379,16 +393,21 @@ public class HUDCounter : MonoBehaviour
 
         if (q.hasQuest)
         {
+            // Popis se skládá z typu a cíle (ne z textu uloženého v savu), ať sedí na jazyk.
+            string desc = QuestShopManager.DescribeQuest(q.questType, q.target);
             lines.Add(q.IsComplete
-                ? $"<color=#ffcc00>{q.description}</color>  <color=#66ff66>SPLNENO!</color>"
-                : $"<color=#ffcc00>{q.description}</color>  <color=#ffffff>{q.progress}/{q.target}</color>");
+                ? $"<color=#ffcc00>{desc}</color>  <color=#66ff66>" + Loc.T("SPLNĚNO!", "COMPLETE!") + "</color>"
+                : $"<color=#ffcc00>{desc}</color>  <color=#ffffff>{q.progress}/{q.target}</color>");
         }
 
         if (mq.active)
         {
+            // Mega quest se vyplácí ve VÝKUPNĚ v majáku (ne v obchodě s questy).
             lines.Add(mq.dug
-                ? "<color=#66ff66>Poklad vykopan!</color>  <color=#ffcc00>Vyplat v questshopu</color>"
-                : $"<color=#ffcc00>Mapa: poklad na [{mq.targetX}, {mq.targetY}]</color>");
+                ? "<color=#66ff66>" + Loc.T("Poklad vykopán!", "Treasure dug up!") + "</color>  <color=#ffcc00>"
+                    + Loc.T("Vyplať ho ve výkupně", "Cash it in at the trading post") + "</color>"
+                : "<color=#ffcc00>" + Loc.T($"Mapa: poklad na [{mq.targetX}, {mq.targetY}]",
+                                            $"Map: treasure at [{mq.targetX}, {mq.targetY}]") + "</color>");
         }
 
         questLine.text = string.Join("\n", lines.ToArray());

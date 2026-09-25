@@ -203,6 +203,6 @@ public class LighthouseInterior : MonoBehaviour
     {
         float x = who == 1 ? Screen.width * 0.5f + 20f : 20f;
         float y = MultiplayerManager.IsMultiplayer ? 52f : 16f; // pod souřadnicemi z herního HUD
-        GUI.Label(new Rect(x, y, 300, 30), "Mince: " + coins, coinStyle);
+        GUI.Label(new Rect(x, y, 300, 30), Loc.T("Mince: ", "Coins: ") + coins, coinStyle);
     }
 }

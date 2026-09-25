@@ -57,13 +57,14 @@ public class JournalScreen : MonoBehaviour
         GUI.color = Color.white;
 
         GUILayout.BeginArea(new Rect(box.x + 22f, box.y + 16f, box.width - 44f, box.height - 32f));
-        GUILayout.Label("DENÍK", titleStyle);
+        GUILayout.Label(Loc.T("DENÍK", "JOURNAL"), titleStyle);
         GUILayout.Space(8);
 
         var entries = BuildEntries(d);
         if (entries.Count == 0)
         {
-            GUILayout.Label("Zatím žádné zápisky. Vrať se sem, až něco dokážeš.", emptyStyle);
+            GUILayout.Label(Loc.T("Zatím žádné zápisky. Vrať se sem, až něco dokážeš.",
+                                  "No entries yet. Come back once you've accomplished something."), emptyStyle);
         }
         else
         {
@@ -77,7 +78,7 @@ public class JournalScreen : MonoBehaviour
         }
 
         GUILayout.FlexibleSpace();
-        GUILayout.Label("[Esc] zavřít deník", closeHintStyle);
+        GUILayout.Label(Loc.T("[Esc] zavřít deník", "[Esc] close journal"), closeHintStyle);
         GUILayout.EndArea();
 
         // Escape patří deníku (zavře jen jeho) — spotřebuj event, ať ho hned
@@ -98,26 +99,46 @@ public class JournalScreen : MonoBehaviour
         var list = new List<string>();
 
         if (d.storyStep >= 1)
-            list.Add("Slíbil jsi starému námořníkovi u startovního ostrova, že mu doneseš 1000 mincí a historický poklad, než tě pošle dál.");
+            list.Add(Loc.T(
+                "Slíbil jsi starému námořníkovi na startovním ostrově, že mu doneseš 1000 mincí a historický poklad. Teprve pak tě pošle dál.",
+                "You promised the old sailor on the starting island that you would bring him 1,000 coins and a historic treasure. Only then will he send you onward."));
 
         if (d.storyStep >= 2)
-            list.Add("Prokázal ses. Dostal jsi souřadnice vzdáleného ostrova a vydal ses za nimi.");
+            list.Add(Loc.T(
+                "Obstál jsi. Starý námořník ti svěřil souřadnice vzdáleného ostrova a ty ses vydal na cestu.",
+                "You proved yourself. The old sailor entrusted you with the coordinates of a distant island, and you set sail."));
 
-        if (Reached(d, 0, 1)) list.Add("Ostrov pirátů: rozbil jsi jeho obranu — děla na hradebních věžích, ozbrojenou posádku i hlídkovou loď.");
-        if (Reached(d, 0, 2)) list.Add("Ostrov pirátů: vyřešil jsi hádanku tří ozubených kol a otevřel trezor.");
-        if (Reached(d, 0, 3)) list.Add("Ostrov pirátů: přečetl jsi vzkaz, co v trezoru čekal, a vydal ses po stopě dál.");
+        if (Reached(d, 0, 1)) list.Add(Loc.T(
+            "Ostrov pirátů: zlomil jsi jeho obranu — umlčel jsi děla na hradebních věžích, přemohl ozbrojenou posádku i hlídkovou loď.",
+            "Pirate Island: you broke its defenses — silenced the cannons on the wall towers and overpowered the armed crew and the patrol ship."));
+        if (Reached(d, 0, 2)) list.Add(Loc.T(
+            "Ostrov pirátů: vyřešil jsi hádanku ze tří ozubených kol a otevřel trezor.",
+            "Pirate Island: you solved the puzzle of the three gears and opened the vault."));
+        if (Reached(d, 0, 3)) list.Add(Loc.T(
+            "Ostrov pirátů: v trezoru čekal vzkaz. Přečetl jsi ho a vydal ses po stopě dál.",
+            "Pirate Island: a message was waiting in the vault. You read it and followed the trail onward."));
 
-        if (Reached(d, 1, 1)) list.Add("Hřbitov lodí: potopil jsi Bludného Holanďana, co hlídkoval v mělčině.");
-        if (Reached(d, 1, 2)) list.Add("Hřbitov lodí: vylovil jsi z vody všechny tři kusy roztržené mapy.");
-        if (Reached(d, 1, 3)) list.Add("Hřbitov lodí: prohledal jsi podpalubí vraku a přečetl další vzkaz.");
+        if (Reached(d, 1, 1)) list.Add(Loc.T(
+            "Hřbitov lodí: potopil jsi Bludného Holanďana, který hlídkoval v mělčině.",
+            "Ship Graveyard: you sank the Flying Dutchman, who patrolled the shoals."));
+        if (Reached(d, 1, 2)) list.Add(Loc.T(
+            "Hřbitov lodí: vykopal jsi z mělčiny všechny tři kusy roztržené mapy.",
+            "Ship Graveyard: you dug all three pieces of the torn map out of the shoals."));
+        if (Reached(d, 1, 3)) list.Add(Loc.T(
+            "Hřbitov lodí: prohledal jsi podpalubí vraku a přečetl další vzkaz.",
+            "Ship Graveyard: you searched the wreck's hold and read another message."));
 
-        if (Reached(d, 2, 1)) list.Add("Poslední ostrov: potopil jsi loď, co hlídala příjezd.");
+        if (Reached(d, 2, 1)) list.Add(Loc.T(
+            "Poslední ostrov: potopil jsi loď, která hlídala příjezd.",
+            "Final Island: you sank the ship that guarded the approach."));
 
         if (d.storyDone)
         {
             list.Add(d.storyEnding == 1
-                ? "Stanul jsi tváří v tvář dědovu ztracenému bratrovi — a rozhodl ses ho ušetřit a vzít domů."
-                : "Stanul jsi tváří v tvář dědovu ztracenému bratrovi — a rozhodl ses vzít rodinné dědictví a nechat ho být.");
+                ? Loc.T("Stanul jsi tváří v tvář dědovu ztracenému bratrovi — a rozhodl ses ho ušetřit a vzít domů.",
+                        "You came face to face with the old sailor's lost brother — and chose to spare him and take him home.")
+                : Loc.T("Stanul jsi tváří v tvář dědovu ztracenému bratrovi. Vzal sis rodinný poklad — a bratr se už domů nevrátí.",
+                        "You came face to face with the old sailor's lost brother. You took the family treasure — and the brother will never return home."));
         }
 
         return list;

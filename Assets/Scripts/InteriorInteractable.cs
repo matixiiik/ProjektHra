@@ -21,8 +21,25 @@ public class InteriorInteractable : MonoBehaviour
     [Tooltip("Na jakou vzdálenost (v metrech) sem hráč dosáhne.")]
     public float range = 1.6f;
 
-    [Tooltip("Text, co se hráči ukáže, když je v dosahu.")]
+    [Tooltip("Záložní text nápovědy (skutečný text se skládá podle akce a jazyka, viz GetPrompt).")]
     public string prompt = "E — otevřít";
+
+    /// <summary>
+    /// Text nápovědy v aktuálním jazyce, podle akce bodu a klávesy hráče (E / Numpad 1).
+    /// Text `prompt` uložený ve scéně je jen záloha pro případ nové akce.
+    /// </summary>
+    public string GetPrompt(bool isPlayer1)
+    {
+        string key = isPlayer1 ? "E" : "Numpad 1";
+        switch (action)
+        {
+            case InteriorAction.UpgradeShop:   return key + " — " + Loc.T("obchod s vylepšeními",     "upgrade shop");
+            case InteriorAction.QuestShop:     return key + " — " + Loc.T("obchod s questy",          "quest shop");
+            case InteriorAction.QuestShopSell: return key + " — " + Loc.T("výkupna (prodej kořist)",  "trading post (sell your loot)");
+            case InteriorAction.Exit:          return key + " — " + Loc.T("ven na ostrov",            "back out to the island");
+        }
+        return prompt;
+    }
 
     /// <summary>Vykoná akci tohoto bodu za daného hráče (0 = P1/sólo, 1 = P2 ve split).</summary>
     public void Trigger(int playerIndex)

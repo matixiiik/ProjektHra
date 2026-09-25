@@ -150,12 +150,27 @@ public class QuestShopManager : MonoBehaviour
             offeredQuests[i] = new OfferedQuest
             {
                 type       = t.type,
-                desc       = t.type == 0 ? $"Ulov {target} ryb" : $"Vytez {target} pokladu",
+                desc       = DescribeQuest(t.type, target), // do savu jde text v jazyce z doby koupě, HUD ho ale skládá znovu
                 target     = target,
                 cost       = cost,
                 multiplier = t.mult
             };
         }
+    }
+
+    /// <summary>
+    /// Popis questu ("Ulov 10 ryb" / "Catch 10 fish") složený z typu a cíle, v aktuálním
+    /// jazyce. Skládá se za běhu, protože text uložený v savu (ActiveQuest.description)
+    /// by po přepnutí jazyka zůstal ve starém — tak ho HUD a obchod berou odsud.
+    /// </summary>
+    public static string DescribeQuest(int type, int target)
+    {
+        if (type == 0)
+            return Loc.T($"Ulov {target} " + Loc.Plural(target, "rybu", "ryby", "ryb", "", ""),
+                         $"Catch {target} fish");
+
+        return Loc.T($"Vytěž {target} " + Loc.Plural(target, "poklad", "poklady", "pokladů", "", ""),
+                     $"Salvage {target} " + (target == 1 ? "treasure" : "treasures"));
     }
 
     // Vrátí "count" různých čísel z rozsahu 0..max-1 (bez opakování).
@@ -261,9 +276,11 @@ public class QuestShopManager : MonoBehaviour
         GUILayout.BeginArea(new Rect(px + 25, py + 20, w - 50, h - 40));
 
         string playerLabel = MultiplayerManager.IsMultiplayer
-            ? (buyerIndex == 0 ? "  —  HRÁČ 1" : "  —  HRÁČ 2")
+            ? Loc.T(buyerIndex == 0 ? "  —  HRÁČ 1" : "  —  HRÁČ 2",
+                    buyerIndex == 0 ? "  —  PLAYER 1" : "  —  PLAYER 2")
             : "";
-        GUILayout.Label($"{(sell ? "VYKUPNA" : "OBCHOD S QUESTY")}{playerLabel}", titleStyle);
+        string shopTitle = sell ? Loc.T("VÝKUPNA", "TRADING POST") : Loc.T("OBCHOD S QUESTY", "QUEST SHOP");
+        GUILayout.Label(shopTitle + playerLabel, titleStyle);
         GUILayout.Space(12);
 
         scroll[who] = GUILayout.BeginScrollView(scroll[who], GUILayout.Height(h - 40f - 96f));
@@ -274,7 +291,7 @@ public class QuestShopManager : MonoBehaviour
         GUILayout.EndScrollView();
 
         GUILayout.Space(10);
-        GUILayout.Label($"Mince: {GetCoins()}", coinsStyle);
+        GUILayout.Label(Loc.T("Mince: ", "Coins: ") + GetCoins(), coinsStyle);
         GUILayout.EndArea();
     }
 
@@ -285,7 +302,8 @@ public class QuestShopManager : MonoBehaviour
         if (Data.hasHistoricalTreasure)
         {
             GUI.color = new Color(0.6f, 0.85f, 1f);
-            GUILayout.Label("Neses: HISTORICKY POKLAD  (chce ho stary namornik)", rowStyle);
+            GUILayout.Label(Loc.T("Neseš: HISTORICKÝ POKLAD  (chce ho starý námořník)",
+                                  "You carry: HISTORIC TREASURE  (the old sailor wants it)"), rowStyle);
             GUI.color = Color.white;
             GUILayout.Space(8);
         }
@@ -294,30 +312,36 @@ public class QuestShopManager : MonoBehaviour
         MegaQuest mq = GetMega();
         if (mq.active && mq.dug)
         {
-            GUILayout.Label("POKLAD Z MAPY", sectionStyle);
+            GUILayout.Label(Loc.T("POKLAD Z MAPY", "TREASURE FROM THE MAP"), sectionStyle);
             GUILayout.Label(mq.grantsHistoricalTreasure
-                ? "Vykopany poklad je vyjimecny — HISTORICKY."
-                : "Vykopany poklad je pripraveny k vyplaceni.", rowStyle);
+                ? Loc.T("Vykopaný poklad je výjimečný — je HISTORICKÝ.", "The treasure you dug up is exceptional — it is HISTORIC.")
+                : Loc.T("Vykopaný poklad je připravený k vyplacení.",     "The treasure you dug up is ready to be cashed in."), rowStyle);
+
+            string coinsPart = $"{mq.rewardCoins} {Loc.CoinsWord(mq.rewardCoins)}";
             string btn = mq.grantsHistoricalTreasure
-                ? $"  VYPLATIT  {mq.rewardCoins} minci  +  HISTORICKY POKLAD  +  bonus  !"
-                : $"  VYPLATIT  {mq.rewardCoins} minci  +  trvaly bonus na vykup  !";
+                ? Loc.T($"  VYPLATIT  {coinsPart}  +  HISTORICKÝ POKLAD  +  bonus!",
+                        $"  CASH IN  {coinsPart}  +  HISTORIC TREASURE  +  bonus!")
+                : Loc.T($"  VYPLATIT  {coinsPart}  +  trvalý bonus k výkupu!",
+                        $"  CASH IN  {coinsPart}  +  permanent sell bonus!");
             if (SoundManager.Click(GUILayout.Button(btn, claimStyle, GUILayout.Height(38))))
                 ClaimMega();
             GUILayout.Space(14);
         }
 
-        GUILayout.Label("PRODEJ KORISTI", sectionStyle);
+        GUILayout.Label(Loc.T("PRODEJ KOŘISTI", "SELL YOUR LOOT"), sectionStyle);
 
         int fish     = GetFish();
         int treasure = GetTreasure();
         int fp = FishPrice(), tp = TreasurePrice();
         string bonusTag = HasSellBonus() ? "  (bonus!)" : "";
 
-        DrawSell($"Ryby  x{fish}  ( {fp} minci / kus ){bonusTag}",
+        DrawSell(Loc.T($"Ryby  ×{fish}  ( {fp} {Loc.CoinsWord(fp)} / kus ){bonusTag}",
+                       $"Fish  ×{fish}  ( {fp} {Loc.CoinsWord(fp)} each ){bonusTag}"),
             fish * fp, fish > 0,
             () => { SetCoins(GetCoins() + fish * fp); SetFish(0); Save(); SoundManager.PlayCoin(); });
         GUILayout.Space(4);
-        DrawSell($"Poklady  x{treasure}  ( {tp} minci / kus ){bonusTag}",
+        DrawSell(Loc.T($"Poklady  ×{treasure}  ( {tp} {Loc.CoinsWord(tp)} / kus ){bonusTag}",
+                       $"Treasure  ×{treasure}  ( {tp} {Loc.CoinsWord(tp)} each ){bonusTag}"),
             treasure * tp, treasure > 0,
             () => { SetCoins(GetCoins() + treasure * tp); SetTreasure(0); Save(); SoundManager.PlayCoin(); });
 
@@ -325,7 +349,8 @@ public class QuestShopManager : MonoBehaviour
         {
             GUILayout.Space(6);
             GUI.color = new Color(0.6f, 0.6f, 0.6f);
-            GUILayout.Label("( nic k prodeji — nalov ryby nebo vytez poklady )", rowStyle);
+            GUILayout.Label(Loc.T("( nic k prodeji — nalov ryby nebo vytěž poklady )",
+                                  "( nothing to sell — catch fish or salvage treasure )"), rowStyle);
             GUI.color = Color.white;
         }
     }
@@ -333,33 +358,35 @@ public class QuestShopManager : MonoBehaviour
     // ── Obsah OBCHODU S QUESTY (oranžový pult) ──────────────────────────────
     private void DrawQuestContent()
     {
-        GUILayout.Label("QUESTY", sectionStyle);
+        GUILayout.Label(Loc.T("QUESTY", "QUESTS"), sectionStyle);
         ActiveQuest aq = GetQuest();
 
         if (aq.hasQuest)
         {
             // Hráč už quest má → ukaž postup a případně tlačítko na vyzvednutí.
-            GUILayout.Label($"Aktivni:  {aq.description}", rowStyle);
-            GUILayout.Label($"Postup:   {aq.progress} / {aq.target}", progressStyle);
-            GUILayout.Label($"Odmena:   {aq.reward} minci  ( {aq.multiplier}x )", rowStyle);
+            GUILayout.Label(Loc.T("Aktivní:  ", "Active:  ") + DescribeQuest(aq.questType, aq.target), rowStyle);
+            GUILayout.Label(Loc.T("Postup:   ", "Progress:   ") + $"{aq.progress} / {aq.target}", progressStyle);
+            GUILayout.Label(Loc.T("Odměna:   ", "Reward:   ") + $"{aq.reward} {Loc.CoinsWord(aq.reward)}  ( {aq.multiplier}× )", rowStyle);
             GUILayout.Space(6);
 
             if (aq.IsComplete)
             {
-                if (SoundManager.Click(GUILayout.Button($"  VYPLATIT  {aq.reward} minci  !", claimStyle, GUILayout.Height(38))))
+                string claim = Loc.T($"  VYPLATIT  {aq.reward} {Loc.CoinsWord(aq.reward)}!",
+                                     $"  CLAIM  {aq.reward} {Loc.CoinsWord(aq.reward)}!");
+                if (SoundManager.Click(GUILayout.Button(claim, claimStyle, GUILayout.Height(38))))
                     ClaimQuest();
             }
             else
             {
                 GUI.color = new Color(0.6f, 0.6f, 0.6f);
-                GUILayout.Label("( quest jeste neni splnen )", rowStyle);
+                GUILayout.Label(Loc.T("( quest ještě není splněn )", "( quest not completed yet )"), rowStyle);
                 GUI.color = Color.white;
             }
         }
         else
         {
             // Hráč quest nemá → nabídni tři na výběr.
-            GUILayout.Label("Zadny aktivni quest — vyber si:", rowStyle);
+            GUILayout.Label(Loc.T("Žádný aktivní quest — vyber si:", "No active quest — choose one:"), rowStyle);
             GUILayout.Space(6);
 
             if (offeredQuests != null)
@@ -367,11 +394,14 @@ public class QuestShopManager : MonoBehaviour
                 for (int i = 0; i < offeredQuests.Length; i++)
                 {
                     var q = offeredQuests[i];
+                    int rewardCoins = q.cost * q.multiplier;
                     GUILayout.BeginHorizontal();
-                    GUILayout.Label($"{q.desc}    odmena: {q.cost * q.multiplier} minci  ( {q.multiplier}x )", rowStyle, GUILayout.ExpandWidth(true));
-                    GUILayout.Label($"{q.cost} minci", rowStyle, GUILayout.Width(90));
+                    GUILayout.Label(DescribeQuest(q.type, q.target)
+                        + Loc.T($"    odměna: {rewardCoins} {Loc.CoinsWord(rewardCoins)}  ( {q.multiplier}× )",
+                                $"    reward: {rewardCoins} {Loc.CoinsWord(rewardCoins)}  ( {q.multiplier}× )"), rowStyle, GUILayout.ExpandWidth(true));
+                    GUILayout.Label($"{q.cost} {Loc.CoinsWord(q.cost)}", rowStyle, GUILayout.Width(90));
                     GUI.enabled = GetCoins() >= q.cost;
-                    if (SoundManager.Click(GUILayout.Button("Koupit", buyStyle, GUILayout.Width(80), GUILayout.Height(26))))
+                    if (SoundManager.Click(GUILayout.Button(Loc.T("Koupit", "Buy"), buyStyle, GUILayout.Width(80), GUILayout.Height(26))))
                     {
                         BuyQuest(q);
                         break; // seznam se hned změní → ukonči smyčku
@@ -389,9 +419,9 @@ public class QuestShopManager : MonoBehaviour
     {
         GUILayout.BeginHorizontal();
         GUILayout.Label(label, rowStyle, GUILayout.ExpandWidth(true));
-        GUILayout.Label($"= {total} minci", rowStyle, GUILayout.Width(110));
+        GUILayout.Label($"= {total} {Loc.CoinsWord(total)}", rowStyle, GUILayout.Width(110));
         GUI.enabled = enabled; // nejde prodat, když hráč nic nemá
-        if (SoundManager.Click(GUILayout.Button("Prodat vse", buyStyle, GUILayout.Width(110), GUILayout.Height(26))))
+        if (SoundManager.Click(GUILayout.Button(Loc.T("Prodat vše", "Sell all"), buyStyle, GUILayout.Width(110), GUILayout.Height(26))))
             onSell();
         GUI.enabled = true;
         GUILayout.EndHorizontal();

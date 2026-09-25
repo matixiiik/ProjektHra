@@ -56,7 +56,7 @@ public class ChestManager : MonoBehaviour
         // otevřel kdokoli (i druhý hráč ve split-screenu), je nadobro prázdná.
         if (IsOpened(x, y))
         {
-            Toast("Tahle bedna už je prázdná.");
+            Toast(Loc.T("Tahle bedna už je prázdná.", "This chest is already empty."));
             return true; // pořád "vyřízeno" — ať se hráč nezkusí nalodit
         }
 
@@ -66,20 +66,23 @@ public class ChestManager : MonoBehaviour
         // Pár mincí rovnou z bedny.
         int loot = Random.Range(EconomyConfig.ChestCoinsMin, EconomyConfig.ChestCoinsMax + 1);
         AddCoins(playerIndex, loot);
-        string msg = "Bedna otevřena!  +" + loot + " mincí.";
+        string msg = Loc.T($"Bedna otevřena!  +{loot} {Loc.CoinsWord(loot)}.", $"Chest opened!  +{loot} {Loc.CoinsWord(loot)}.");
 
         // Mapa (mega quest) — jen když hráč žádný rozdělaný nemá.
         MegaQuest mq = playerIndex == 0 ? grid.gameData.megaQuest : grid.gameData.player2MegaQuest;
         if (!mq.active)
         {
             AssignTreasureMap(mq, x, y);
-            msg += "\nUvnitr byla MAPA! Dopluj na [" + mq.targetX + ", " + mq.targetY + "]\na vykopej poklad (mezernik na tom policku).";
+            msg += Loc.T($"\nUvnitř byla MAPA! Dopluj na [{mq.targetX}, {mq.targetY}]\na vykopej poklad (mezerník na tom políčku).",
+                         $"\nThere was a MAP inside! Sail to [{mq.targetX}, {mq.targetY}]\nand dig up the treasure (Space on that tile).");
             if (mq.grantsHistoricalTreasure)
-                msg += "\nTahle mapa je stara... mozna vede k necemu vyjimecnemu.";
+                msg += Loc.T("\nTahle mapa je stará… možná vede k něčemu výjimečnému.",
+                             "\nThis map is old… perhaps it leads to something exceptional.");
         }
         else
         {
-            msg += "\n(Mapu si nech na priste — jednu uz mas rozdelanou.)";
+            msg += Loc.T("\n(Mapu si nech na příště — jednu už máš rozdělanou.)",
+                         "\n(Keep the map for later — you already have one in progress.)");
         }
         Toast(msg);
         SoundManager.PlayCoin();

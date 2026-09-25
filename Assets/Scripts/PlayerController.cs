@@ -469,7 +469,8 @@ public class PlayerController : MonoBehaviour
             Vector3 escape = transform.position + away * 3f;
             int ex = Mathf.RoundToInt(escape.x), ey = Mathf.RoundToInt(escape.z);
             if (IsBoatWater(gridManager.GetTileType(ex, ey))) TeleportTo(ex, ey);
-            CombatDirector.Instance.Toast("Lod se rozbila! Doplav k ostrovu a oprav ji v obchode.");
+            CombatDirector.Instance.Toast(Loc.T("Loď se rozbila! Doplav k ostrovu a oprav ji v obchodě.",
+                                                "Your boat is wrecked! Swim to an island and repair it in the shop."));
         }
 
         ShowBoatOrFoot();
@@ -892,7 +893,7 @@ public class PlayerController : MonoBehaviour
         if (Mathf.Abs(tx - wx) > 1 || Mathf.Abs(ty - wy) > 1) return;
 
         if (playerIndex == 0) d.hasWaypoint = false; else d.player2HasWaypoint = false;
-        if (CombatDirector.Instance != null) CombatDirector.Instance.Toast("Dorazil jsi k cíli z mapy.");
+        if (CombatDirector.Instance != null) CombatDirector.Instance.Toast(Loc.T("Dorazil jsi k cíli z mapy.", "You have reached the target from the map."));
         gridManager.Save();
     }
 
@@ -967,7 +968,8 @@ public class PlayerController : MonoBehaviour
                 // Panáček je pěšky, loď je rozbitá (a schovaná) — E ji nenasedne.
                 // Řekni hráči, kam si pro opravu dojít.
                 if (CombatDirector.Instance != null)
-                    CombatDirector.Instance.Toast("Lod je rozbita — oprav ji v obchode s vylepsenimi (v majaku).");
+                    CombatDirector.Instance.Toast(Loc.T("Loď je rozbitá — oprav ji v obchodě s vylepšeními (v majáku).",
+                                                        "Your boat is wrecked — repair it in the upgrade shop (in the lighthouse)."));
                 return;
             }
             Vector2Int? land = FindAdjacent(px, py, TileType.Pier) ?? FindAdjacent(px, py, TileType.Harbor);
@@ -1400,8 +1402,8 @@ public class PlayerController : MonoBehaviour
                 }
 
                 TileType t = gridManager.GetTileType(tx, ty);
-                if (t == TileType.Lighthouse) return $"[{ekey}]  vejít do majáku";
-                if (t == TileType.Chest)      return $"[{ekey}]  otevřít bednu";
+                if (t == TileType.Lighthouse) return $"[{ekey}]  " + Loc.T("vejít do majáku", "enter the lighthouse");
+                if (t == TileType.Chest)      return $"[{ekey}]  " + Loc.T("otevřít bednu",   "open the chest");
             }
 
             // Nasednout do lodě — plave do 1 políčka a není rozbitá (tu se jen vyleze, viz TryToggleBoatFoot).
@@ -1409,23 +1411,23 @@ public class PlayerController : MonoBehaviour
             {
                 int dist = Mathf.Max(Mathf.Abs(px - boatGridX), Mathf.Abs(py - boatGridY));
                 if (dist <= 1 && IsBoatWater(gridManager.GetTileType(boatGridX, boatGridY)))
-                    return $"[{ekey}]  nastoupit do lodě";
+                    return $"[{ekey}]  " + Loc.T("nastoupit do lodě", "board the boat");
             }
         }
         else if (!PBoatWrecked)
         {
             if (MegaIslandMarker.Instance != null && MegaIslandMarker.Instance.HasDigSpot(GridX, GridY))
-                return $"[{skey}]  kopat (kousek mapy)";
+                return $"[{skey}]  " + Loc.T("kopat (kousek mapy)", "dig (map piece)");
 
             TileType here = gridManager.GetTileType(GridX, GridY);
-            if (here == TileType.Water_Fish) return $"[{skey}]  rybařit";
-            if (here == TileType.Treasure)   return $"[{skey}]  těžit poklad";
+            if (here == TileType.Water_Fish) return $"[{skey}]  " + Loc.T("rybařit",       "fish");
+            if (here == TileType.Treasure)   return $"[{skey}]  " + Loc.T("těžit poklad",  "salvage treasure");
 
             MegaQuest mq = MyMegaQuest;
             if (mq != null && mq.active && !mq.dug && GridX == mq.targetX && GridY == mq.targetY)
-                return $"[{skey}]  vykopat poklad z mapy";
+                return $"[{skey}]  " + Loc.T("vykopat poklad z mapy", "dig up the treasure from the map");
 
-            if (FindAdjacent(GridX, GridY, TileType.Pier) != null) return $"[{ekey}]  vystoupit z lodě";
+            if (FindAdjacent(GridX, GridY, TileType.Pier) != null) return $"[{ekey}]  " + Loc.T("vystoupit z lodě", "leave the boat");
         }
         return null;
     }
@@ -1454,10 +1456,10 @@ public class PlayerController : MonoBehaviour
 
         string[] labels =
         {
-            hasWeapon ? "Zbraň" : "Zbraň (nekoupena)",
-            $"Náboje: {PHandAmmo}",
-            hasTreasure ? "Hist. poklad" : "",
-            hasCannonBoat ? $"Náboje do děla: {PAmmo}" : "",
+            hasWeapon ? Loc.T("Zbraň", "Weapon") : Loc.T("Zbraň (nekoupená)", "Weapon (not bought)"),
+            Loc.T($"Náboje: {PHandAmmo}", $"Ammo: {PHandAmmo}"),
+            hasTreasure ? Loc.T("Hist. poklad", "Hist. treasure") : "",
+            hasCannonBoat ? Loc.T($"Náboje do děla: {PAmmo}", $"Cannon ammo: {PAmmo}") : "",
         };
         bool[] owned = { hasWeapon, hasWeapon, hasTreasure, hasCannonBoat };
 
@@ -1524,9 +1526,11 @@ public class PlayerController : MonoBehaviour
         int afford  = Mathf.Min(missing, PCoins / REPAIR_COST_PER_HP);
 
         string key = P1 ? "R" : "Numpad /";
+        int payNow = afford >= missing ? cost : afford * REPAIR_COST_PER_HP;
         string msg = afford > 0
-            ? $"[{key}]  opravit lod  ({(afford >= missing ? cost : afford * REPAIR_COST_PER_HP)} minci)"
-            : "na opravu lodě nemáš dost mincí";
+            ? Loc.T($"[{key}]  opravit loď  ({payNow} {Loc.CoinsWord(payNow)})",
+                    $"[{key}]  repair the boat  ({payNow} {Loc.CoinsWord(payNow)})")
+            : Loc.T("na opravu lodě nemáš dost mincí", "you can't afford to repair the boat");
 
         if (repairStyle == null)
             repairStyle = new GUIStyle(GUI.skin.label)

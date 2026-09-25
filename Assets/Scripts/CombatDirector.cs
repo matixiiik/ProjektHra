@@ -228,8 +228,9 @@ public class CombatDirector : MonoBehaviour
         if (pc != null) pc.RewardCoins(reward);
         if (grid != null) { grid.gameData.pirateKills++; grid.Save(); }
         SoundManager.PlayCoin();
-        string who = p.isGhost ? "Bludny Holandan potopen!" : "Pirat potopen!";
-        Toast(who + "  +" + reward + " minci");
+        string who = p.isGhost ? Loc.T("Bludný Holanďan potopen!", "The Flying Dutchman is sunk!")
+                               : Loc.T("Pirát potopen!",           "Pirate sunk!");
+        Toast(who + "  +" + reward + " " + Loc.CoinsWord(reward));
     }
 
     public void OnIslandCannonDestroyed(string key, HostileIslandCannon self)
@@ -243,7 +244,9 @@ public class CombatDirector : MonoBehaviour
 
         if (anyLeft)
         {
-            Toast("Delo zniceno!  +" + EconomyConfig.IslandCannonReward + " minci  (jeste tam nejaka jsou)");
+            int r = EconomyConfig.IslandCannonReward;
+            Toast(Loc.T($"Dělo zničeno!  +{r} {Loc.CoinsWord(r)}  (ještě tam nějaká jsou)",
+                        $"Cannon destroyed!  +{r} {Loc.CoinsWord(r)}  (there are more left)"));
             return;
         }
 
@@ -252,7 +255,9 @@ public class CombatDirector : MonoBehaviour
         for (int i = pirates.Count - 1; i >= 0; i--)
             if (pirates[i] != null && pirates[i].guardIslandKey == key) pirates[i].ReleaseGuard();
         guardedIslands.Remove(key);
-        Toast("Ostrov vycisten!  +" + EconomyConfig.IslandCannonReward + " minci");
+        int reward = EconomyConfig.IslandCannonReward;
+        Toast(Loc.T($"Ostrov vyčištěn!  +{reward} {Loc.CoinsWord(reward)}",
+                    $"Island cleared!  +{reward} {Loc.CoinsWord(reward)}"));
     }
 
     /// <summary>Mořská obluda potopena (Krok 5) — jednorázová odměna, ambush1Done
@@ -262,7 +267,9 @@ public class CombatDirector : MonoBehaviour
         var pc = NearestAnyPlayer();
         if (pc != null) pc.RewardCoins(EconomyConfig.SeaMonsterReward);
         SoundManager.PlayCoin();
-        Toast("Morska obluda potopena!  +" + EconomyConfig.SeaMonsterReward + " minci", 4f);
+        int reward = EconomyConfig.SeaMonsterReward;
+        Toast(Loc.T($"Mořská obluda potopena!  +{reward} {Loc.CoinsWord(reward)}",
+                    $"Sea monster sunk!  +{reward} {Loc.CoinsWord(reward)}"), 4f);
     }
 
     public void Toast(string text) => Toast(text, 2.6f);

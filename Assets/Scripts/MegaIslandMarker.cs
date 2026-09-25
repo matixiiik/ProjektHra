@@ -22,7 +22,7 @@ public class MegaIslandMarker : MonoBehaviour
 
     private GridManager gridManager;
     private Vector2Int  tilePos;  // políčko obelisku (= střed ostrova)
-    private string      signText; // co cedule říká — vrátí se jako toast při interakci
+    private string      signTextCs, signTextEn; // co cedule říká (česky / anglicky) — vrátí se jako toast při interakci
 
     // ── Obrana ostrova 1 (Krok 2) — obsazeno jen když megaIndex == 0 ────────
     private readonly List<HostileIslandCannon> myCannons = new List<HostileIslandCannon>();
@@ -90,7 +90,7 @@ public class MegaIslandMarker : MonoBehaviour
                 d.megaTask = 1;
                 gridManager.Save();
                 gridManager.NotifyWorldChanged();
-                if (CombatDirector.Instance != null) CombatDirector.Instance.Toast("Obrana ostrova padla. Prohledej ho dál.");
+                if (CombatDirector.Instance != null) CombatDirector.Instance.Toast(Loc.T("Obrana ostrova padla. Prohledej ho dál.", "The island's defenses have fallen. Keep searching it."));
                 BuildVaultIfNeeded();
             }
         }
@@ -99,7 +99,7 @@ public class MegaIslandMarker : MonoBehaviour
             d.megaTask = 1;
             gridManager.Save();
             gridManager.NotifyWorldChanged();
-            if (CombatDirector.Instance != null) CombatDirector.Instance.Toast("Bludný Holanďan je poražen. Mělčina teď skrývá kousky mapy.");
+            if (CombatDirector.Instance != null) CombatDirector.Instance.Toast(Loc.T("Bludný Holanďan je poražen. Mělčina teď skrývá kousky mapy.", "The Flying Dutchman is defeated. The shoals now hide pieces of the map."));
             SpawnDigSpots();
         }
         else if (bossShipSpawned && bossShipSpawnedOk && myBossShip == null)
@@ -107,7 +107,7 @@ public class MegaIslandMarker : MonoBehaviour
             d.megaTask = 1;
             gridManager.Save();
             gridManager.NotifyWorldChanged();
-            if (CombatDirector.Instance != null) CombatDirector.Instance.Toast("Bratrova loď je potopená. Vylodi se.");
+            if (CombatDirector.Instance != null) CombatDirector.Instance.Toast(Loc.T("Bratrova loď je potopená. Bratr se vylodil na ostrov.", "The brother's ship is sunk. He has come ashore."));
             SpawnRival();
         }
     }
@@ -130,7 +130,8 @@ public class MegaIslandMarker : MonoBehaviour
     // ── Obsah ostrova podle megaIndex — viz rozpis v hlavičce souboru ─────
     private void BuildFortress()
     {
-        BuildSign("Ostrov pirátů — Pevnost staré posádky. Kolem obelisku hlídkuje ozbrojená posádka — trezor je někde uvnitř.",
+        BuildSign("Ostrov pirátů — pevnost staré posádky. Kolem obelisku hlídkuje ozbrojená posádka, trezor je někde uvnitř.",
+                  "Pirate Island — the old crew's fortress. An armed crew patrols around the obelisk; the vault is somewhere inside.",
                    new Color(0.5f, 0.24f, 0.18f));
 
         if (gridManager == null) return;
@@ -279,7 +280,8 @@ public class MegaIslandMarker : MonoBehaviour
 
     private void BuildWreckGraveyard()
     {
-        BuildSign("Mega ostrov 2 — Hřbitov lodí. V mělčině kolem hlídkuje Bludný Holanďan.",
+        BuildSign("Hřbitov lodí — v mělčině kolem hlídkuje Bludný Holanďan.",
+                  "Ship Graveyard — the Flying Dutchman patrols the shoals around it.",
                    new Color(0.32f, 0.36f, 0.42f));
 
         if (gridManager == null) return;
@@ -432,14 +434,14 @@ public class MegaIslandMarker : MonoBehaviour
         int have = PieceCount();
         if (have < 3)
         {
-            if (CombatDirector.Instance != null) CombatDirector.Instance.Toast($"Kousek roztržené mapy! ({have}/3)");
+            if (CombatDirector.Instance != null) CombatDirector.Instance.Toast(Loc.T($"Kousek roztržené mapy! ({have}/3)", $"A piece of the torn map! ({have}/3)"));
             return;
         }
 
         gridManager.gameData.megaTask = 2;
         gridManager.Save();
         gridManager.NotifyWorldChanged();
-        if (CombatDirector.Instance != null) CombatDirector.Instance.Toast("Mapa je kompletní! Kód vede do podpalubí vraku.", 4f);
+        if (CombatDirector.Instance != null) CombatDirector.Instance.Toast(Loc.T("Mapa je kompletní! Kód vede do podpalubí vraku.", "The map is complete! The code leads to the wreck's hold."), 4f);
         BuildHoldIfNeeded();
     }
 
@@ -477,7 +479,8 @@ public class MegaIslandMarker : MonoBehaviour
 
     private void BuildConfrontation()
     {
-        BuildSign("Mega ostrov 3 — Kde to začalo. Bratrova loď hlídá příjezd.",
+        BuildSign("Poslední ostrov — kde všechno začalo. Bratrova loď hlídá příjezd.",
+                  "Final Island — where it all began. The brother's ship guards the approach.",
                    new Color(0.52f, 0.44f, 0.16f));
 
         if (gridManager == null) return;
@@ -519,9 +522,10 @@ public class MegaIslandMarker : MonoBehaviour
 
     // Dřevěná cedule kousek od obelisku — jen orientační, dokud nevznikne
     // skutečný obsah ostrova. Text se ukáže jako toast při interakci (E).
-    private void BuildSign(string text, Color boardColor)
+    private void BuildSign(string csText, string enText, Color boardColor)
     {
-        signText = text;
+        signTextCs = csText;
+        signTextEn = enText;
 
         Material wood  = MakeMat(new Color(0.35f, 0.24f, 0.14f));
         Material board = MakeMat(boardColor);
@@ -572,6 +576,10 @@ public class MegaIslandMarker : MonoBehaviour
         var towerCorners = PickTowerCorners(runs, 5);
         if (wallsAlreadyBuilt) return towerCorners;
 
+        // Rohy: zeď je tlustá, takže bez úpravy by u každého rohu chyběl vnější
+        // výřez a uvnitř by se dva díly překrývaly (viz MiterRuns).
+        MiterRuns(runs);
+
         // Směr k molu = stejný vzorec jako v GridManager.PlaceMegaIsland (mola
         // se vždy dává na stranu přivrácenou ke světovému počátku) — brána jde
         // na ten rovný úsek hradby, co je tomu směru nejblíž.
@@ -583,8 +591,8 @@ public class MegaIslandMarker : MonoBehaviour
         int gateRun = -1; float bestDiff = 999f;
         for (int i = 0; i < runs.Count; i++)
         {
-            if (Mathf.RoundToInt(runs[i].Length) < 2) continue; // brána potřebuje aspoň 2 dlaždice místa
-            Vector2 mid = runs[i].Midpoint - center;
+            if (runs[i].EffLength < 2f) continue; // brána je 2 j široká, potřebuje aspoň tolik místa
+            Vector2 mid = runs[i].EffMidpoint - center;
             float diff = Mathf.Abs(Mathf.DeltaAngle(Mathf.Atan2(mid.y, mid.x) * Mathf.Rad2Deg, pierAngleDeg));
             if (diff < bestDiff) { bestDiff = diff; gateRun = i; }
         }
@@ -602,39 +610,86 @@ public class MegaIslandMarker : MonoBehaviour
         {
             Vector2 inward = center - corner; // věž "vchodem" dovnitř pevnosti
             float yRot = Mathf.Atan2(inward.y, inward.x) * Mathf.Rad2Deg;
-            BuildPirateKitPart("tower-complete-small", new Vector3(corner.x, 0f, corner.y), yRot, wallsGo.transform);
+            BuildPirateKitPart("tower-complete-small", new Vector3(corner.x, 0f, corner.y), yRot, wallsGo.transform, 1f);
         }
 
         for (int i = 0; i < runs.Count; i++)
         {
             var run = runs[i];
-            int segCount = Mathf.RoundToInt(run.Length);
+            float len = run.EffLength;
+            if (len < WALL_MIN_SPAN) continue; // úsek pohltily sousední rohy, nic k postavení
+
+            Vector2 start = run.EffStart;
             float yRot = Mathf.Atan2(run.Dir.y, run.Dir.x) * Mathf.Rad2Deg;
-            int gateSlot = i == gateRun ? segCount / 2 : -1; // dva prostřední díly úseku nahradí brána
+            // Každý druhý úsek o kapku výš: kde se tlusté zdi u drobných schodů na
+            // pobřeží ještě trochu překrývají, se tak horní plochy neperou (z-fighting).
+            float yLift = (i % 2) * WALL_LIFT;
 
-            for (int s = 0; s < segCount; s++)
+            if (i == gateRun)
             {
-                if (i == gateRun && (s == gateSlot - 1 || s == gateSlot))
-                {
-                    if (s == gateSlot - 1)
-                    {
-                        // Brána je 2x širší než jeden díl hradby — její STŘED je
-                        // přesně na hranici mezi oběma nahrazenými sloty (offset
-                        // `gateSlot`, ne `gateSlot - 0.5`, což byl bug: posunulo
-                        // to bránu o půl dlaždice, takže na jedné straně vznikla
-                        // mezera a na druhé se brána překrývala se zdí).
-                        Vector2 gCenter = run.Start + run.Dir * gateSlot;
-                        BuildPirateKitPart("castle-gate", new Vector3(gCenter.x, 0f, gCenter.y), yRot, wallsGo.transform);
-                    }
-                    continue; // oba prostřední sloty zůstanou bez hradby — tudy se vchází
-                }
-
-                Vector2 pos = run.Start + run.Dir * (s + 0.5f);
-                BuildPirateKitPart("castle-wall", new Vector3(pos.x, 0f, pos.y), yRot, wallsGo.transform);
+                // Brána je 2 j široká a stojí uprostřed úseku, po obou stranách
+                // na ni navazují díly hradby.
+                float mid = len * 0.5f;
+                Vector2 gCenter = start + run.Dir * mid;
+                BuildPirateKitPart("castle-gate", new Vector3(gCenter.x, yLift, gCenter.y), yRot, wallsGo.transform, 1f);
+                BuildWallSpan(start, run.Dir, 0f, mid - 1f, yRot, yLift, wallsGo.transform);
+                BuildWallSpan(start, run.Dir, mid + 1f, len, yRot, yLift, wallsGo.transform);
+            }
+            else
+            {
+                BuildWallSpan(start, run.Dir, 0f, len, yRot, yLift, wallsGo.transform);
             }
         }
 
         return towerCorners;
+    }
+
+    // Postaví díly hradby v rozsahu [from, to] (vzdálenost od začátku úseku).
+    // Počet dílů = nejbližší celé číslo k délce, díly se o pár procent natáhnou
+    // podél zdi, aby rozsah vyplnily přesně — bez mezer a bez překryvů.
+    // (Kenney textura je paleta plných barev, natažení jí nevadí.)
+    private static void BuildWallSpan(Vector2 start, Vector2 dir, float from, float to,
+                                      float yRot, float yLift, Transform parent)
+    {
+        float span = to - from;
+        if (span < WALL_MIN_SPAN) return;
+
+        int   count = Mathf.Max(1, Mathf.RoundToInt(span));
+        float width = span / count; // šířka jednoho dílu, ≈ 1.0
+
+        for (int s = 0; s < count; s++)
+        {
+            Vector2 pos = start + dir * (from + width * (s + 0.5f));
+            BuildPirateKitPart("castle-wall", new Vector3(pos.x, yLift, pos.y), yRot, parent, width);
+        }
+    }
+
+    // Půl tloušťky hradby: Kenney díl je při scale 1 hluboký 2.8 j (změřeno),
+    // při WALL_SCALE 0.5 tedy 1.4 j → 0.7 j na každou stranu od osy pobřeží.
+    private const float WALL_HALF_DEPTH = 0.7f;
+    private const float WALL_MIN_SPAN   = 0.3f;   // kratší kousky zdi se nestaví
+    private const float WALL_LIFT       = 0.004f; // svislý posun proti z-fightingu
+
+    // Vyřeší ROHY hradby. Zeď je tlustá, a jak končí přesně v rohu, na vnější
+    // straně chybí čtvrtka tloušťka × tloušťka (mezera) a uvnitř se dva díly
+    // překrývají. Řešení "mitra": v každém rohu se JEDEN úsek protáhne přes
+    // roh o půl tloušťky a druhý se o půl tloušťky zkrátí — dohromady dají
+    // čisté "L" bez díry i bez překryvu. Protahuje se vždy KRATŠÍ úsek, ať u
+    // drobných schodů pobřeží nevznikají záporné délky.
+    private static void MiterRuns(List<WallRun> runs)
+    {
+        int n = runs.Count;
+        for (int i = 0; i < n; i++)
+        {
+            WallRun cur = runs[i];
+            WallRun nxt = runs[(i + 1) % n];
+
+            bool curThrough = cur.Length < nxt.Length
+                              || (Mathf.Approximately(cur.Length, nxt.Length) && i % 2 == 0);
+
+            cur.ExtEnd   = curThrough ?  WALL_HALF_DEPTH : -WALL_HALF_DEPTH;
+            nxt.ExtStart = curThrough ? -WALL_HALF_DEPTH :  WALL_HALF_DEPTH;
+        }
     }
 
     // Jeden rovný úsek hradby (víc po sobě jdoucích hran hranice se stejným směrem).
@@ -642,8 +697,14 @@ public class MegaIslandMarker : MonoBehaviour
     {
         public Vector2 Start;
         public Vector2 Dir;    // jednotkový směr, vždy osově zarovnaný (±1,0) nebo (0,±1)
-        public float   Length; // v dlaždicích
+        public float   Length; // v dlaždicích (délka pobřeží, bez úprav rohů)
         public Vector2 Midpoint => Start + Dir * (Length * 0.5f);
+
+        // Úprava konců v rozích (viz MiterRuns): + = protažení přes roh, − = zkrácení.
+        public float   ExtStart, ExtEnd;
+        public Vector2 EffStart    => Start - Dir * ExtStart;
+        public float   EffLength   => Length + ExtStart + ExtEnd;
+        public Vector2 EffMidpoint => EffStart + Dir * (EffLength * 0.5f);
     }
 
     // Obejde hranici pevnina/voda ostrova po jednotkových hranách dlaždic
@@ -768,28 +829,30 @@ public class MegaIslandMarker : MonoBehaviour
     private static Texture2D wallColormap;
     private static bool      wallColormapTried;
 
-    private static void BuildPirateKitPart(string resourceName, Vector3 worldPos, float yRotationDeg, Transform parent)
+    // lengthStretch = natažení dílu podél zdi (lokální osa X modelu); 1 = původní šířka.
+    private static Material wallMaterial; // jeden sdílený materiál pro všechny díly (méně objektů, jde dávkovat)
+
+    private static void BuildPirateKitPart(string resourceName, Vector3 worldPos, float yRotationDeg, Transform parent, float lengthStretch)
     {
         var prefab = Resources.Load<GameObject>("PirateKit/" + resourceName);
         if (prefab == null) return;
 
         var go = Instantiate(prefab, worldPos, Quaternion.Euler(0f, yRotationDeg, 0f), parent);
         go.name = resourceName;
-        go.transform.localScale = Vector3.one * WALL_SCALE;
+        go.transform.localScale = new Vector3(WALL_SCALE * lengthStretch, WALL_SCALE, WALL_SCALE);
 
         if (!wallColormapTried) { wallColormapTried = true; wallColormap = Resources.Load<Texture2D>("PirateKit/colormap"); }
-        if (wallColormap != null)
+        if (wallColormap == null) return;
+
+        if (wallMaterial == null)
         {
-            foreach (var mr in go.GetComponentsInChildren<MeshRenderer>())
-            {
-                Shader sh = mr.sharedMaterial != null && mr.sharedMaterial.shader != null
-                    ? mr.sharedMaterial.shader : (Shader.Find("Universal Render Pipeline/Lit") ?? Shader.Find("Standard"));
-                var mat = new Material(sh);
-                if (mat.HasProperty("_BaseMap")) mat.SetTexture("_BaseMap", wallColormap);
-                if (mat.HasProperty("_MainTex")) mat.SetTexture("_MainTex", wallColormap);
-                mr.sharedMaterial = mat;
-            }
+            Shader sh = Shader.Find("Universal Render Pipeline/Lit") ?? Shader.Find("Standard");
+            wallMaterial = new Material(sh);
+            if (wallMaterial.HasProperty("_BaseMap")) wallMaterial.SetTexture("_BaseMap", wallColormap);
+            if (wallMaterial.HasProperty("_MainTex")) wallMaterial.SetTexture("_MainTex", wallColormap);
         }
+        foreach (var mr in go.GetComponentsInChildren<MeshRenderer>())
+            mr.sharedMaterial = wallMaterial;
     }
 
     // ── Interakce (hák z PlayerController.TryInteractAdjacentBuilding) ──────
@@ -817,7 +880,7 @@ public class MegaIslandMarker : MonoBehaviour
             return TryReadMessage();
 
         if (x != tilePos.x || y != tilePos.y) return false;
-        if (CombatDirector.Instance != null) CombatDirector.Instance.Toast(signText);
+        if (CombatDirector.Instance != null) CombatDirector.Instance.Toast(Loc.T(signTextCs, signTextEn));
         return true;
     }
 
@@ -827,18 +890,18 @@ public class MegaIslandMarker : MonoBehaviour
     public string GetHint(int x, int y)
     {
         foreach (var guard in myGuards)
-            if (guard != null && guard.IsAt(x, y)) return "zaútočit na stráž";
+            if (guard != null && guard.IsAt(x, y)) return Loc.T("zaútočit na stráž", "attack the guard");
 
         if (vault != null && vault.IsAt(x, y))
         {
-            if (!vault.Solved) return "otevřít trezor";
-            return gridManager != null && gridManager.gameData.megaTask < 3 ? "přečíst vzkaz" : null;
+            if (!vault.Solved) return Loc.T("otevřít trezor", "open the vault");
+            return gridManager != null && gridManager.gameData.megaTask < 3 ? Loc.T("přečíst vzkaz", "read the message") : null;
         }
 
         if (holdBuilt && x == holdTile.x && y == holdTile.y)
-            return gridManager != null && gridManager.gameData.megaTask < 3 ? "prohledat podpalubí" : null;
+            return gridManager != null && gridManager.gameData.megaTask < 3 ? Loc.T("prohledat podpalubí", "search the hold") : null;
 
-        if (x == tilePos.x && y == tilePos.y) return "prozkoumat obelisk";
+        if (x == tilePos.x && y == tilePos.y) return Loc.T("prozkoumat obelisk", "examine the obelisk");
         return null;
     }
 
@@ -848,18 +911,31 @@ public class MegaIslandMarker : MonoBehaviour
     {
         if (CombatDirector.Instance == null) return;
         CombatDirector.Instance.RewardNearestPlayer(EconomyConfig.LandGuardReward);
-        CombatDirector.Instance.Toast($"Stráž poražena.  +{EconomyConfig.LandGuardReward} minci");
+        int r = EconomyConfig.LandGuardReward;
+        CombatDirector.Instance.Toast(Loc.T($"Stráž poražena.  +{r} {Loc.CoinsWord(r)}", $"Guard defeated.  +{r} {Loc.CoinsWord(r)}"));
     }
 
     // Vzkazy bratra na jednotlivých ostrovech (Krok 4 = Ostrov pirátů, Krok 6 =
     // ostrov 2) — čte se podle megaIndex. Ostrov 3 vzkaz nedává (tam už je
     // bratr osobně, viz plán §1).
-    private static readonly string[] BROTHER_MESSAGES =
+    private static string BrotherMessage(int megaIndex)
     {
-        "Vzkaz: \"Přišel jsi pozdě. Mám to já — měl jsem to celou dobu. "
-      + "Jestli fakt chcete, co je rodiny, přijeď si pro to sám.\"",
-        "Vzkaz: \"Vylezl jsem z vody a loď s vámi byla pryč. Čekal jsem. Nikdo nepřijel.\"",
-    };
+        switch (megaIndex)
+        {
+            case 0:
+                return Loc.T(
+                    "Vzkaz: „Přišel jsi pozdě. Mám to já — mám to od samého začátku. "
+                  + "Jestli opravdu chcete, co patří rodině, přijeďte si pro to sami.“",
+                    "Message: “You’re too late. I have it — I’ve had it from the very beginning. "
+                  + "If you truly want what belongs to the family, come and get it yourselves.”");
+            case 1:
+                return Loc.T(
+                    "Vzkaz: „Vylezl jsem z vody a loď s vámi byla pryč. Čekal jsem. Nikdo nepřijel.“",
+                    "Message: “I climbed out of the water and the ship, with all of you aboard, was gone. I waited. Nobody came.”");
+            default:
+                return Loc.T("Vzkaz beze slov.", "A message without words.");
+        }
+    }
 
     // Přečtení vzkazu (v trezoru na ostrově 1 / v podpalubí na ostrově 2) —
     // jen jednou, pak posune příběh na další mega ostrov.
@@ -870,7 +946,7 @@ public class MegaIslandMarker : MonoBehaviour
 
         if (d.megaTask >= 3)
         {
-            if (CombatDirector.Instance != null) CombatDirector.Instance.Toast("Vzkaz už jsi přečetl.");
+            if (CombatDirector.Instance != null) CombatDirector.Instance.Toast(Loc.T("Vzkaz už jsi přečetl.", "You have already read the message."));
             return true;
         }
         if (d.megaTask != 2) return true; // pojistka — nemělo by nastat (vault.Solved/podpalubí už megaTask=2 zajišťuje)
@@ -878,8 +954,7 @@ public class MegaIslandMarker : MonoBehaviour
         d.megaTask = 3;
         gridManager.Save();
 
-        string message = d.megaIndex >= 0 && d.megaIndex < BROTHER_MESSAGES.Length
-            ? BROTHER_MESSAGES[d.megaIndex] : "Vzkaz beze slov.";
+        string message = BrotherMessage(d.megaIndex);
         if (CombatDirector.Instance != null) CombatDirector.Instance.Toast(message, 7f);
 
         gridManager.GiveNextMegaIsland(); // umístí další ostrov, nastaví waypoint, zničí tenhle marker

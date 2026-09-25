@@ -65,7 +65,7 @@ public class SeaMonster : MonoBehaviour
         Instance = m;
         m.Engaged = true; // boss bar naskočí hned po vynoření, ne až při prvním výpadu
         if (CombatDirector.Instance != null) CombatDirector.Instance.RegisterMonster(m);
-        if (CombatDirector.Instance != null) CombatDirector.Instance.Toast("Něco velkého pluje pod hladinou...");
+        if (CombatDirector.Instance != null) CombatDirector.Instance.Toast(Loc.T("Něco velkého pluje pod hladinou…", "Something huge is swimming beneath the surface…"));
         return m;
     }
 

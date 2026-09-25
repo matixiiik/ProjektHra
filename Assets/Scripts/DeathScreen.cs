@@ -77,17 +77,19 @@ public class DeathScreen : MonoBehaviour
 
         GUILayout.BeginArea(new Rect(px, py, w, h));
 
-        GUILayout.Label("POTOPIL SES", titleStyle);
+        GUILayout.Label(Loc.T("POTOPIL SES", "YOU SANK"), titleStyle);
         GUILayout.Space(6);
-        GUILayout.Label("Moře si tě vzalo. Mince ti zůstaly, ale loď,\nnáklad i vylepšení jsou pryč.", subStyle);
+        // Zalomení řádků obstará wordWrap stylu (v angličtině je text delší).
+        GUILayout.Label(Loc.T("Moře si tě vzalo. Mince ti zůstaly, ale loď, náklad i vylepšení jsou pryč.",
+                              "The sea has claimed you. You keep your coins, but your boat, cargo and upgrades are gone."), subStyle);
         GUILayout.Space(26);
 
-        if (SoundManager.Click(GUILayout.Button("Respawn  —  veslice na nejblizsim ostrove", buttonStyle, GUILayout.Height(56))))
+        if (SoundManager.Click(GUILayout.Button(Loc.T("Respawn  —  veslice na nejbližším ostrově", "Respawn  —  a rowboat at the nearest island"), buttonStyle, GUILayout.Height(56))))
             Respawn(playerIndex);
 
         GUILayout.Space(12);
 
-        if (SoundManager.Click(GUILayout.Button("Hlavni menu", buttonStyle, GUILayout.Height(56))))
+        if (SoundManager.Click(GUILayout.Button(Loc.T("Hlavní menu", "Main Menu"), buttonStyle, GUILayout.Height(56))))
             ToMenu(playerIndex);
 
         GUILayout.EndArea();

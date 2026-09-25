@@ -195,6 +195,6 @@ public class InteriorPlayer : MonoBehaviour
         GUI.color = new Color(0f, 0f, 0f, 0.55f);
         GUI.DrawTexture(r, Texture2D.whiteTexture);
         GUI.color = Color.white;
-        GUI.Label(r, nearest.prompt, promptStyle);
+        GUI.Label(r, nearest.GetPrompt(IsP1), promptStyle);
     }
 }

@@ -3,7 +3,8 @@ using UnityEngine;
 // ─────────────────────────────────────────────────────────────────────────────
 //  MainMenuManager.cs
 //  Hlavní menu, které se ukáže hned po spuštění hry (a taky po kliknutí na
-//  "Hlavní menu" v pauze). Nabízí: Nová hra / Pokračovat / Multiplayer / Konec.
+//  "Hlavní menu" v pauze). Nabízí: Nová hra / Pokračovat / Multiplayer / Konec
+//  a přepínač jazyka (čeština / angličtina, viz Loc).
 //  Nová hra, Pokračovat i Multiplayer vedou na výběr jednoho ze 3 save slotů.
 //
 //  [DefaultExecutionOrder(-200)] → Awake běží úplně první, aby stihl zastavit
@@ -29,8 +30,24 @@ public class MainMenuManager : MonoBehaviour
     private PlayerController  player;
     private ShipModelSwitcher shipSwitcher;
 
-    private GUIStyle titleStyle, buttonStyle, multiStyle, slotStyle, slotEmptyStyle, backStyle;
+    private GUIStyle titleStyle, buttonStyle, multiStyle, slotStyle, slotEmptyStyle, backStyle, langStyle;
     private bool     stylesReady;
+
+    // Náhledy 3 slotů (mince/ryby/poklady). Načítají se JEN při otevření stránky se
+    // sloty — OnGUI běží několikrát za snímek a číst přitom z disku několik MB
+    // save souborů by menu zpomalilo na pár snímků za sekundu.
+    private readonly SlotSummary[] slotPreviews = new SlotSummary[3];
+    private void RefreshSlotPreviews()
+    {
+        for (int i = 0; i < 3; i++) slotPreviews[i] = SaveManager.PeekSlotSummary(i);
+    }
+
+    // Přepne stránku menu (a u stránek se sloty načte náhledy).
+    private void GoTo(MenuPage page)
+    {
+        currentPage = page;
+        if (page != MenuPage.Main) RefreshSlotPreviews();
+    }
 
     void Awake()
     {
@@ -60,6 +77,8 @@ public class MainMenuManager : MonoBehaviour
     public static void Show()
     {
         if (instance == null) return;
+        // Rozdělaný postup musí být na disku dřív, než se ze slotů čtou náhledy.
+        if (instance.grid != null) instance.grid.FlushSaveBlocking();
         instance.currentPage = MenuPage.Main;
         IsVisible      = true;
         Time.timeScale = 0f;
@@ -79,48 +98,58 @@ public class MainMenuManager : MonoBehaviour
         switch (currentPage)
         {
             case MenuPage.Main:        DrawMain();                                                    break;
-            case MenuPage.NewGame:     DrawSlots("NOVÁ HRA — VYBER SLOT",    SlotMode.NewGame);       break;
-            case MenuPage.Continue:    DrawSlots("POKRAČOVAT — VYBER SLOT",  SlotMode.Continue);      break;
-            case MenuPage.Multiplayer: DrawSlots("MULTIPLAYER — VYBER SLOT", SlotMode.Multiplayer);   break;
+            case MenuPage.NewGame:     DrawSlots(Loc.T("NOVÁ HRA — VYBER SLOT",    "NEW GAME — CHOOSE A SLOT"),    SlotMode.NewGame);       break;
+            case MenuPage.Continue:    DrawSlots(Loc.T("POKRAČOVAT — VYBER SLOT",  "CONTINUE — CHOOSE A SLOT"),    SlotMode.Continue);      break;
+            case MenuPage.Multiplayer: DrawSlots(Loc.T("MULTIPLAYER — VYBER SLOT", "MULTIPLAYER — CHOOSE A SLOT"), SlotMode.Multiplayer);   break;
         }
     }
 
     // ── Hlavní stránka ──────────────────────────────────────────────────────
     void DrawMain()
     {
-        float w = 380, h = 370;
+        float w = 380, h = 440;
         float px = (Screen.width  - w) / 2f;
         float py = (Screen.height - h) / 2f;
 
         GUILayout.BeginArea(new Rect(px, py, w, h));
-        GUILayout.Label("LODNÍ DOBRODRUŽSTVÍ", titleStyle);
+        GUILayout.Label(Loc.T("LODNÍ DOBRODRUŽSTVÍ", "SEA ADVENTURE"), titleStyle);
         GUILayout.Space(20);
 
-        if (SoundManager.Click(GUILayout.Button("Nová hra", buttonStyle, GUILayout.Height(50))))
-            currentPage = MenuPage.NewGame;
+        if (SoundManager.Click(GUILayout.Button(Loc.T("Nová hra", "New Game"), buttonStyle, GUILayout.Height(50))))
+            GoTo(MenuPage.NewGame);
 
         GUILayout.Space(10);
 
         // "Pokračovat" jde zmáčknout jen když existuje aspoň jeden save.
         bool hasSave = SaveManager.SlotExists(0) || SaveManager.SlotExists(1) || SaveManager.SlotExists(2);
         GUI.enabled = hasSave;
-        if (SoundManager.Click(GUILayout.Button("Pokračovat", buttonStyle, GUILayout.Height(50))))
-            currentPage = MenuPage.Continue;
+        if (SoundManager.Click(GUILayout.Button(Loc.T("Pokračovat", "Continue"), buttonStyle, GUILayout.Height(50))))
+            GoTo(MenuPage.Continue);
         GUI.enabled = true;
 
         GUILayout.Space(10);
 
         if (SoundManager.Click(GUILayout.Button("🎮  Multiplayer (split screen)", multiStyle, GUILayout.Height(50))))
-            currentPage = MenuPage.Multiplayer;
+            GoTo(MenuPage.Multiplayer);
 
         GUILayout.Space(10);
 
-        if (SoundManager.Click(GUILayout.Button("Konec", buttonStyle, GUILayout.Height(50))))
+        if (SoundManager.Click(GUILayout.Button(Loc.T("Konec", "Quit"), buttonStyle, GUILayout.Height(50))))
         {
             Application.Quit();
 #if UNITY_EDITOR
             UnityEditor.EditorApplication.isPlaying = false; // v editoru "Quit" jen zastaví Play
 #endif
+        }
+
+        GUILayout.Space(22);
+
+        // Přepínač jazyka — ukazuje, co je zapnuté, a co se zapne po kliknutí.
+        string langLabel = Loc.En ? "Language: English  (→ Čeština)" : "Jazyk: Čeština  (→ English)";
+        if (SoundManager.Click(GUILayout.Button(langLabel, langStyle, GUILayout.Height(38))))
+        {
+            Loc.Toggle();
+            if (grid != null) grid.NotifyWorldChanged(); // HUD a minimapa si překreslí popisky
         }
 
         GUILayout.EndArea();
@@ -141,15 +170,15 @@ public class MainMenuManager : MonoBehaviour
 
         for (int i = 0; i < 3; i++)
         {
-            GameData preview = SaveManager.PeekSlot(i); // náhled dat slotu (nebo null)
-            bool     exists  = preview != null;
+            SlotSummary preview = slotPreviews[i]; // náhled slotu (nebo null), viz RefreshSlotPreviews
+            bool        exists  = preview != null;
 
             // V režimu "Pokračovat" jdou zmáčknout jen sloty, které existují.
             bool canClick = mode != SlotMode.Continue || exists;
 
             string label = exists
                 ? $"  Slot {i + 1}  |  🪙 {preview.coins}  🐟 {preview.fishCount}  💎 {preview.treasureCount}"
-                : $"  Slot {i + 1}  —  prázdný";
+                : $"  Slot {i + 1}  —  " + Loc.T("prázdný", "empty");
 
             GUI.enabled = canClick;
             GUIStyle st = (exists || mode == SlotMode.Multiplayer) ? slotStyle : slotEmptyStyle;
@@ -167,7 +196,7 @@ public class MainMenuManager : MonoBehaviour
         }
 
         GUILayout.Space(8);
-        if (SoundManager.Click(GUILayout.Button("← Zpět", backStyle, GUILayout.Height(34))))
+        if (SoundManager.Click(GUILayout.Button(Loc.T("← Zpět", "← Back"), backStyle, GUILayout.Height(34))))
             currentPage = MenuPage.Main;
 
         GUILayout.EndArea();
@@ -246,6 +275,12 @@ public class MainMenuManager : MonoBehaviour
             fontSize = 14,
             normal   = { textColor = Color.white, background = MakeTex(new Color(0.3f, 0.12f, 0.12f)) },
             hover    = { textColor = Color.white, background = MakeTex(new Color(0.5f, 0.18f, 0.18f)) }
+        };
+        langStyle = new GUIStyle(GUI.skin.button)
+        {
+            fontSize = 15,
+            normal   = { textColor = Color.white, background = MakeTex(new Color(0.12f, 0.32f, 0.34f)) },
+            hover    = { textColor = Color.white, background = MakeTex(new Color(0.18f, 0.45f, 0.48f)) }
         };
         stylesReady = true;
     }

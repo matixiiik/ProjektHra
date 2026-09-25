@@ -222,30 +222,36 @@ public class UpgradeShopManager : MonoBehaviour
 
         // V multiplayeru napiš do nadpisu, kdo nakupuje.
         string playerLabel = MultiplayerManager.IsMultiplayer
-            ? (buyerIndex == 0 ? "  —  HRÁČ 1" : "  —  HRÁČ 2")
+            ? Loc.T(buyerIndex == 0 ? "  —  HRÁČ 1" : "  —  HRÁČ 2",
+                    buyerIndex == 0 ? "  —  PLAYER 1" : "  —  PLAYER 2")
             : "";
-        GUILayout.Label($"OBCHOD S VYLEPSENIMI{playerLabel}", titleStyle);
+        GUILayout.Label(Loc.T("OBCHOD S VYLEPŠENÍMI", "UPGRADE SHOP") + playerLabel, titleStyle);
 
         // Cenová hladina tohoto ostrova (jen pro nákup).
         int pct = Mathf.RoundToInt((EconomyConfig.PriceMultiplier(GameSession.ShopPriceLevel) - 1f) * 100f);
-        string priceTag = pct == 0 ? "ceny jako jinde" : pct > 0 ? $"ceny +{pct}%" : $"ceny {pct}%";
-        GUILayout.Label($"( {priceTag} na tomhle ostrove )", rowStyle);
+        string priceTag = pct == 0 ? Loc.T("ceny jako jinde", "standard prices")
+                        : pct > 0  ? Loc.T($"ceny +{pct} %", $"prices +{pct}%")
+                                   : Loc.T($"ceny {pct} %",  $"prices {pct}%");
+        GUILayout.Label(Loc.T($"( {priceTag} na tomhle ostrově )", $"( {priceTag} on this island )"), rowStyle);
         GUILayout.Space(10);
 
         // Sortiment ve scrollovatelném okně (kolečko / tažení myší).
         scroll[who] = GUILayout.BeginScrollView(scroll[who], GUILayout.Height(h - 40f - 110f));
 
-        DrawRow("Rychlost lodi  —  pohyb 2x rychleji",  PriceOf(EconomyConfig.SpeedUpgrade),  GetUpgrade(0), () => TryBuyUpgrade(0, PriceOf(EconomyConfig.SpeedUpgrade)));
+        DrawRow(Loc.T("Rychlost lodi  —  pohyb 2× rychleji",       "Boat speed  —  sail 2× faster"),
+                PriceOf(EconomyConfig.SpeedUpgrade),  GetUpgrade(0), () => TryBuyUpgrade(0, PriceOf(EconomyConfig.SpeedUpgrade)));
         GUILayout.Space(8);
-        DrawRow("Lepsi prud  —  chyta 2 ryby najednou",  PriceOf(EconomyConfig.RodUpgrade),   GetUpgrade(1), () => TryBuyUpgrade(1, PriceOf(EconomyConfig.RodUpgrade)));
+        DrawRow(Loc.T("Lepší prut  —  chytá 2 ryby najednou",      "Better rod  —  catches 2 fish at once"),
+                PriceOf(EconomyConfig.RodUpgrade),    GetUpgrade(1), () => TryBuyUpgrade(1, PriceOf(EconomyConfig.RodUpgrade)));
         GUILayout.Space(8);
-        DrawRow("Rychlost tezby  —  tezba 2x rychleji", PriceOf(EconomyConfig.MiningUpgrade), GetUpgrade(2), () => TryBuyUpgrade(2, PriceOf(EconomyConfig.MiningUpgrade)));
+        DrawRow(Loc.T("Rychlost těžby  —  těžba 2× rychleji",      "Mining speed  —  mine 2× faster"),
+                PriceOf(EconomyConfig.MiningUpgrade), GetUpgrade(2), () => TryBuyUpgrade(2, PriceOf(EconomyConfig.MiningUpgrade)));
         GUILayout.Space(8);
-        DrawShipRow("Lod mala  —  " + BoatStats.Perk(1),    PriceOf(EconomyConfig.ShipSmall),  1);
+        DrawShipRow(Loc.T("Loď malá  —  ", "Small boat  —  ")    + BoatStats.Perk(1), PriceOf(EconomyConfig.ShipSmall),  1);
         GUILayout.Space(8);
-        DrawShipRow("Lod stredni  —  " + BoatStats.Perk(2), PriceOf(EconomyConfig.ShipMedium), 2);
+        DrawShipRow(Loc.T("Loď střední  —  ", "Medium boat  —  ") + BoatStats.Perk(2), PriceOf(EconomyConfig.ShipMedium), 2);
         GUILayout.Space(8);
-        DrawShipRow("Lod velka  —  " + BoatStats.Perk(3),   PriceOf(EconomyConfig.ShipLarge),  3);
+        DrawShipRow(Loc.T("Loď velká  —  ", "Large boat  —  ")   + BoatStats.Perk(3), PriceOf(EconomyConfig.ShipLarge),  3);
         GUILayout.Space(8);
         DrawAmmoRow();
         GUILayout.Space(8);
@@ -260,7 +266,7 @@ public class UpgradeShopManager : MonoBehaviour
         GUILayout.EndScrollView();
 
         GUILayout.Space(10);
-        GUILayout.Label($"Mince: {Coins()}", coinsStyle);
+        GUILayout.Label(Loc.T("Mince: ", "Coins: ") + Coins(), coinsStyle);
         GUILayout.EndArea();
     }
 
@@ -276,14 +282,14 @@ public class UpgradeShopManager : MonoBehaviour
             : Mathf.Max(1, (BoatStats.MaxHealth - hp) * EconomyConfig.RepairCostPerHp);
 
         string label = wrecked
-            ? "Opravit ROZBITOU lod  —  vytahnout z vody"
-            : $"Opravit lod  ( {hp}/100 )";
+            ? Loc.T("Opravit ROZBITOU loď  —  vytáhnout z vody", "Repair the WRECKED boat  —  pull it out of the water")
+            : Loc.T($"Opravit loď  ( {hp}/100 )",                $"Repair the boat  ( {hp}/100 )");
 
         GUILayout.BeginHorizontal();
         GUILayout.Label(label, rowStyle, GUILayout.ExpandWidth(true));
-        GUILayout.Label($"{cost} minci", rowStyle, GUILayout.Width(90));
+        GUILayout.Label($"{cost} {Loc.CoinsWord(cost)}", rowStyle, GUILayout.Width(90));
         GUI.enabled = Coins() >= cost;
-        if (SoundManager.Click(GUILayout.Button("Opravit", buyStyle, GUILayout.Width(90), GUILayout.Height(28))))
+        if (SoundManager.Click(GUILayout.Button(Loc.T("Opravit", "Repair"), buyStyle, GUILayout.Width(90), GUILayout.Height(28))))
         {
             if (Coins() >= cost)
             {
@@ -301,12 +307,14 @@ public class UpgradeShopManager : MonoBehaviour
     {
         int cost = PriceOf(EconomyConfig.AmmoPack);
         GUILayout.BeginHorizontal();
-        GUILayout.Label($"Munice do dela  —  balicek {EconomyConfig.AmmoPackSize} naboju  (mas {Ammo()})",
+        int pack = EconomyConfig.AmmoPackSize;
+        GUILayout.Label(Loc.T($"Munice do děla  —  balíček {pack} {RoundsWord(pack)}  (máš {Ammo()})",
+                              $"Cannon ammo  —  pack of {pack} {RoundsWord(pack)}  (you have {Ammo()})"),
             rowStyle, GUILayout.ExpandWidth(true));
-        GUILayout.Label($"{cost} minci", rowStyle, GUILayout.Width(90));
+        GUILayout.Label($"{cost} {Loc.CoinsWord(cost)}", rowStyle, GUILayout.Width(90));
 
         GUI.enabled = Coins() >= cost;
-        if (SoundManager.Click(GUILayout.Button("Koupit", buyStyle, GUILayout.Width(90), GUILayout.Height(28))))
+        if (SoundManager.Click(GUILayout.Button(Loc.T("Koupit", "Buy"), buyStyle, GUILayout.Width(90), GUILayout.Height(28))))
         {
             if (Coins() >= cost)
             {
@@ -323,7 +331,8 @@ public class UpgradeShopManager : MonoBehaviour
     // (klávesa 1 u P1) vybrat a střílet LMB / Numpad*, když je hráč pěšky.
     private void DrawWeaponRow()
     {
-        DrawRow("Zbran pro boj pesky  —  hotbar 1, strili se jako z lode",
+        DrawRow(Loc.T("Zbraň pro boj pěšky  —  hotbar 1, střílí se jako z lodi",
+                      "On-foot weapon  —  hotbar slot 1, fires like the boat cannon"),
             PriceOf(EconomyConfig.HandWeapon), HasHandWeapon(), () =>
             {
                 int cost = PriceOf(EconomyConfig.HandWeapon);
@@ -339,12 +348,14 @@ public class UpgradeShopManager : MonoBehaviour
     {
         int cost = PriceOf(EconomyConfig.HandAmmoPack);
         GUILayout.BeginHorizontal();
-        GUILayout.Label($"Naboje do pesi zbrane  —  balicek {EconomyConfig.HandAmmoPackSize} naboju  (mas {HandAmmo()})",
+        int pack = EconomyConfig.HandAmmoPackSize;
+        GUILayout.Label(Loc.T($"Náboje do pěší zbraně  —  balíček {pack} {RoundsWord(pack)}  (máš {HandAmmo()})",
+                              $"On-foot weapon ammo  —  pack of {pack} {RoundsWord(pack)}  (you have {HandAmmo()})"),
             rowStyle, GUILayout.ExpandWidth(true));
-        GUILayout.Label($"{cost} minci", rowStyle, GUILayout.Width(90));
+        GUILayout.Label($"{cost} {Loc.CoinsWord(cost)}", rowStyle, GUILayout.Width(90));
 
         GUI.enabled = Coins() >= cost;
-        if (SoundManager.Click(GUILayout.Button("Koupit", buyStyle, GUILayout.Width(90), GUILayout.Height(28))))
+        if (SoundManager.Click(GUILayout.Button(Loc.T("Koupit", "Buy"), buyStyle, GUILayout.Width(90), GUILayout.Height(28))))
         {
             if (Coins() >= cost)
             {
@@ -361,7 +372,8 @@ public class UpgradeShopManager : MonoBehaviour
     // klikneš cíl a na minimapě tě k němu vede šipka.
     private void DrawMapRow()
     {
-        DrawRow("Mapa  —  v lodi klavesa M: velka mapa + cil (waypoint)",
+        DrawRow(Loc.T("Mapa  —  v lodi klávesa M: velká mapa + cíl (waypoint)",
+                      "Map  —  press M on the boat: big map + set a waypoint"),
             PriceOf(EconomyConfig.MapItem), HasMap(), () =>
             {
                 int cost = PriceOf(EconomyConfig.MapItem);
@@ -405,19 +417,22 @@ public class UpgradeShopManager : MonoBehaviour
 
         if (owned)
         {
-            GUILayout.Label("Zakoupeno", ownedStyle, GUILayout.Width(120));
+            GUILayout.Label(Loc.T("Zakoupeno", "Owned"), ownedStyle, GUILayout.Width(120));
         }
         else
         {
-            GUILayout.Label($"{cost} minci", rowStyle, GUILayout.Width(90));
+            GUILayout.Label($"{cost} {Loc.CoinsWord(cost)}", rowStyle, GUILayout.Width(90));
             GUI.enabled = Coins() >= cost; // tlačítko jde zmáčknout jen s dost mincemi
-            if (SoundManager.Click(GUILayout.Button("Koupit", buyStyle, GUILayout.Width(90), GUILayout.Height(28))))
+            if (SoundManager.Click(GUILayout.Button(Loc.T("Koupit", "Buy"), buyStyle, GUILayout.Width(90), GUILayout.Height(28))))
                 onBuy();
             GUI.enabled = true;
         }
 
         GUILayout.EndHorizontal();
     }
+
+    // Slovo "náboj" ve správném tvaru podle počtu (1 náboj / 3 náboje / 5 nábojů / rounds).
+    private static string RoundsWord(int n) => Loc.Plural(n, "náboj", "náboje", "nábojů", "round", "rounds");
 
     // ── Styly (jen jednou) ──────────────────────────────────────────────────
     private void InitStyles()

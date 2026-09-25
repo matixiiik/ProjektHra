@@ -18,6 +18,15 @@ public class HUDCounter : MonoBehaviour
 {
     [HideInInspector] public int playerIndex = 0; // 0 = P1, 1 = P2
 
+    // Rozměry horních panelů (v jednotkách canvasu 1920×1080).
+    private const float QUEST_W_SOLO     = 460f;  // quest panel — celá obrazovka
+    private const float QUEST_W_SPLIT    = 420f;  // quest panel — půlka obrazovky
+    private const float QUEST_H_1LINE    = 50f;   // výška s jedním řádkem
+    private const float QUEST_H_PER_LINE = 30f;   // každý další řádek
+    private const float STORY_W_SOLO     = 640f;  // příběhový cíl (main quest)
+    private const float STORY_W_SPLIT    = 470f;
+    private const float STORY_H          = 66f;   // místo na dva řádky textu
+
     private GridManager grid;
     private Text        fishText;
     private Text        treasureText;
@@ -404,7 +413,7 @@ public class HUDCounter : MonoBehaviour
     {
         bool show = q.hasQuest || mq.active;
         questPanel.SetActive(show);
-        if (!show) return;
+        if (!show) { PlaceStoryPanel(); return; }
 
         var lines = new List<string>();
 
@@ -429,8 +438,12 @@ public class HUDCounter : MonoBehaviour
 
         questLine.text = string.Join("\n", lines.ToArray());
 
-        // Panel povyroste, když jsou dva řádky.
+        // Panel povyroste podle počtu řádků a příběhový panel se posune pod něj.
         if (questPanelRT != null)
-            questPanelRT.sizeDelta = new Vector2(questPanelRT.sizeDelta.x, lines.Count > 1 ? 58f : 38f);
+        {
+            float h = QUEST_H_1LINE + (lines.Count - 1) * QUEST_H_PER_LINE;
+            questPanelRT.sizeDelta = new Vector2(questPanelRT.sizeDelta.x, h);
+            PlaceStoryPanel();
+        }
     }
 }

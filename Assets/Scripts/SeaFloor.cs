@@ -33,7 +33,10 @@ public class SeaFloor : MonoBehaviour
     private const float SHOAL_RADIUS = 9f;    // do jaké vzdálenosti od vraku se dno zvedá
     private const int   SCAN_RADIUS  = 44;    // v kolika políčkách kolem hledat vraky/ostrovy
 
-    private const float SHELF_Y       = -0.5f; // výška dna přímo u ostrova (leží nad úpatím ostrovního meshe → žádná mezera)
+    // Stejná hloubka jako konec pláže (IslandTerrain.DEEP_Y) — jinak se dno u ostrova
+    // potkává s koncem pláže v jiné výšce a je vidět ostrý schod/hrana (ověřeno v Play,
+    // viz .claude/story-plan.md fáze 5).
+    private const float SHELF_Y       = IslandTerrain.DEEP_Y;
     private const float SHELF_CORE    = 2.5f;  // do téhle vzdálenosti od pevniny je dno rovnou na SHELF_Y (síť dna je hrubá)
     private const float SHELF_RADIUS  = 15f;   // za jádrem se dno lineárně svažuje zpátky do hloubky
 

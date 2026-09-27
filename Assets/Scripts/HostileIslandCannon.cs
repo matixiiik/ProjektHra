@@ -137,7 +137,19 @@ public class HostileIslandCannon : MonoBehaviour
         {
             nextShot = Time.time + RELOAD;
             Vector3 from = transform.position + Vector3.up * 0.4f + to.normalized * 0.4f;
-            CannonBall.Fire(from, to, DAMAGE, CannonBall.Side.Enemy);
+            if (transform.position.y > 1f)
+            {
+                // Dělo na věži hradby: střela letí přímo z výšky věže dolů na cíl (přes zeď),
+                // ne nízko nad hladinou — tam by ji hradba zastavila.
+                float flat = Mathf.Max(0.1f, to.magnitude);
+                float drop = target.transform.position.y - from.y;
+                float elevation = Mathf.Atan2(drop, flat) * Mathf.Rad2Deg;
+                CannonBall.FireAimed(from, to, elevation, DAMAGE, CannonBall.Side.Enemy);
+            }
+            else
+            {
+                CannonBall.Fire(from, to, DAMAGE, CannonBall.Side.Enemy);
+            }
             SoundManager.PlayCannon();
         }
     }

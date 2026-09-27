@@ -35,6 +35,7 @@ public class MultiplayerManager : MonoBehaviour
     private float p2Yaw;
     private float p2Pitch       = 52f;
     private float p2Distance    = 14f;
+    private float p2MaxDistance = 14f;  // nejvzdálenější zoom P2 (PageUp/PageDown mění p2Distance)
     private float p2PivotHeight = 0.8f;
 
     void Awake() { instance = this; }
@@ -192,7 +193,8 @@ public class MultiplayerManager : MonoBehaviour
         if (p1Orbit != null)
         {
             p2Pitch       = p1Orbit.pitch;
-            p2Distance    = p1Orbit.distance;
+            p2MaxDistance = p1Orbit.MaxDistance;
+            p2Distance    = p2MaxDistance;
             p2PivotHeight = p1Orbit.pivotHeight;
             p2Yaw         = p1Orbit.yaw;
         }
@@ -252,6 +254,10 @@ public class MultiplayerManager : MonoBehaviour
         {
             if (Input.GetKey(KeyCode.KeypadPlus)  || Input.GetKey(KeyCode.Equals)) p2Yaw += p2TurnSpeed * Time.deltaTime;
             if (Input.GetKey(KeyCode.KeypadMinus) || Input.GetKey(KeyCode.Minus))  p2Yaw -= p2TurnSpeed * Time.deltaTime;
+
+            // Zoom P2 (nemá kolečko myši): PageUp = přiblížit, PageDown = oddálit.
+            if (Input.GetKey(KeyCode.PageUp))   p2Distance = Mathf.Max(3f,            p2Distance - 8f * Time.deltaTime);
+            if (Input.GetKey(KeyCode.PageDown)) p2Distance = Mathf.Min(p2MaxDistance, p2Distance + 8f * Time.deltaTime);
         }
 
         PositionP2Camera();

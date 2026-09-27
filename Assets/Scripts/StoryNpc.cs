@@ -287,12 +287,8 @@ public class StoryNpc : MonoBehaviour
 
         // Vylosuj daleké místo pro příběhový mega ostrov (deterministicky podle
         // pozice hráče, ať to má každá hra jinde).
-        int px = Data.playerGridX, py = Data.playerGridY;
-        int hsh = unchecked((px * 92821) ^ (py * 68917) ^ 0x5bd1e995);
-        float ang = ((hsh & 0xFFFF) / 65535f) * Mathf.PI * 2f;
-        int dist  = 340 + ((hsh >> 16) & 0x7F); // 340..467 políček
-        int sx = Mathf.RoundToInt(Mathf.Cos(ang) * dist);
-        int sy = Mathf.RoundToInt(Mathf.Sin(ang) * dist);
+        Vector2Int first = GridManager.FirstMegaIslandPos(Data.playerGridX, Data.playerGridY);
+        int sx = first.x, sy = first.y;
 
         gridManager.PlaceMegaIsland(sx, sy);
 
@@ -654,20 +650,28 @@ public class StoryNpc : MonoBehaviour
     {
         Rect half = HalfRect(playerIndex);
 
-        float w = Mathf.Min(620f, half.width - 40f);
-        float h = 130f;
+        // Všechno se škáluje podle výšky obrazovky (HudSkin.GuiScale), ať je text čitelný.
+        float s = HudSkin.GuiScale;
+        nameStyle.fontSize = Mathf.RoundToInt(20f * s);
+        textStyle.fontSize = Mathf.RoundToInt(21f * s);
+        hintStyle.fontSize = Mathf.RoundToInt(16f * s);
+        giveStyle.fontSize = Mathf.RoundToInt(17f * s);
+
+        float w = Mathf.Min(780f * s, half.width - 40f);
+        float h = 200f * s;
         var box = new Rect(half.x + (half.width - w) / 2f, half.yMax - h - 38f, w, h);
 
-        GUI.color = new Color(0.06f, 0.07f, 0.10f, 0.92f);
+        GUI.color = new Color(0.06f, 0.07f, 0.10f, 0.94f);
         GUI.DrawTexture(box, Texture2D.whiteTexture);
         GUI.color = new Color(0.9f, 0.75f, 0.35f, 1f);
-        GUI.DrawTexture(new Rect(box.x, box.y, box.width, 3f), Texture2D.whiteTexture);
+        GUI.DrawTexture(new Rect(box.x, box.y, box.width, 3f * s), Texture2D.whiteTexture);
         GUI.color = Color.white;
 
-        GUI.Label(new Rect(box.x + 18f, box.y + 10f, box.width - 36f, 24f), NpcName, nameStyle);
+        float pad = 20f * s;
+        GUI.Label(new Rect(box.x + pad, box.y + 10f * s, box.width - 2 * pad, 30f * s), NpcName, nameStyle);
         string txt = activeLines != null && activeLines.Length > 0
             ? activeLines[Mathf.Clamp(line, 0, activeLines.Length - 1)] : "";
-        GUI.Label(new Rect(box.x + 18f, box.y + 40f, box.width - 36f, 60f), txt, textStyle);
+        GUI.Label(new Rect(box.x + pad, box.y + 46f * s, box.width - 2 * pad, 100f * s), txt, textStyle);
 
         string key = playerIndex == 0 ? "E" : "Numpad 1";
         bool lastLine = activeLines == null || line >= activeLines.Length - 1;
@@ -675,7 +679,8 @@ public class StoryNpc : MonoBehaviour
         // Krok 1 se splněnými podmínkami: na poslední replice tlačítko "dát".
         if (showGiveButton && lastLine)
         {
-            var br = new Rect(box.x + box.width / 2f - 150f, box.yMax - 30f, 300f, 24f);
+            float bw = Mathf.Min(460f * s, box.width - 2 * pad);
+            var br = new Rect(box.x + box.width / 2f - bw / 2f, box.yMax - 44f * s, bw, 34f * s);
             if (SoundManager.Click(GUI.Button(br, Loc.T("Dát mu 1000 mincí + historický poklad", "Give him 1,000 coins + the historic treasure"), giveStyle)))
                 GiveToSailor();
         }
@@ -683,7 +688,7 @@ public class StoryNpc : MonoBehaviour
         {
             string more = lastLine ? "[" + key + "] " + Loc.T("konec", "close")
                                    : "[" + key + "] " + Loc.T("dál",   "next");
-            GUI.Label(new Rect(box.x + 18f, box.yMax - 24f, box.width - 36f, 20f), more, hintStyle);
+            GUI.Label(new Rect(box.x + pad, box.yMax - 34f * s, box.width - 2 * pad, 26f * s), more, hintStyle);
         }
     }
 

@@ -79,6 +79,13 @@ public class GridManager : MonoBehaviour
     private const int ISLAND_PADDING      = 1;  // volné pole kolem ostrova při kontrole místa
     private const int MIN_ISLAND_DISTANCE = 200;// minimální rozestup mezi ostrovy (dřív 50 — ostrovy jsou teď vzácnější)
     private const int CLEANUP_LIMIT       = 120;// políčka dál než tohle se ze save mažou
+    private const int PIER_LENGTH = 4;  // molo mega ostrova: 4 dlaždice dlouhé…
+    private const int PIER_WIDTH  = 2;  // …a 2 široké
+    private const int RESPAWN_MAX_ISLAND_DIST = 80; // dál než tohle už respawn nebere existující ostrov, ale zkusí vytvořit nový blíž
+
+    // Vzdálenost dvou políček (vzdušnou čarou).
+    private static float TileDistance(int ax, int ay, int bx, int by)
+        => Mathf.Sqrt((float)(ax - bx) * (ax - bx) + (float)(ay - by) * (ay - by));
 
     void Awake()
     {
@@ -968,6 +975,13 @@ public class GridManager : MonoBehaviour
         GameObject newTile = Instantiate(prefab, pos, Quaternion.identity, transform);
         activeTiles.Add(GridKey(x, y), newTile);
 
+        // Vrak leží hluboko pod hladinou — nikdy není vidět jeho stín, jen matný obrys
+        // přes vodu. Přesto standardně vrhal plný stín (naměřeno: ~54 vraků = 54 zbytečných
+        // stínových kasterů, viz Profiler). Vypnuto jen tady, prefab zůstává nedotčený.
+        if ((TileType)status.type == TileType.Treasure)
+            foreach (var r in newTile.GetComponentsInChildren<Renderer>())
+                r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+
         // Dědovo políčko musí zůstat holé — sundej z něj dekoraci, kterou si
         // HarborPrefab (IslandDecor) právě přidal ve svém Awake.
         if (npcClearTile.HasValue && npcClearTile.Value.x == x && npcClearTile.Value.y == y)
@@ -1534,24 +1548,38 @@ public class GridManager : MonoBehaviour
                 if (activeTiles.TryGetValue(key, out GameObject old)) { Destroy(old); activeTiles.Remove(key); }
             }
 
-        // Molo na kraji přivráceném ke světu (odkud hráč připluje) — 2 dlaždice,
-        // ať se dá u mega ostrova zakotvit a vylodit.
+        // Molo na kraji přivráceném ke světu (odkud hráč připluje) — 4 dlaždice dlouhé
+        // a 2 široké, VYČNÍVÁ z ostrova do vody (žádná pevnina se nepřepisuje). Směr se
+        // srovná na dominantní osu (vodorovně / svisle), ať je molo rovné.
         Vector2 toWorld = new Vector2(-centerX, -centerY);
         if (toWorld.sqrMagnitude < 1f) toWorld = Vector2.down;
-        toWorld.Normalize();
-        for (int step = R + 1; step > 2; step--)
+        bool alongX = Mathf.Abs(toWorld.x) >= Mathf.Abs(toWorld.y);
+        int dirX = alongX ? (toWorld.x >= 0f ? 1 : -1) : 0;   // směr ven z ostrova
+        int dirY = alongX ? 0 : (toWorld.y >= 0f ? 1 : -1);
+        int sideX = alongX ? 0 : 1;                            // druhý řádek mola (šířka 2)
+        int sideY = alongX ? 1 : 0;
+
+        for (int step = R + 3; step > 2; step--) // od okraje dovnitř: první pevninové políčko = pobřeží
         {
-            int ex = centerX + Mathf.RoundToInt(toWorld.x * step);
-            int ey = centerY + Mathf.RoundToInt(toWorld.y * step);
-            string ek = GridKey(ex, ey);
-            if (gameData.tileData.TryGetValue(ek, out TileStatus es) && es.type == (int)TileType.MegaIsland)
-            {
-                gameData.tileData[ek] = new TileStatus((int)TileType.Pier) { isExplored = es.isExplored };
-                int fx = centerX + Mathf.RoundToInt(toWorld.x * (step + 1));
-                int fy = centerY + Mathf.RoundToInt(toWorld.y * (step + 1));
-                gameData.tileData[GridKey(fx, fy)] = new TileStatus((int)TileType.Pier);
-                break;
-            }
+            int cx = centerX + dirX * step;
+            int cy = centerY + dirY * step;
+            if (!gameData.tileData.TryGetValue(GridKey(cx, cy), out TileStatus coast)
+                || coast.type != (int)TileType.MegaIsland) continue;
+
+            for (int len = 1; len <= PIER_LENGTH; len++)
+                for (int w = 0; w < PIER_WIDTH; w++)
+                {
+                    int px = cx + dirX * len + sideX * w;
+                    int py = cy + dirY * len + sideY * w;
+                    string pk = GridKey(px, py);
+
+                    // Pevninu (nepravidelné pobřeží) nepřepisuj — molo jen tam, kde je voda.
+                    if (gameData.tileData.TryGetValue(pk, out TileStatus ex) && ex.type == (int)TileType.MegaIsland) continue;
+
+                    gameData.tileData[pk] = new TileStatus((int)TileType.Pier);
+                    if (activeTiles.TryGetValue(pk, out GameObject oldPier)) { Destroy(oldPier); activeTiles.Remove(pk); }
+                }
+            break;
         }
 
         gameData.storyIslandActive = true;
@@ -1568,12 +1596,32 @@ public class GridManager : MonoBehaviour
         NotifyWorldChanged();
     }
 
+    /// <summary>Kde stojí PRVNÍ mega ostrov (Pirátský) pro hráče, který stál na [px, py],
+    /// když mu děda dal úkol. Deterministické — stejný vzorec používá StoryNpc i konzolové
+    /// presety (StoryPresets).</summary>
+    public static Vector2Int FirstMegaIslandPos(int px, int py)
+    {
+        int hsh = unchecked((px * 92821) ^ (py * 68917) ^ 0x5bd1e995);
+        float ang = ((hsh & 0xFFFF) / 65535f) * Mathf.PI * 2f;
+        int dist  = 340 + ((hsh >> 16) & 0x7F); // 340..467 políček
+        return new Vector2Int(Mathf.RoundToInt(Mathf.Cos(ang) * dist), Mathf.RoundToInt(Mathf.Sin(ang) * dist));
+    }
+
+    /// <summary>Kde stojí mega ostrov číslo `megaIndexAfter` (1 nebo 2), když předchozí byl na [px, py].</summary>
+    public static Vector2Int NextMegaIslandPos(int px, int py, int megaIndexAfter)
+    {
+        int hsh = unchecked((px * 92821) ^ (py * 68917) ^ (megaIndexAfter * 40503));
+        float ang = ((hsh & 0xFFFF) / 65535f) * Mathf.PI * 2f;
+        int dist  = 340 + ((hsh >> 16) & 0x7F); // 340..467 políček
+        return new Vector2Int(px + Mathf.RoundToInt(Mathf.Cos(ang) * dist), py + Mathf.RoundToInt(Mathf.Sin(ang) * dist));
+    }
+
     /// <summary>Posune příběh na další mega ostrov (Krok 4, viz story-plan.md §2):
     /// zvýší megaIndex, vynuluje rozdělaný postup, umístí nový ostrov daleko
     /// deterministicky od toho starého a nastaví na něj waypoint. Souřadnice dává
     /// tahle metoda (vzkaz v trezoru), ne děda — žádný backtracking.
     /// Ostrov 3 (megaIndex 2, konfrontace) končí jinak, ne přes tuhle metodu.</summary>
-    public void GiveNextMegaIsland()
+    public void GiveNextMegaIsland(bool setWaypoint = true)
     {
         if (gameData.megaIndex >= 2) return;
 
@@ -1585,11 +1633,14 @@ public class GridManager : MonoBehaviour
         // Nová pozice daleko od té staré, deterministicky (stejný vzorec jako
         // první umístění v StoryNpc.GiveToSailor).
         int px = gameData.storyIslandX, py = gameData.storyIslandY;
-        int hsh = unchecked((px * 92821) ^ (py * 68917) ^ (gameData.megaIndex * 40503));
-        float ang = ((hsh & 0xFFFF) / 65535f) * Mathf.PI * 2f;
-        int dist  = 340 + ((hsh >> 16) & 0x7F); // 340..467 políček
-        int sx = px + Mathf.RoundToInt(Mathf.Cos(ang) * dist);
-        int sy = py + Mathf.RoundToInt(Mathf.Sin(ang) * dist);
+
+        // Starý ostrov = start trasy k novému (kolem ní čeká megalodon, viz StoryEvents).
+        gameData.routeStartSet = true;
+        gameData.routeStartX   = px;
+        gameData.routeStartY   = py;
+
+        Vector2Int next = NextMegaIslandPos(px, py, gameData.megaIndex);
+        int sx = next.x, sy = next.y;
 
         // Starý obelisk (s obranou/trezorem) uklidit — ať ve scéně nezůstává
         // "duch" starého ostrova (viz handoff.md, poznámka ke Kroku 3).
@@ -1598,9 +1649,14 @@ public class GridManager : MonoBehaviour
 
         PlaceMegaIsland(sx, sy); // nastaví storyIslandActive/X/Y, postaví nový marker, uloží
 
-        gameData.hasWaypoint = true;
-        gameData.waypointX   = sx;
-        gameData.waypointY   = sy;
+        // Waypoint se nenastaví, když souřadnice hráč dostal jako hádanku v dopise
+        // (LetterScreen) — má je vypočítat a najít na mapě sám.
+        if (setWaypoint)
+        {
+            gameData.hasWaypoint = true;
+            gameData.waypointX   = sx;
+            gameData.waypointY   = sy;
+        }
         gameData.storyStep   = 2; // "pluješ k dalšímu ostrovu" — stejný krok jako poprvé
 
         Save();
@@ -1618,8 +1674,15 @@ public class GridManager : MonoBehaviour
         int fromX = playerIndex == 0 ? d.playerGridX : d.player2GridX;
         int fromY = playerIndex == 0 ? d.playerGridY : d.player2GridY;
 
+        // Nejbližší už vygenerovaný ostrov. Když je moc daleko (třeba jen startovní
+        // ostrov zůstal v paměti), vygeneruj nový poblíž místa smrti — a pak vezmi
+        // z obou ten bližší.
         Vector2Int? harbor = NearestHarborTile(fromX, fromY);
-        if (harbor == null) { ForceIslandNear(fromX, fromY); harbor = NearestHarborTile(fromX, fromY); }
+        if (harbor == null || TileDistance(harbor.Value.x, harbor.Value.y, fromX, fromY) > RESPAWN_MAX_ISLAND_DIST)
+        {
+            ForceIslandNear(fromX, fromY);
+            harbor = NearestHarborTile(fromX, fromY);
+        }
 
         Vector2Int spot   = harbor ?? new Vector2Int(fromX, fromY);
         var        water  = FindWaterNextTo(spot.x, spot.y);
@@ -1631,7 +1694,7 @@ public class GridManager : MonoBehaviour
             d.fishCount = 0; d.treasureCount = 0; d.ammo = 0;
             d.hasSpeedUpgrade = d.hasRodUpgrade = d.hasMiningUpgrade = false;
             d.hasMap = false; d.sellBonus = false;
-            d.hasHandWeapon = false; d.handAmmo = 0;
+            d.hasHandWeapon = false; d.handAmmo = 0; d.activeHotbarSlot = -1;
             d.shipLevel = 0;
             d.activeQuest.Reset();
             d.boatHealth = 100; d.playerHealth = 100; d.boatWrecked = false; d.boatNeedsRehome = false;
@@ -1644,12 +1707,16 @@ public class GridManager : MonoBehaviour
             d.player2FishCount = 0; d.player2TreasureCount = 0; d.player2Ammo = 0;
             d.player2HasSpeedUpgrade = d.player2HasRodUpgrade = d.player2HasMiningUpgrade = false;
             d.player2HasMap = false; d.player2SellBonus = false;
-            d.player2HasHandWeapon = false; d.player2HandAmmo = 0;
+            d.player2HasHandWeapon = false; d.player2HandAmmo = 0; d.player2ActiveHotbarSlot = -1;
             d.player2ShipLevel = 0;
             d.player2ActiveQuest.Reset();
             d.player2BoatHealth = 100; d.player2PlayerHealth = 100;
             d.player2BoatWrecked = false; d.player2BoatNeedsRehome = false;
             d.player2GridX = spot.x; d.player2GridY = spot.y;
+            // P2 se objeví pěšky (jako P1) a loď mu stojí ve vodě u mola —
+            // PlayerController.ReloadFromData si to jednorázově převezme.
+            d.player2IsOnFoot = true;
+            d.player2BoatGridX = boatAt.x; d.player2BoatGridY = boatAt.y;
         }
 
         GenerateWorld(spot.x, spot.y);
@@ -1756,7 +1823,7 @@ public class GridManager : MonoBehaviour
     }
 
     // Najde vodní políčko hned vedle [x,y] (pro zaparkování lodě u mola).
-    private (int x, int y)? FindWaterNextTo(int x, int y)
+    public (int x, int y)? FindWaterNextTo(int x, int y)
     {
         var dirs = new (int dx, int dy)[] { (1, 0), (-1, 0), (0, 1), (0, -1) };
         foreach (var d in dirs)

@@ -130,7 +130,8 @@ public class GameConsole : MonoBehaviour
                 Log("<color=#ffff88>explore</color> [radius]             odhalí mapu");
                 Log("<color=#ffff88>locate</color> [fish/treasure/chest/island/pirate/quest]  najde nejbližší");
                 Log("<color=#ffff88>respawn</color>                       oživí hráče u nejbližšího ostrova");
-                Log("<color=#ffff88>story</color> [krok / island / histtreasure]   příběh (test)");
+                Log("<color=#ffff88>story</color> <1-10>                  PRESET: přenese na část příběhu s výbavou");
+                Log("<color=#ffff88>story</color> [step n / island / histtreasure / megatask n / ending n / nextisland]   příběh (test)");
                 Log("<color=#ffff88>reset money</color>                   vynuluje mince");
                 Log("<color=#ffff88>clear</color>                         vymaže konzoli");
                 Log("<color=#ffff88>exit</color>                          zavře konzoli");
@@ -465,13 +466,20 @@ public class GameConsole : MonoBehaviour
             grid.GiveNextMegaIsland();
             Log($"megaIndex = {d.megaIndex}, ostrov na [{d.storyIslandX}, {d.storyIslandY}], waypoint nastaven.");
         }
-        else if (int.TryParse(p[1], out int step))
+        // story 1..10 — PRESET: přenese hráče na místo dané části příběhu a dá mu výbavu
+        // (viz StoryPresets.cs — seznam presetů je v hlavičce souboru).
+        else if (int.TryParse(p[1], out int preset) && preset >= 1 && preset <= StoryPresets.COUNT)
+        {
+            Log(StoryPresets.Apply(preset, grid, player, shipSwitcher));
+        }
+        // story step <n> — jen nastaví storyStep (dřívější "story <n>"; číslo 1–10 je teď preset).
+        else if (p[1] == "step" && p.Length >= 3 && int.TryParse(p[2], out int step))
         {
             d.storyStep = Mathf.Clamp(step, 0, 9);
             grid.Save(); grid.NotifyWorldChanged();
             Log($"storyStep = {d.storyStep}");
         }
-        else Log("Použití: story  |  story <krok 0-9>  |  story island  |  story histtreasure  |  "
+        else Log("Použití: story  |  story <1-10> (preset)  |  story step <0-9>  |  story island  |  story histtreasure  |  "
                + "story megatask <0-3>  |  story ending <0-2>  |  story nextisland");
     }
 

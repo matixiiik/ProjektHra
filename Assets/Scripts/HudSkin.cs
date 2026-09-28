@@ -24,6 +24,38 @@ public static class HudSkin
     public static readonly Color HpPlayer    = new Color(0.55f, 0.85f, 0.45f, 1f);
     public static readonly Color HpLow       = new Color(0.92f, 0.34f, 0.28f, 1f);
 
+    // ── Písmo a měřítko pro IMGUI (OnGUI) ─────────────────────────────────
+    private static Font uiFont;
+    private static bool uiFontTried;
+
+    /// <summary>Systémové písmo (Segoe UI → Calibri → Arial) — čitelnější než vestavěné.
+    /// Když žádné není, vrací null a IMGUI zůstane u výchozího písma.</summary>
+    public static Font UiFont
+    {
+        get
+        {
+            if (!uiFontTried)
+            {
+                uiFontTried = true;
+                try { uiFont = Font.CreateDynamicFontFromOSFont(new[] { "Segoe UI", "Calibri", "Arial" }, 16); }
+                catch (System.Exception) { uiFont = null; }
+            }
+            return uiFont;
+        }
+    }
+
+    /// <summary>Nastaví systémové písmo jako výchozí pro celé IMGUI (volat z OnGUI;
+    /// styly odvozené z GUI.skin ho pak použijí samy).</summary>
+    public static void UseUiFont()
+    {
+        Font f = UiFont;
+        if (f != null && GUI.skin.font != f) GUI.skin.font = f;
+    }
+
+    /// <summary>Měřítko IMGUI dialogů podle výšky obrazovky (900 px = 1×). Na malém okně
+    /// v editoru zůstane 1, na Full HD / 4K text a okna narostou, ať se dobře čtou.</summary>
+    public static float GuiScale => Mathf.Clamp(Screen.height / 900f, 1f, 2.2f);
+
     // ── Panel (9-slice, zaoblené rohy + lem) ──────────────────────────────
     private static Sprite panelSprite;
 
@@ -80,34 +112,92 @@ public static class HudSkin
         return whiteSprite;
     }
 
-    // ── Ikonky (28×28) ───────────────────────────────────────────────────
-    public enum IconKind { Coin, Fish, Treasure, Ammo, Heart, Anchor }
+    // ── Ikonky (28×28 malé, 64×64 velké pro hotbar) ──────────────────────
+    public enum IconKind { Coin, Fish, Treasure, Ammo, Heart, Anchor, Rifle, Cannonball, Bullets }
 
     private static readonly System.Collections.Generic.Dictionary<IconKind, Sprite> iconCache
         = new System.Collections.Generic.Dictionary<IconKind, Sprite>();
+    private static readonly System.Collections.Generic.Dictionary<IconKind, Sprite> iconLargeCache
+        = new System.Collections.Generic.Dictionary<IconKind, Sprite>();
 
-    public static Sprite Icon(IconKind kind)
+    public static Sprite Icon(IconKind kind) => GetIcon(kind, 28, iconCache);
+
+    /// <summary>Velká verze ikony (64×64) — ostřejší při zvětšení, používá hotbar.</summary>
+    public static Sprite IconLarge(IconKind kind) => GetIcon(kind, 64, iconLargeCache);
+
+    // Vykreslí ikonu dané velikosti do textury a uloží do cache.
+    private static Sprite GetIcon(IconKind kind, int S, System.Collections.Generic.Dictionary<IconKind, Sprite> cache)
     {
-        if (iconCache.TryGetValue(kind, out var s)) return s;
+        if (cache.TryGetValue(kind, out var s)) return s;
 
-        const int S = 28;
         var t = new Texture2D(S, S, TextureFormat.RGBA32, false) { filterMode = FilterMode.Bilinear };
         for (int i = 0; i < S * S; i++) t.SetPixel(i % S, i / S, new Color(0, 0, 0, 0));
 
         switch (kind)
         {
-            case IconKind.Coin:     DrawCoin(t, S);     break;
-            case IconKind.Fish:     DrawFish(t, S);     break;
-            case IconKind.Treasure: DrawTreasure(t, S); break;
-            case IconKind.Ammo:     DrawDisc(t, S, S * 0.32f, AmmoGrey); break;
-            case IconKind.Heart:    DrawHeart(t, S);    break;
-            case IconKind.Anchor:   DrawAnchor(t, S);   break;
+            case IconKind.Coin:       DrawCoin(t, S);     break;
+            case IconKind.Fish:       DrawFish(t, S);     break;
+            case IconKind.Treasure:   DrawTreasure(t, S); break;
+            case IconKind.Ammo:       DrawDisc(t, S, S * 0.32f, AmmoGrey); break;
+            case IconKind.Heart:      DrawHeart(t, S);    break;
+            case IconKind.Anchor:     DrawAnchor(t, S);   break;
+            case IconKind.Rifle:      DrawRifle(t, S);    break;
+            case IconKind.Cannonball: DrawCannonball(t, S); break;
+            case IconKind.Bullets:    DrawBullets(t, S);  break;
         }
         t.Apply();
 
         s = Sprite.Create(t, new Rect(0, 0, S, S), new Vector2(0.5f, 0.5f));
-        iconCache[kind] = s;
+        cache[kind] = s;
         return s;
+    }
+
+    // Puška: dřevěná pažba, tmavá spoušťová skříň a šedá hlaveň s muškou.
+    private static void DrawRifle(Texture2D t, int S)
+    {
+        Color wood   = new Color(0.55f, 0.36f, 0.20f);
+        Color metal  = new Color(0.62f, 0.64f, 0.70f);
+        Color dark   = new Color(0.25f, 0.26f, 0.30f);
+
+        FillRect(t, S, 0.06f, 0.38f, 0.34f, 0.58f, wood);   // pažba
+        FillRect(t, S, 0.26f, 0.24f, 0.38f, 0.42f, wood);   // pistolová rukojeť
+        FillRect(t, S, 0.32f, 0.44f, 0.58f, 0.62f, dark);   // spoušťová skříň
+        FillRect(t, S, 0.58f, 0.51f, 0.94f, 0.57f, metal);  // hlaveň
+        FillRect(t, S, 0.86f, 0.57f, 0.90f, 0.64f, metal);  // muška
+        FillRect(t, S, 0.44f, 0.32f, 0.50f, 0.44f, dark);   // spoušťový krytec
+    }
+
+    // Dělová koule: tmavá koule s odleskem.
+    private static void DrawCannonball(Texture2D t, int S)
+    {
+        DrawDisc(t, S, S * 0.36f, new Color(0.22f, 0.23f, 0.27f));
+        DrawDisc(t, S, S * 0.09f, new Color(0.55f, 0.57f, 0.64f), S * 0.40f, S * 0.62f); // odlesk
+    }
+
+    // Náboje do pušky: dva mosazné náboje vedle sebe.
+    private static void DrawBullets(Texture2D t, int S)
+    {
+        DrawOneBullet(t, S, 0.36f);
+        DrawOneBullet(t, S, 0.64f);
+    }
+
+    private static void DrawOneBullet(Texture2D t, int S, float cx)
+    {
+        Color brass  = new Color(0.90f, 0.70f, 0.28f);
+        Color casing = new Color(0.70f, 0.50f, 0.18f);
+        Color tip    = new Color(0.72f, 0.45f, 0.22f);
+
+        FillRect(t, S, cx - 0.09f, 0.18f, cx + 0.09f, 0.56f, brass);    // tělo nábojnice
+        FillRect(t, S, cx - 0.09f, 0.18f, cx + 0.09f, 0.25f, casing);   // dno
+        DrawDisc(t, S, S * 0.09f, tip, S * cx, S * 0.58f);              // zaoblená střela
+    }
+
+    // Vyplní obdélník zadaný zlomky velikosti textury (0..1).
+    private static void FillRect(Texture2D t, int S, float x0, float y0, float x1, float y1, Color c)
+    {
+        for (int y = (int)(S * y0); y < (int)(S * y1); y++)
+        for (int x = (int)(S * x0); x < (int)(S * x1); x++)
+            t.SetPixel(x, y, c);
     }
 
     private static void DrawCoin(Texture2D t, int S)

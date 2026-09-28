@@ -34,7 +34,10 @@
       "Bash(gh run watch:*)",
       "Bash(gh issue list:*)",
       "Bash(gh issue view:*)",
-      "Bash(gh api:*)"
+      "Bash(gh api:*)",
+      "Bash(bash .claude/skills/unity-hra/scripts/compile-check.sh)",
+      "Bash(python3 -)",
+      "Bash(python3 \"C:/Users/matix/AppData/Local/Temp/claude/C--Users-matix-Downloads-ProjectHra/3f483529-0b19-4b28-bfb4-11e2dec102bb/scratchpad/patch_pose.py\")"
     ],
     "deny": [
       "Bash(git push --force:*)",

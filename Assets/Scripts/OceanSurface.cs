@@ -40,6 +40,12 @@ public class OceanSurface : MonoBehaviour
     private Vector3[] flat;       // vrcholy v rovině (bez vln), lokální souřadnice
     private Vector3[] work;       // pracovní pole s aktuální výškou vln
 
+    // Přepočet normál/bounds je dražší než samotný posun vrcholů a vlny jsou tak jemné
+    // (amplituda pár centimetrů), že o snímek "starší" osvětlení není znát — přepočítá
+    // se jen každý 3. snímek, pozice vrcholů (a tím i tvar hladiny) se posouvá pořád.
+    private const int NORMALS_EVERY_N_FRAMES = 3;
+    private int normalsFrameCounter;
+
     /// <summary>Zavolá GridManager hned po vytvoření objektu.</summary>
     public void Init(Material waterMaterial, Transform player1)
     {
@@ -184,7 +190,13 @@ public class OceanSurface : MonoBehaviour
         }
 
         mesh.vertices = work;
-        mesh.RecalculateNormals();
-        mesh.RecalculateBounds();
+
+        normalsFrameCounter++;
+        if (normalsFrameCounter >= NORMALS_EVERY_N_FRAMES)
+        {
+            normalsFrameCounter = 0;
+            mesh.RecalculateNormals();
+            mesh.RecalculateBounds();
+        }
     }
 }

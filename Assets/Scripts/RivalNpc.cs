@@ -236,29 +236,38 @@ public class RivalNpc : MonoBehaviour
     {
         Rect half = HalfRect(playerIndex);
 
-        float w = Mathf.Min(620f, half.width - 40f);
-        float h = 130f;
+        // Škálování podle výšky obrazovky — stejně jako dialog dědy (StoryNpc.DrawDialog).
+        float s = HudSkin.GuiScale;
+        nameStyle.fontSize  = Mathf.RoundToInt(20f * s);
+        textStyle.fontSize  = Mathf.RoundToInt(21f * s);
+        hintStyle.fontSize  = Mathf.RoundToInt(16f * s);
+        spareStyle.fontSize = Mathf.RoundToInt(16f * s);
+        killStyle.fontSize  = Mathf.RoundToInt(16f * s);
+
+        float w = Mathf.Min(780f * s, half.width - 40f);
+        float h = 200f * s;
         var box = new Rect(half.x + (half.width - w) / 2f, half.yMax - h - 38f, w, h);
 
-        GUI.color = new Color(0.06f, 0.07f, 0.10f, 0.92f);
+        GUI.color = new Color(0.06f, 0.07f, 0.10f, 0.94f);
         GUI.DrawTexture(box, Texture2D.whiteTexture);
         GUI.color = new Color(0.55f, 0.6f, 0.65f, 1f); // studenější proužek než u dědy — jiná nálada
-        GUI.DrawTexture(new Rect(box.x, box.y, box.width, 3f), Texture2D.whiteTexture);
+        GUI.DrawTexture(new Rect(box.x, box.y, box.width, 3f * s), Texture2D.whiteTexture);
         GUI.color = Color.white;
 
-        GUI.Label(new Rect(box.x + 18f, box.y + 10f, box.width - 36f, 24f), NpcName, nameStyle);
+        float pad = 20f * s;
+        GUI.Label(new Rect(box.x + pad, box.y + 10f * s, box.width - 2 * pad, 30f * s), NpcName, nameStyle);
         string txt = activeLines != null && activeLines.Length > 0
             ? activeLines[Mathf.Clamp(line, 0, activeLines.Length - 1)] : "";
-        GUI.Label(new Rect(box.x + 18f, box.y + 40f, box.width - 36f, 60f), txt, textStyle);
+        GUI.Label(new Rect(box.x + pad, box.y + 46f * s, box.width - 2 * pad, 100f * s), txt, textStyle);
 
         string key = playerIndex == 0 ? "E" : "Numpad 1";
         bool lastLine = activeLines == null || line >= activeLines.Length - 1;
 
         if (showChoiceButtons && lastLine)
         {
-            float bw = 220f;
-            var brSpare = new Rect(box.x + box.width / 2f - bw - 10f, box.yMax - 30f, bw, 24f);
-            var brKill  = new Rect(box.x + box.width / 2f + 10f,      box.yMax - 30f, bw, 24f);
+            float bw = Mathf.Min(300f * s, (box.width - 2 * pad - 20f) / 2f);
+            var brSpare = new Rect(box.x + box.width / 2f - bw - 10f, box.yMax - 44f * s, bw, 34f * s);
+            var brKill  = new Rect(box.x + box.width / 2f + 10f,      box.yMax - 44f * s, bw, 34f * s);
             if (SoundManager.Click(GUI.Button(brSpare, Loc.T("Ušetřit — vzít domů",    "Spare him — take him home"),      spareStyle))) ChooseSpare();
             if (SoundManager.Click(GUI.Button(brKill,  Loc.T("Zabít — vzít dědictví", "Kill him — take the inheritance"), killStyle))) ChooseKill();
         }
@@ -266,7 +275,7 @@ public class RivalNpc : MonoBehaviour
         {
             string more = lastLine ? "[" + key + "] " + Loc.T("konec", "close")
                                    : "[" + key + "] " + Loc.T("dál",   "next");
-            GUI.Label(new Rect(box.x + 18f, box.yMax - 24f, box.width - 36f, 20f), more, hintStyle);
+            GUI.Label(new Rect(box.x + pad, box.yMax - 34f * s, box.width - 2 * pad, 26f * s), more, hintStyle);
         }
     }
 

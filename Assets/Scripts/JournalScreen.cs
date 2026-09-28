@@ -78,6 +78,15 @@ public class JournalScreen : MonoBehaviour
         }
 
         GUILayout.FlexibleSpace();
+
+        // Dopis z trezoru jde znovu přečíst (hádanka na souřadnice dalšího ostrova).
+        if (d.hasLetter && SoundManager.Click(GUILayout.Button(Loc.T("Přečíst dopis z trezoru", "Read the letter from the vault"), GUILayout.Height(34))))
+        {
+            Close();
+            LetterScreen.Show(0, d.letterX, d.letterY);
+        }
+        GUILayout.Space(4);
+
         GUILayout.Label(Loc.T("[Esc] zavřít deník", "[Esc] close journal"), closeHintStyle);
         GUILayout.EndArea();
 
@@ -119,8 +128,8 @@ public class JournalScreen : MonoBehaviour
             "Pirate Island: a message was waiting in the vault. You read it and followed the trail onward."));
 
         if (Reached(d, 1, 1)) list.Add(Loc.T(
-            "Hřbitov lodí: potopil jsi Bludného Holanďana, který hlídkoval v mělčině.",
-            "Ship Graveyard: you sank the Flying Dutchman, who patrolled the shoals."));
+            "Hřbitov lodí: dorazil jsi. V mělčině kolem trčí trosky a skrývají se v nich kousky roztržené mapy.",
+            "Ship Graveyard: you have arrived. Wrecks stick out of the shoals around it, hiding pieces of a torn map."));
         if (Reached(d, 1, 2)) list.Add(Loc.T(
             "Hřbitov lodí: vykopal jsi z mělčiny všechny tři kusy roztržené mapy.",
             "Ship Graveyard: you dug all three pieces of the torn map out of the shoals."));

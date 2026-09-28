@@ -185,6 +185,7 @@ public class PlayerController : MonoBehaviour
         || MapScreen.IsOpenFor(playerIndex)
         || (storyNpc != null && storyNpc.IsTalkingWith(playerIndex))
         || (RivalNpc.Instance != null && RivalNpc.Instance.IsTalkingWith(playerIndex))
+        || LetterScreen.IsOpenFor(playerIndex) // čte dopis z trezoru
         || LighthouseManager.IsInside(playerIndex);
     ActiveQuest PQuest     => playerIndex == 0 ? gridManager.gameData.activeQuest      : gridManager.gameData.player2ActiveQuest;
 
@@ -265,6 +266,9 @@ public class PlayerController : MonoBehaviour
 
     void Update()
     {
+        // Pěšák na vodním políčku plave (vešel z ostrova do vody).
+        footSwimming = IsWaterUnderFoot();
+
         // Loď zůstává plavat na svém místě, dokud je hráč pěšky (a zase zmizí,
         // až nasedne) — řeší i načtení save uprostřed vylodění.
         SyncParkedBoat();
@@ -307,7 +311,7 @@ public class PlayerController : MonoBehaviour
         bool myTalkOpen  = (storyNpc != null && storyNpc.IsTalkingWith(playerIndex))
                         || (RivalNpc.Instance != null && RivalNpc.Instance.IsTalkingWith(playerIndex));
         bool myVaultOpen = VaultMechanism.IsOpenFor(playerIndex); // puzzle na trezoru mega ostrova (Krok 3)
-        if (isMoving || isWorking || myShopOpen || myTalkOpen || myVaultOpen || MapScreen.IsOpenFor(playerIndex)
+        if (isMoving || isWorking || myShopOpen || myTalkOpen || myVaultOpen || LetterScreen.IsOpenFor(playerIndex) || MapScreen.IsOpenFor(playerIndex)
             || GameConsole.IsOpen || MainMenuManager.IsVisible || DeathScreen.IsOpenFor(playerIndex)) return;
 
         // E / Numpad1 → nastup/vystup z lodě, nebo vejdi do sousední budovy (maják).
@@ -338,9 +342,17 @@ public class PlayerController : MonoBehaviour
         // CO je zrovna "v ruce" (0=zbraň, 1=munice, 2=historický poklad);
         // reálný účinek má jen slot 0 (zbraň, viz TryShootOnFoot). Stisk STEJNÉ
         // klávesy podruhé věc zase "položí" (-1 = nic v ruce).
-        if      (KeyDown(KeyCode.Alpha1, KeyCode.Keypad7)) PHotbarSlot = PHotbarSlot == 0 ? -1 : 0;
+        // V lodi (nebo při plavání) nemá hráč nic v ruce — slot se vynuluje a klávesy nic nedělají.
+        if (!isOnFoot)
+        {
+            if (PHotbarSlot != -1) PHotbarSlot = -1;
+        }
+        else if (KeyDown(KeyCode.Alpha1, KeyCode.Keypad7)) PHotbarSlot = PHotbarSlot == 0 ? -1 : 0;
         else if (KeyDown(KeyCode.Alpha2, KeyCode.Keypad8)) PHotbarSlot = PHotbarSlot == 1 ? -1 : 1;
         else if (KeyDown(KeyCode.Alpha3, KeyCode.Keypad9)) PHotbarSlot = PHotbarSlot == 2 ? -1 : 2;
+
+        // S vytaženou zbraní se panáček otáčí za kamerou (míří před sebe).
+        UpdateAimFacing();
 
         // Levé tlačítko myši (P1) / Numpad * (P2) → výstřel. Na lodi z děla,
         // pěšky z koupené zbraně (jen když je vybraná v hotbaru — slot 0).
@@ -352,17 +364,54 @@ public class PlayerController : MonoBehaviour
         }
     }
 
-    // Sklon kamery řídí náměr výstřelu (boat i pěší zbraň) — čím víc hráč kouká
-    // kamerou dolů, tím vyšším obloukem koule letí (a naopak skoro rovně, když
-    // kamera kouká víc k horizontu). Umožňuje trefit i vyvýšené cíle jako dělo
-    // na věži hradby (viz MegaIslandMarker.BuildWalls). forward.y je záporné,
-    // když kamera kouká dolů, proto mínus.
-    private const float MAX_LAUNCH_ANGLE = 55f;
-    private float LaunchAngleFromCamera()
+    // ── Míření ─────────────────────────────────────────────────────────────
+    // Kamera tohoto hráče: P1 = hlavní kamera, P2 má svou (viewCamera).
+    // (Pozor: viewCamera je u P1 null — proto se dřív náměr u P1 nikdy neprojevil.)
+    private Transform AimCamera
+        => viewCamera != null ? viewCamera : (Camera.main != null ? Camera.main.transform : null);
+
+    private const float AIM_NEUTRAL_PITCH = 52f; // sklon kamery, při kterém se střílí vodorovně (výchozí pohled)
+    private const float MAX_AIM_ANGLE     = 30f; // nejvyšší náměr nahoru / dolů ve třetí osobě
+    private const float FP_MAX_AIM_ANGLE  = 60f; // v první osobě jde mířit strměji
+
+    // Náměr výstřelu ve stupních (kladný = nahoru, záporný = dolů) podle sklonu kamery.
+    //  • první osoba: přímo tam, kam se díváš
+    //  • třetí osoba: výchozí pohled (52°) = rovně; kamera výš (menší sklon) = nahoru,
+    //    kamera kolmo dolů = dolů. Nahoru se tak dá trefit dělo na věži hradby.
+    private float AimElevationDeg()
     {
-        if (viewCamera == null) return 0f;
-        float downAmount = Mathf.Clamp01(-viewCamera.forward.y);
-        return downAmount * MAX_LAUNCH_ANGLE;
+        Transform cam = AimCamera;
+        if (cam == null) return 0f;
+
+        // Sklon kamery ve stupních (kladný = kouká dolů).
+        float camPitch = Mathf.Asin(Mathf.Clamp(-cam.forward.y, -1f, 1f)) * Mathf.Rad2Deg;
+
+        var orbit = cam.GetComponent<CameraOrbit>();
+        if (orbit != null && orbit.IsFirstPerson)
+            return Mathf.Clamp(-camPitch, -FP_MAX_AIM_ANGLE, FP_MAX_AIM_ANGLE);
+
+        return Mathf.Clamp(AIM_NEUTRAL_PITCH - camPitch, -MAX_AIM_ANGLE, MAX_AIM_ANGLE);
+    }
+
+    // Vodorovný směr, kam se kamera dívá (pro pěší zbraň).
+    private Vector3 AimHorizontalDir()
+    {
+        Transform cam = AimCamera;
+        Vector3 f = cam != null ? cam.forward : transform.forward;
+        f.y = 0f;
+        return f.sqrMagnitude > 0.0001f ? f.normalized : Vector3.forward;
+    }
+
+    // Je vytažená pěší zbraň? (koupená + vybraná v hotbaru + hráč pěšky)
+    private bool WeaponDrawn => isOnFoot && !footSwimming && PHasHandWeapon && PHotbarSlot == 0;
+
+    // Když má hráč vytaženou zbraň, panáček se plynule otáčí tam, kam se dívá kamera —
+    // zbraň míří "před něj" a střílí přesně tím směrem (bez toho by se otáčel jen podle chůze).
+    void UpdateAimFacing()
+    {
+        if (!WeaponDrawn || headDot == null) return;
+        Quaternion target = Quaternion.LookRotation(AimHorizontalDir());
+        headDot.transform.rotation = Quaternion.Slerp(headDot.transform.rotation, target, 14f * Time.deltaTime);
     }
 
     // ── Střelba z lodního děla ─────────────────────────────────────────────
@@ -375,10 +424,11 @@ public class PlayerController : MonoBehaviour
 
         PAmmo -= 1;
 
+        // Koule letí vždy PŘED loď (podél přídě), nahoru / dolů podle kamery.
         Vector3 dir  = boatModel != null ? boatModel.forward : transform.forward;
-        Vector3 from = transform.position;
+        Vector3 from = transform.position + Vector3.up * 0.4f; // ústí děla nad palubou
         CombatDirector.Ensure();
-        CannonBall.Fire(from, dir, BoatStats.CannonDamage(PShipLevel), CannonBall.Side.Player, LaunchAngleFromCamera());
+        CannonBall.FireAimed(from, dir, AimElevationDeg(), BoatStats.CannonDamage(PShipLevel), CannonBall.Side.Player);
 
         SoundManager.PlayCannon();
         gridManager.NotifyWorldChanged(); // překresli munici v HUD
@@ -397,10 +447,13 @@ public class PlayerController : MonoBehaviour
 
         PHandAmmo -= 1;
 
-        Vector3 dir  = transform.forward;
+        // Střílí se tam, kam se dívá kamera (vodorovně) a panáček se k tomu okamžitě otočí,
+        // ať míří zbraní přesně směrem výstřelu. Nahoru / dolů podle sklonu kamery.
+        Vector3 dir  = AimHorizontalDir();
         Vector3 from = transform.position + Vector3.up * 0.9f;
+        if (headDot != null) headDot.transform.rotation = Quaternion.LookRotation(dir);
         CombatDirector.Ensure();
-        CannonBall.Fire(from, dir, HAND_SHOT_DAMAGE, CannonBall.Side.Player, LaunchAngleFromCamera());
+        CannonBall.FireAimed(from, dir, AimElevationDeg(), HAND_SHOT_DAMAGE, CannonBall.Side.Player);
 
         SoundManager.PlayHandgun();
         gridManager.NotifyWorldChanged(); // překresli munici v hotbaru
@@ -523,6 +576,13 @@ public class PlayerController : MonoBehaviour
         var stale = headDot.transform.Find("CharModel");
         if (stale != null) DestroyImmediate(stale.gameObject);
 
+        // Stejně tak zděděné věci v ruce z kopie P1 (starý HeldAnchor / staré rekvizity).
+        foreach (string staleName in new[] { "HeldAnchor", "WeaponProp", "AmmoProp", "TreasureProp" })
+        {
+            var t = transform.Find(staleName);
+            if (t != null) DestroyImmediate(t.gameObject);
+        }
+
         Color tint = playerIndex == 1
             ? new Color(0.82f, 0.24f, 0.20f)  // P2 — červené oblečení
             : new Color(0.32f, 0.46f, 0.72f); // P1 — modré
@@ -544,6 +604,14 @@ public class PlayerController : MonoBehaviour
         figureAnimator = CharacterModel.GetAnimator(model);
         figurePrevPos  = new Vector3(transform.position.x, 0f, transform.position.z); // ať anim nezačne "sprintem"
 
+        // Kosti modelu, které ovládáme sami (natažená ruka s věcí, plavecké záběry).
+        figureModelTf = model.transform;
+        armRight = FindBone(model.transform, "arm-right");
+        armLeft  = FindBone(model.transform, "arm-left");
+        legRight = FindBone(model.transform, "leg-right");
+        legLeft  = FindBone(model.transform, "leg-left");
+        armCalibrated = false;
+
         BuildHeldItemProps();
 
         if (found)
@@ -551,24 +619,34 @@ public class PlayerController : MonoBehaviour
             var p = model.transform.position;
             model.transform.position = new Vector3(p.x, feetY, p.z);
         }
+        figureHomePos = figureModelTf.localPosition; // kam se model vrátí po plavání
+        figureHomeRot = figureModelTf.localRotation;
 
         // Schovej původní primitivní díly (Body / Head / Hat / Nose).
         foreach (Transform child in headDot.transform)
             if (child != model.transform) child.gameObject.SetActive(false);
     }
 
-    // Věci "v ruce" postavičky — pistole (hotbar 0), váček s náboji (1),
-    // historický poklad (2). Bez napojení na kost, jen pevný offset od KOŘENE
-    // hráče (transform, ne model postavy — ten má v CharacterModel.TryBuild
+    // Věci "v ruce" postavičky — puška (hotbar 0), váček s náboji (1),
+    // historický poklad (2). Všechny visí na jedné kotvě (heldAnchor), kterou
+    // UpdateFigurePose() každý snímek staví do natažené ruky panáčka a natáčí ve
+    // směru míření — takže věc opravdu drží v ruce a míří tam, kam se střílí.
+    // (Kotva je potomek kořene hráče, ne modelu postavy — ten má v CharacterModel.TryBuild
     // vlastní kompenzační škálování podle rodiče, což dělalo věci v ruce
-    // maličké a úplně mimo). Pozice = před tělem, trochu vpravo, v pase
-    // (podobně jako drží věc postavička v Robloxu). Vytvoří se rovnou, ale
-    // skryté — zobrazí/schová je UpdateWeaponVisual() podle hotbaru.
-    private static readonly Vector3 HELD_ITEM_ANCHOR = new Vector3(0.20f, 0.60f, 0.42f);
+    // maličké a úplně mimo.) Věci se vytvoří rovnou, ale skryté — zobrazí/schová je
+    // UpdateWeaponVisual() podle hotbaru.
+    private static readonly Vector3 HELD_ITEM_ANCHOR = new Vector3(0.20f, 0.60f, 0.42f); // záloha, když model nemá kost ruky
+
+    private Transform heldAnchor; // kam se věci v ruce připevňují (pohybuje se s rukou)
 
     private void BuildHeldItemProps()
     {
-        weaponProp   = BuildPistolProp();
+        var anchorGO = new GameObject("HeldAnchor");
+        anchorGO.transform.SetParent(transform, false);
+        anchorGO.transform.localPosition = HELD_ITEM_ANCHOR;
+        heldAnchor = anchorGO.transform;
+
+        weaponProp   = BuildRifleProp();
         ammoProp     = BuildAmmoPouchProp();
         treasureProp = BuildTreasureProp();
 
@@ -577,19 +655,23 @@ public class PlayerController : MonoBehaviour
         treasureProp.SetActive(false);
     }
 
-    // Pistole — hlaveň + pažba, dost velká, ať je v ruce vidět (dřív byla
-    // směšně malá). Hlaveň míří dopředu = lokální +Z = kam se panáček dívá.
-    private GameObject BuildPistolProp()
+    // Puška — hlaveň + tělo + pažba, dost velká, ať je v ruce vidět. Hlaveň míří
+    // dopředu = lokální +Z kotvy = směr míření. Kotva je v místě dlaně, takže tělo
+    // pušky sedí těsně za ní a hlaveň před ní.
+    private GameObject BuildRifleProp()
     {
         var root = new GameObject("WeaponProp");
-        root.transform.SetParent(transform, false);
-        root.transform.localPosition = HELD_ITEM_ANCHOR;
+        root.transform.SetParent(heldAnchor, false);
+        root.transform.localPosition = Vector3.zero;
 
-        Material dark = MakeHeldMat(new Color(0.10f, 0.10f, 0.11f));
-        Material wood = MakeHeldMat(new Color(0.32f, 0.22f, 0.14f));
+        Material dark  = MakeHeldMat(new Color(0.10f, 0.10f, 0.11f));
+        Material metal = MakeHeldMat(new Color(0.42f, 0.44f, 0.48f));
+        Material wood  = MakeHeldMat(new Color(0.32f, 0.22f, 0.14f));
 
-        AddHeldPart(root.transform, PrimitiveType.Cylinder, "Barrel", new Vector3(0f, 0.05f, 0.15f), new Vector3(0.05f, 0.15f, 0.05f), new Vector3(90f, 0f, 0f), dark);
-        AddHeldPart(root.transform, PrimitiveType.Cube,     "Grip",   new Vector3(0f, -0.09f, -0.02f), new Vector3(0.07f, 0.17f, 0.06f), new Vector3(-22f, 0f, 0f), wood);
+        AddHeldPart(root.transform, PrimitiveType.Cylinder, "Barrel", new Vector3(0f, 0.03f, 0.30f),  new Vector3(0.04f, 0.26f, 0.04f), new Vector3(90f, 0f, 0f), metal);
+        AddHeldPart(root.transform, PrimitiveType.Cube,     "Body",   new Vector3(0f, 0.01f, 0.00f),  new Vector3(0.07f, 0.09f, 0.28f), Vector3.zero, dark);
+        AddHeldPart(root.transform, PrimitiveType.Cube,     "Stock",  new Vector3(0f, -0.03f, -0.24f), new Vector3(0.06f, 0.10f, 0.22f), new Vector3(-8f, 0f, 0f), wood);
+        AddHeldPart(root.transform, PrimitiveType.Cube,     "Grip",   new Vector3(0f, -0.09f, -0.06f), new Vector3(0.05f, 0.12f, 0.05f), new Vector3(-18f, 0f, 0f), wood);
         return root;
     }
 
@@ -598,8 +680,8 @@ public class PlayerController : MonoBehaviour
     private GameObject BuildAmmoPouchProp()
     {
         var root = new GameObject("AmmoProp");
-        root.transform.SetParent(transform, false);
-        root.transform.localPosition = HELD_ITEM_ANCHOR;
+        root.transform.SetParent(heldAnchor, false);
+        root.transform.localPosition = Vector3.zero;
 
         Material leather = MakeHeldMat(new Color(0.36f, 0.25f, 0.15f));
         AddHeldPart(root.transform, PrimitiveType.Cube, "Pouch", new Vector3(0f, 0f, 0.06f), new Vector3(0.14f, 0.12f, 0.10f), Vector3.zero, leather);
@@ -610,11 +692,11 @@ public class PlayerController : MonoBehaviour
     private GameObject BuildTreasureProp()
     {
         var root = new GameObject("TreasureProp");
-        root.transform.SetParent(transform, false);
-        root.transform.localPosition = HELD_ITEM_ANCHOR;
+        root.transform.SetParent(heldAnchor, false);
+        root.transform.localPosition = Vector3.zero;
 
         Material gold = MakeHeldMat(new Color(0.85f, 0.68f, 0.20f));
-        AddHeldPart(root.transform, PrimitiveType.Cube, "Chest", new Vector3(0f, 0f, 0.06f), new Vector3(0.16f, 0.12f, 0.12f), Vector3.zero, gold);
+        AddHeldPart(root.transform, PrimitiveType.Cube, "Chest", new Vector3(0f, 0f, 0.08f), new Vector3(0.18f, 0.14f, 0.14f), Vector3.zero, gold);
         return root;
     }
 
@@ -647,13 +729,184 @@ public class PlayerController : MonoBehaviour
     private void UpdateWeaponVisual()
     {
         if (weaponProp == null) return;
-        int show = isOnFoot ? PHotbarSlot : -1;
+        int show = (isOnFoot && !footSwimming) ? PHotbarSlot : -1; // plavající panáček nic nedrží
         if (show == heldPropShown) return;
         heldPropShown = show;
 
         weaponProp.SetActive(show == 0 && PHasHandWeapon);
         ammoProp.SetActive(show == 1);
         treasureProp.SetActive(show == 2 && gridManager.gameData.hasHistoricalTreasure);
+    }
+
+    // ── Póza postavy: natažená ruka s věcí + plavání ───────────────────────
+    // Model postavy (Kenney) má kosti arm-left/right, leg-left/right, torso, head.
+    // Animátor umí jen stát/chodit, proto plavání a natažení ruky dělá kód
+    // sám v LateUpdate (po animátoru) — žádné stažené animace.
+    private Transform  figureModelTf;                            // kořen modelu postavy (CharModel)
+    private Transform  armRight, armLeft, legRight, legLeft;     // kosti modelu (mohou být null)
+    private Vector3    figureHomePos;                            // klidová lokální pozice modelu (po plavání se vrací)
+    private Quaternion figureHomeRot;
+    private bool       armCalibrated;                            // ví se, která osa kosti ruky míří dolů?
+    private Vector3    armRightLocalDown = Vector3.down;         // osa kosti pravé ruky, co v klidu míří dolů
+    private Quaternion armRightBase, armLeftBase, legRightBase, legLeftBase; // klidové lokální rotace kostí (základ pro záběry)
+    private bool       footSwimming;                             // pěšky, ale stojí na vodním políčku → plave
+    private bool       swimPoseActive;                           // model je právě v plavecké póze
+    private float      swimClock;                                // čas pro střídavé záběry a houpání
+
+    private const float SWIM_WATER_Y   = -0.28f; // výška středu těla plavce (hladina je kolem -0,22 → vyčnívá záda a hlava)
+    private const float SWIM_BODY_HALF = 0.5f;   // asi polovina délky těla — o tolik se model posune, aby střed těla ležel ve vodě
+    private const float ARM_LENGTH     = 0.30f;  // délka natažené ruky (kde je dlaň od ramene)
+
+    /// <summary>Plave pěší hráč (vešel z ostrova do vody)? Pro příšeru a další.</summary>
+    public bool IsFootSwimming => footSwimming;
+
+    /// <summary>Je hráč ve vodě — v lodi, s rozbitou lodí, nebo pěšky plavající?
+    /// (Na souši / na molu ne — tam je před mořskou příšerou v bezpečí.)</summary>
+    public bool IsInWater => enabled && gameObject.activeInHierarchy && (IsSailing || IsSwimming || footSwimming);
+
+    /// <summary>Aktuální rychlost lodě hráče (j/s) včetně úrovně lodě a rychlostního
+    /// upgradu — mořská příšera se jí řídí (je násobně rychlejší než loď).</summary>
+    public float CurrentBoatSpeed
+    {
+        get
+        {
+            float s = moveSpeed * BoatStats.SpeedMultiplier(PShipLevel);
+            if (PHasSpeedUpgrade) s *= 2f;
+            return s;
+        }
+    }
+
+    // Najde kost podle jména (kdekoli v hierarchii modelu), nebo null.
+    static Transform FindBone(Transform root, string boneName)
+    {
+        foreach (var t in root.GetComponentsInChildren<Transform>(true))
+            if (t.name == boneName) return t;
+        return null;
+    }
+
+    // Stojí pěšák na vodním políčku? (=> plave)
+    bool IsWaterUnderFoot()
+    {
+        if (!isOnFoot) return false;
+        TileType t = gridManager.GetTileType(Mathf.RoundToInt(transform.position.x), Mathf.RoundToInt(transform.position.z));
+        return IsBoatWater(t);
+    }
+
+    // Volá se každý snímek PO animátoru: buď plavecká póza, nebo natažená ruka s věcí.
+    void LateUpdate()
+    {
+        if (headDot == null || figureModelTf == null || !headDot.activeInHierarchy) return;
+
+        if (IsSwimming || footSwimming)
+        {
+            PoseSwimming();
+            return;
+        }
+
+        if (swimPoseActive) EndSwimPose();
+        TryCalibrateArm();
+        PoseHeldItem();
+    }
+
+    // Plavání: tělo vodorovně u hladiny (hlava vpřed), ruce a nohy střídavě kývají.
+    // Kosti nastavujeme ABSOLUTNĚ z klidové rotace (ne přičítáním), ať se záběry nehromadí.
+    void PoseSwimming()
+    {
+        swimPoseActive = true;
+        swimClock += Time.deltaTime;
+
+        Quaternion yaw = Quaternion.Euler(0f, headDot.transform.eulerAngles.y, 0f);
+        Quaternion lie = yaw * Quaternion.Euler(78f, 0f, 0f);   // naklonit dopředu = ležet na hladině
+        float bob = Mathf.Sin(swimClock * 3f) * 0.03f;          // jemné houpání na vlnách
+
+        figureModelTf.rotation = lie;
+        // Počátek modelu je u nohou → posuň ho zpět podél těla, ať střed těla leží u hladiny.
+        Vector3 center = new Vector3(transform.position.x, SWIM_WATER_Y + bob, transform.position.z);
+        figureModelTf.position = center - (lie * Vector3.up) * SWIM_BODY_HALF;
+
+        Vector3 axis = yaw * Vector3.right;
+        float arm  = Mathf.Sin(swimClock * 6f);
+        float kick = Mathf.Sin(swimClock * 8f);
+        SwingBone(armRight, armRightBase,  arm * 55f,  axis);
+        SwingBone(armLeft,  armLeftBase,  -arm * 55f,  axis);
+        SwingBone(legRight, legRightBase,  kick * 25f, axis);
+        SwingBone(legLeft,  legLeftBase,  -kick * 25f, axis);
+    }
+
+    // Kost = klidová rotace + otočení o "angle" kolem světové osy "axis".
+    static void SwingBone(Transform bone, Quaternion baseLocal, float angle, Vector3 axis)
+    {
+        if (bone == null) return;
+        bone.localRotation = baseLocal;
+        bone.rotation = Quaternion.AngleAxis(angle, axis) * bone.rotation;
+    }
+
+    // Konec plavání: vrať model na místo (kosti si po chvíli převezme animátor).
+    void EndSwimPose()
+    {
+        swimPoseActive = false;
+        figureModelTf.localPosition = figureHomePos;
+        figureModelTf.localRotation = figureHomeRot;
+    }
+
+    // Zjistí, která lokální osa kosti pravé ruky míří dolů (v klidové póze ruka visí).
+    // Bez toho bychom nevěděli, jak ruku natáhnout dopředu. Zkouší se, dokud panáček
+    // nestojí v klidu (ruka pak visí dolů); zároveň si zapamatuje klidové rotace kostí.
+    void TryCalibrateArm()
+    {
+        if (armCalibrated || armRight == null) return;
+        if (!isOnFoot || figureAnimSpeed > 0.3f) return;
+
+        Vector3[] axes = { Vector3.right, Vector3.left, Vector3.up, Vector3.down, Vector3.forward, Vector3.back };
+        float best = -2f;
+        Vector3 bestAxis = Vector3.down;
+        foreach (var a in axes)
+        {
+            float d = Vector3.Dot(armRight.rotation * a, Vector3.down);
+            if (d > best) { best = d; bestAxis = a; }
+        }
+        if (best < 0.6f) return; // ruka nevisí dolů → zkusíme později
+
+        armRightLocalDown = bestAxis;
+        armRightBase = armRight.localRotation;
+        if (armLeft  != null) armLeftBase  = armLeft.localRotation;
+        if (legRight != null) legRightBase = legRight.localRotation;
+        if (legLeft  != null) legLeftBase  = legLeft.localRotation;
+        armCalibrated = true;
+    }
+
+    // Když panáček drží věc (zbraň / náboje / poklad), natáhne před sebe pravou ruku
+    // a věc mu sedí v dlani. Se zbraní míří ruka i hlaveň přesně ve směru střelby
+    // (podle kamery, včetně náměru nahoru/dolů); bez zbraně ruka míří dopředu.
+    void PoseHeldItem()
+    {
+        if (heldAnchor == null) return;
+        if (!isOnFoot || footSwimming || PHotbarSlot < 0) return; // nic v ruce → ruku nechá animátor
+
+        Vector3 dirH = WeaponDrawn ? AimHorizontalDir() : headDot.transform.forward;
+        dirH.y = 0f;
+        dirH = dirH.sqrMagnitude > 0.0001f ? dirH.normalized : Vector3.forward;
+        float elev = WeaponDrawn ? AimElevationDeg() : 0f;
+
+        // Směr paže / hlavně: vodorovný směr nakloněný nahoru / dolů o náměr.
+        Vector3 right = Vector3.Cross(Vector3.up, dirH);
+        Vector3 aim   = Quaternion.AngleAxis(-elev, right) * dirH;
+
+        Vector3 hand;
+        if (armRight != null && armCalibrated)
+        {
+            Vector3 down = armRight.rotation * armRightLocalDown;                          // kam ruka míří teď (animovaná)
+            armRight.rotation = Quaternion.FromToRotation(down, aim) * armRight.rotation; // natáhnout ji ve směru míření
+            hand = armRight.position + aim * ARM_LENGTH;                                    // dlaň = konec natažené ruky
+        }
+        else
+        {
+            // Bez kosti ruky: věc drží pevně před tělem (záloha).
+            hand = headDot.transform.position + Quaternion.LookRotation(dirH) * HELD_ITEM_ANCHOR;
+        }
+
+        heldAnchor.position = hand;
+        heldAnchor.rotation = Quaternion.LookRotation(aim, Vector3.up);
     }
 
     private Animator   figureAnimator;   // animátor pěší postavičky (idle/walk/sprint)
@@ -673,6 +926,7 @@ public class PlayerController : MonoBehaviour
             Vector3 p = new Vector3(transform.position.x, 0f, transform.position.z);
             raw = (p - figurePrevPos).magnitude / Mathf.Max(Time.deltaTime, 0.0001f);
             figurePrevPos = p;
+            if (footSwimming || IsSwimming) raw = 0f; // plavání řeší kód (PoseSwimming), ne animátor chůze
         }
         else
         {
@@ -780,7 +1034,7 @@ public class PlayerController : MonoBehaviour
         // Rychlost: pěšky pořád stejně, plavání (rozbitá loď) hodně pomalu,
         // na lodi ji škáluje úroveň lodě + rychlostní upgrade (2×).
         float speed = moveSpeed;
-        if (PBoatWrecked && !isOnFoot)
+        if ((PBoatWrecked && !isOnFoot) || footSwimming)
         {
             speed *= BoatStats.SwimSpeedMultiplier;
         }
@@ -812,7 +1066,12 @@ public class PlayerController : MonoBehaviour
     {
         int tx = Mathf.RoundToInt(target.x);
         int ty = Mathf.RoundToInt(target.z);
-        if (!CanEnter(gridManager.GetTileType(tx, ty))) return false;
+        TileType tile = gridManager.GetTileType(tx, ty);
+        if (!CanEnter(tile)) return false;
+        if (isOnFoot && MegaIslandMarker.BlocksWalking(tx, ty)) return false; // do obelisku se nechodí
+
+        // Pěšák plave jen kousek od břehu — dál do moře jen lodí.
+        if (isOnFoot && IsBoatWater(tile) && !LandWithin(tx, ty, FOOT_SWIM_RANGE)) return false;
 
         transform.position = target;
         OnEnteredTile(tx, ty);
@@ -826,11 +1085,27 @@ public class PlayerController : MonoBehaviour
     bool CanEnter(TileType t)
     {
         if (PBoatWrecked && !isOnFoot)
-            return IsBoatWater(t) || t == TileType.Harbor || t == TileType.Pier || t == TileType.MegaIsland;
+            return IsBoatWater(t) || IsLand(t); // plavec smí vylézt na jakoukoli pevninu
         if (!isOnFoot)
             return IsBoatWater(t);
-        return t == TileType.Harbor || t == TileType.Pier || t == TileType.MegaIsland;
+        // Pěšky: pevnina a molo — a navíc VODA (panáček může z ostrova rovnou plavat).
+        return IsLand(t) || IsBoatWater(t);
     }
+
+    private const int FOOT_SWIM_RANGE = 4; // kolik políček od pevniny smí pěšák doplavat
+
+    // Je do `range` políček od bodu nějaká pevnina?
+    bool LandWithin(int x, int y, int range)
+    {
+        for (int dx = -range; dx <= range; dx++)
+            for (int dy = -range; dy <= range; dy++)
+                if (IsLand(gridManager.GetTileType(x + dx, y + dy))) return true;
+        return false;
+    }
+
+    // Pevnina, po které jde chodit pěšky (pevnina, molo, mega ostrov).
+    static bool IsLand(TileType t)
+        => t == TileType.Harbor || t == TileType.Pier || t == TileType.MegaIsland;
 
     // Vodní políčko, na které smí loď (obyčejná voda, ryby i vrak pokladu).
     static bool IsBoatWater(TileType t)
@@ -850,7 +1125,7 @@ public class PlayerController : MonoBehaviour
         if (PBoatWrecked && !isOnFoot)
         {
             TileType here = gridManager.GetTileType(tx, ty);
-            if (here == TileType.Pier || here == TileType.Harbor)
+            if (IsLand(here))
             {
                 isOnFoot = true;
                 if (playerIndex == 0) gridManager.gameData.isOnFoot = true;
@@ -879,7 +1154,8 @@ public class PlayerController : MonoBehaviour
             StoryNpc.OnReachedStoryIsland();
 
         // Plavba po trase k dalšímu mega ostrovu → může narazit na mořskou obludu (Krok 5).
-        StoryEvents.CheckMonster(gridManager);
+        StoryEvents.CheckMonster(gridManager); // megalodon za Pirátským ostrovem
+        StoryEvents.CheckGhost(gridManager);   // Bludný Holanďan při odjezdu z Hřbitova lodí
 
         gridManager.GenerateWorld(tx, ty);
         ExploreCurrentPosition();
@@ -946,6 +1222,7 @@ public class PlayerController : MonoBehaviour
     void RotateTowards(Vector3 dir)
     {
         if (dir.sqrMagnitude < 0.0001f) return;
+        if (WeaponDrawn) return; // s vytaženou zbraní panáčka otáčí míření (UpdateAimFacing), ne chůze
         Quaternion targetRot = Quaternion.LookRotation(dir);
 
         Transform model = (isOnFoot || IsSwimming) ? (headDot != null ? headDot.transform : null) : boatModel;
@@ -1015,7 +1292,7 @@ public class PlayerController : MonoBehaviour
         {
             // Nasednout: hráč stojí na molu / vedle a jeho loď plave hned vedle.
             int dist = Mathf.Max(Mathf.Abs(px - boatGridX), Mathf.Abs(py - boatGridY));
-            bool boatReachable = dist <= 1 && IsBoatWater(gridManager.GetTileType(boatGridX, boatGridY));
+            bool boatReachable = dist <= (footSwimming ? 2 : 1) && IsBoatWater(gridManager.GetTileType(boatGridX, boatGridY));
 
             if (!boatReachable)
             {
@@ -1090,15 +1367,9 @@ public class PlayerController : MonoBehaviour
 
     void OnDestroy() => DespawnParkedBoat(); // úklid při konci split-screenu / scény
 
-    // Normální lokální výška panáčka (headDot) — schová se sem při plavání.
+    // Normální lokální výška panáčka (headDot).
     private Vector3 headDotHomeLocalPos;
     private bool    headDotHomeSaved;
-
-    // O kolik posadit panáčka pod hladinu, když plave (rozbitá loď) — tak, aby
-    // z vody koukala jen hlava. Počátek modelu je u nohou, tělo (kapsle) je ~1,1
-    // vysoké a hlava sedí kolem lokální výšky 0.9–1.3; hladina je cca −0.22, takže
-    // aby byl trup pod vodou, musí panáček dolů skoro o celou svoji výšku.
-    private const float SWIM_SINK = 1.3f;
 
     // Zapne loď / panáčka podle stavu (loď / pěšky / plave).
     void ShowBoatOrFoot()
@@ -1117,11 +1388,9 @@ public class PlayerController : MonoBehaviour
 
             if (!headDotHomeSaved) { headDotHomeLocalPos = headDot.transform.localPosition; headDotHomeSaved = true; }
 
-            // Při plavání posad panáčka hluboko pod hladinu — kouká jen hlava,
-            // ať to vypadá, že plave (ne že stojí ve vodě).
-            headDot.transform.localPosition = swimming
-                ? headDotHomeLocalPos + new Vector3(0f, -SWIM_SINK, 0f)
-                : headDotHomeLocalPos;
+            // Plavecká póza (tělo ležící u hladiny) se řeší v LateUpdate → PoseSwimming,
+            // panáček se tedy už nepotápí — kotva zůstává na své normální výšce.
+            headDot.transform.localPosition = headDotHomeLocalPos;
         }
     }
 
@@ -1368,9 +1637,13 @@ public class PlayerController : MonoBehaviour
         }
         else
         {
-            isOnFoot  = false;
-            boatGridX = gridManager.gameData.playerGridX;
-            boatGridY = gridManager.gameData.playerGridY;
+            // P2 se jinak neukládá — jen po respawnu GridManager přes tato pole předá,
+            // že se má objevit pěšky na ostrově a kde mu stojí loď (jednorázově).
+            var gd = gridManager.gameData;
+            isOnFoot  = gd.player2IsOnFoot;
+            boatGridX = gd.player2IsOnFoot ? gd.player2BoatGridX : GridX;
+            boatGridY = gd.player2IsOnFoot ? gd.player2BoatGridY : GridY;
+            gd.player2IsOnFoot = false;
         }
 
         isMoving = false;
@@ -1436,76 +1709,18 @@ public class PlayerController : MonoBehaviour
         return null;
     }
 
-    // ── Hotbar (zbraň / munice / historický poklad) — pravý horní roh, pod
-    // ukazateli mincí/ryb/pokladů z HUDCounter (ty munici od teď neukazují,
-    // viz HUDCounter.BuildHUD). Kreslí se, jen když hráč aspoň jednu z věcí má.
-    // Čtvrtý řádek (munice do LODNÍHO děla) se přidá jen za plavby s dělem —
-    // není to vybíratelný slot (hotbar je jinak jen pro pěší výbavu), proto
-    // nemá "[klávesa]" prefix jako ostatní řádky.
-    private GUIStyle hotbarStyle, hotbarSelStyle, hotbarKeyStyle;
-
-    private void DrawHotbar()
-    {
-        bool hasWeapon     = PHasHandWeapon;
-        bool hasTreasure   = gridManager.gameData.hasHistoricalTreasure;
-        bool hasCannonBoat = !isOnFoot && BoatStats.HasCannon(PShipLevel);
-        if (!hasWeapon && !hasTreasure && !hasCannonBoat) return;
-
-        if (hotbarStyle == null)
-        {
-            hotbarStyle    = new GUIStyle(GUI.skin.label) { fontSize = 13, alignment = TextAnchor.MiddleCenter, normal = { textColor = new Color(0.85f, 0.85f, 0.8f) } };
-            hotbarSelStyle = new GUIStyle(hotbarStyle)    { fontStyle = FontStyle.Bold, normal = { textColor = new Color(1f, 0.85f, 0.45f) } };
-            hotbarKeyStyle = new GUIStyle(GUI.skin.label) { fontSize = 11, alignment = TextAnchor.MiddleCenter, normal = { textColor = new Color(0.7f, 0.7f, 0.65f) } };
-        }
-
-        string[] labels =
-        {
-            hasWeapon ? Loc.T("Zbraň", "Weapon") : Loc.T("Zbraň (nekoupená)", "Weapon (not bought)"),
-            Loc.T($"Náboje: {PHandAmmo}", $"Ammo: {PHandAmmo}"),
-            hasTreasure ? Loc.T("Hist. poklad", "Hist. treasure") : "",
-            hasCannonBoat ? Loc.T($"Náboje do děla: {PAmmo}", $"Cannon ammo: {PAmmo}") : "",
-        };
-        bool[] owned = { hasWeapon, hasWeapon, hasTreasure, hasCannonBoat };
-
-        const float boxW = 130f, boxH = 30f, gap = 4f;
-        float right = HalfX() + HalfW() - 20f;
-        float top   = 20f;
-
-        for (int i = 0; i < 4; i++)
-        {
-            if (i == 2 && !hasTreasure)   continue; // slot 3 se neukazuje, dokud poklad nemáš
-            if (i == 3 && !hasCannonBoat) continue; // řádek s municí do děla jen za plavby s dělem
-            var r = new Rect(right - boxW, top + i * (boxH + gap), boxW, boxH);
-
-            GUI.color = owned[i] ? new Color(0.06f, 0.07f, 0.10f, 0.85f) : new Color(0.06f, 0.07f, 0.10f, 0.4f);
-            GUI.DrawTexture(r, Texture2D.whiteTexture);
-            GUI.color = Color.white;
-
-            if (i == PHotbarSlot)
-            {
-                var frame = new Rect(r.x - 2f, r.y - 2f, r.width + 4f, r.height + 4f);
-                GUI.color = new Color(1f, 0.85f, 0.45f, 0.35f);
-                GUI.DrawTexture(frame, Texture2D.whiteTexture);
-                GUI.color = Color.white;
-            }
-
-            string keyLabel = P1 ? $"{i + 1}" : $"Np{7 + i}";
-            string label = i == 3
-                ? labels[i] // munice do děla: informativní řádek, nejde vybrat klávesou
-                : $"[{keyLabel}] {labels[i]}";
-            GUI.Label(r, label, i == PHotbarSlot ? hotbarSelStyle : hotbarStyle);
-        }
-    }
+    // Hotbar (zbraň / boat ammo / rifle ammo / historický poklad) se kreslí v HUDCounter
+    // (dole uprostřed, uGUI). Tady zůstává jen logika výběru slotu — viz Update().
 
     // ── Nápověda k opravě lodě + kontextová nápověda (dole na své půlce) ────
     private GUIStyle repairStyle, contextHintStyle;
 
     void OnGUI()
     {
+        HudSkin.UseUiFont(); // čitelnější systémové písmo pro celé IMGUI (dialogy, menu, obchody)
+
         bool blocked = ModalOpen || isMoving || isWorking || GameConsole.IsOpen
                      || MainMenuManager.IsVisible || DeathScreen.IsOpenFor(playerIndex) || VaultMechanism.IsOpenFor(playerIndex);
-
-        DrawHotbar();
 
         if (!blocked)
         {

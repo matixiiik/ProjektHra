@@ -162,6 +162,12 @@ public class GameData
     public bool ambush2Done;    // rezerva na případnou druhou příhodu na moři
     public bool storyDone;      // celý oblouk (3 ostrovy + finále) dohraný
     public int  storyEnding;    // 0=nevybráno, 1=bratr ušetřen, 2=bratr zabit
+    public bool routeStartSet;  // známe odkud vede cesta k aktuálnímu mega ostrovu? (starý ostrov = start trasy)
+    public int  routeStartX;    // souřadnice předchozího mega ostrova (odkud hráč vyplul) — kolem trasy čeká megalodon
+    public int  routeStartY;
+    public bool hasLetter;      // hráč přečetl dopis z trezoru na Pirátském ostrově (jde znovu přečíst v Deníku)
+    public int  letterX;        // souřadnice ostrova, ze kterých se skládá hádanka v dopise
+    public int  letterY;
 
     // ── Zbraň panáčka (pěší boj) + hotbar ─────────────────────────────────────
     // Zbraň se kupuje v obchodě s vylepšeními a střílí se jí PĚŠKY (na rozdíl

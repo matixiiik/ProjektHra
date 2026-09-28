@@ -48,6 +48,14 @@ public class PirateShip : MonoBehaviour
 
     public void SetGuard(Vector3 home) { isGuard = true; guardHome = new Vector3(home.x, SHIP_Y, home.z); }
 
+    // Lovec: loď z příběhového přepadení (Bludný Holanďan po odjezdu z ostrova 2) — pronásleduje
+    // hráče na velkou vzdálenost, sama nezmizí a rychleji než běžný pirát. Po potopení se
+    // přepadení zapíše jako vyřízené (gameData.ambush2Done).
+    private bool isHunter;
+    private const float HUNTER_SPEED = 5.5f;
+    private const float HUNT_RANGE   = 90f;
+    public void SetHunter() { isHunter = true; everEngaged = true; }
+
     /// <summary>Ostrov je vyčištěný → loď přestane být hlídka a chová se jako běžný pirát.</summary>
     public void ReleaseGuard() { isGuard = false; }
 
@@ -226,6 +234,19 @@ public class PirateShip : MonoBehaviour
         float range = everEngaged ? AGGRO_RANGE + 4f : AGGRO_RANGE;
         Engaged = target != null && dist <= range;
 
+        if (isHunter)
+        {
+            // Lovec se hráče drží, dokud je v dosahu HUNT_RANGE (nezmizí, nebloumá).
+            if (target != null && dist <= HUNT_RANGE)
+            {
+                if (Engaged) ChaseAndFight(target, dist);
+                else         ChasePosition(target.transform.position, HUNTER_SPEED);
+            }
+            else Wander();
+            transform.position = new Vector3(transform.position.x, SHIP_Y, transform.position.z);
+            return;
+        }
+
         if (Engaged)
         {
             everEngaged     = true;
@@ -261,13 +282,13 @@ public class PirateShip : MonoBehaviour
     }
 
     // Jen pluje k danému bodu (po souboji, když hráč odjel).
-    void ChasePosition(Vector3 pos)
+    void ChasePosition(Vector3 pos, float speed = WANDER_SPEED)
     {
         Vector3 to = pos - transform.position; to.y = 0f;
         if (to.magnitude < 0.5f) return;
         Vector3 dir = to.normalized;
         transform.rotation = Quaternion.Slerp(transform.rotation, Quaternion.LookRotation(dir, Vector3.up), 2.5f * Dt);
-        MoveShip(dir * WANDER_SPEED * Dt);
+        MoveShip(dir * speed * Dt);
     }
 
     void ChaseAndFight(PlayerController target, float dist)
@@ -282,7 +303,7 @@ public class PirateShip : MonoBehaviour
 
         // Přibliž se, ale ne úplně na doraz (aby stíhal pálit).
         if (dist > KEEP_DIST)
-            MoveShip(dir * CHASE_SPEED * Dt);
+            MoveShip(dir * (isHunter ? HUNTER_SPEED : CHASE_SPEED) * Dt);
 
         // Náraz do hráče (jen jednou za ~1.5 s, ne každý snímek).
         if (dist <= RAM_RANGE && Time.time >= nextRam)
@@ -333,6 +354,12 @@ public class PirateShip : MonoBehaviour
 
     void Sink()
     {
+        // Přepadení Bludným Holanďanem je vyřízené — znovu se nespustí.
+        if (isHunter && Grid != null)
+        {
+            Grid.gameData.ambush2Done = true;
+            Grid.Save();
+        }
         SoundManager.PlaySink();
         if (CombatDirector.Instance != null) CombatDirector.Instance.OnPirateSunk(this);
         Destroy(gameObject);

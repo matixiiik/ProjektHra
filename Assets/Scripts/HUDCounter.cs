@@ -43,6 +43,21 @@ public class HUDCounter : MonoBehaviour
     private RectTransform        storyPanelRT;
     private RectTransform        coordRT;
 
+    // ── Hotbar (dole uprostřed): Zbraň · Boat ammo · Rifle ammo · Historický poklad ──
+    private const float HOTBAR_SLOT = 88f;   // velikost jednoho políčka
+    private const float HOTBAR_GAP  = 8f;    // mezera mezi políčky
+    private RectTransform  hotbarRT;
+    private Image[]        hbFrame = new Image[4]; // zlatý rámeček vybraného slotu
+    private Image[]        hbBg    = new Image[4];
+    private Image[]        hbIcon  = new Image[4];
+    private Text[]         hbKey   = new Text[4];  // klávesa slotu (vlevo nahoře)
+    private Text[]         hbCount = new Text[4];  // počet / název (dole)
+    private PlayerController hbPlayer;             // hráč, kterému hotbar patří
+    // Poslední zobrazený stav — hotbar se překresluje jen při změně.
+    private int  hbLastBoatAmmo = -1, hbLastHandAmmo = -1, hbLastSlot = -99;
+    private bool hbLastWeapon, hbLastCannon, hbLastTreasure, hbLastFoot, hbLastEn;
+    private bool hbDirty = true;
+
     void Start()
     {
         grid = FindFirstObjectByType<GridManager>();
@@ -98,7 +113,145 @@ public class HUDCounter : MonoBehaviour
 
         BuildStoryPanel(canvasGO.transform);
         storyPanel.SetActive(false); // schovaný, dokud není příběhový cíl
+
+        BuildHotbar(canvasGO.transform); // vidět od začátku hry, i když je zatím prázdný
     }
+
+    // ── Hotbar ───────────────────────────────────────────────────────────────
+    // Čtyři dřevěná políčka dole uprostřed: [1] zbraň, boat ammo, [2] rifle ammo,
+    // [3] historický poklad. Munice jsou jen zobrazení (dvě oddělená streliva).
+    void BuildHotbar(Transform parent)
+    {
+        var root = new GameObject("Hotbar");
+        root.transform.SetParent(parent, false);
+        hotbarRT = root.AddComponent<RectTransform>();
+        hotbarRT.anchorMin = hotbarRT.anchorMax = new Vector2(0.5f, 0f);
+        hotbarRT.pivot     = new Vector2(0.5f, 0f);
+        hotbarRT.anchoredPosition = new Vector2(0f, 22f);
+        hotbarRT.sizeDelta = new Vector2(4 * HOTBAR_SLOT + 3 * HOTBAR_GAP, HOTBAR_SLOT);
+
+        HudSkin.IconKind[] icons =
+        {
+            HudSkin.IconKind.Rifle, HudSkin.IconKind.Cannonball,
+            HudSkin.IconKind.Bullets, HudSkin.IconKind.Treasure,
+        };
+
+        for (int i = 0; i < 4; i++)
+        {
+            var slot = new GameObject($"Slot{i}");
+            slot.transform.SetParent(root.transform, false);
+            var srt = slot.AddComponent<RectTransform>();
+            srt.anchorMin = srt.anchorMax = new Vector2(0f, 0.5f);
+            srt.pivot     = new Vector2(0f, 0.5f);
+            srt.anchoredPosition = new Vector2(i * (HOTBAR_SLOT + HOTBAR_GAP), 0f);
+            srt.sizeDelta = new Vector2(HOTBAR_SLOT, HOTBAR_SLOT);
+
+            // Zlatý rámeček (jen u vybraného slotu) — o kousek větší než panel.
+            hbFrame[i] = MakeSlotImage(slot.transform, "Frame", HudSkin.Panel(), Image.Type.Sliced, -5f);
+            hbFrame[i].color   = HudSkin.Gold;
+            hbFrame[i].enabled = false;
+
+            // Dřevěný panel slotu.
+            hbBg[i] = MakeSlotImage(slot.transform, "BG", HudSkin.Panel(), Image.Type.Sliced, 0f);
+
+            // Ikona uprostřed, nad ní klávesa a pod ní počet.
+            var iconGO = new GameObject("Icon");
+            iconGO.transform.SetParent(slot.transform, false);
+            var irt = iconGO.AddComponent<RectTransform>();
+            irt.anchorMin = irt.anchorMax = new Vector2(0.5f, 0.5f);
+            irt.pivot     = new Vector2(0.5f, 0.5f);
+            irt.anchoredPosition = new Vector2(0f, 8f);
+            irt.sizeDelta = new Vector2(52f, 52f);
+            hbIcon[i] = iconGO.AddComponent<Image>();
+            hbIcon[i].sprite = HudSkin.IconLarge(icons[i]);
+            hbIcon[i].raycastTarget = false;
+
+            hbKey[i] = MakeText(slot.transform, new Vector2(7, 0), new Vector2(-4, -4),
+                Vector2.zero, Vector2.one, 16f, HudSkin.TextWarm, FontStyle.Bold, TextAnchor.UpperLeft);
+            hbCount[i] = MakeText(slot.transform, new Vector2(2, 3), new Vector2(-2, 0),
+                Vector2.zero, Vector2.one, 19f, Color.white, FontStyle.Bold, TextAnchor.LowerCenter);
+        }
+    }
+
+    // Pomocná: jeden Image slotu roztažený na celý slot (s okrajem `grow` navíc).
+    Image MakeSlotImage(Transform parent, string name, Sprite sprite, Image.Type type, float grow)
+    {
+        var go = new GameObject(name);
+        go.transform.SetParent(parent, false);
+        var rt = go.AddComponent<RectTransform>();
+        rt.anchorMin = Vector2.zero; rt.anchorMax = Vector2.one;
+        rt.offsetMin = new Vector2(grow, grow);
+        rt.offsetMax = new Vector2(-grow, -grow);
+        var img = go.AddComponent<Image>();
+        img.sprite = sprite;
+        img.type   = type;
+        img.raycastTarget = false;
+        return img;
+    }
+
+    void Update()
+    {
+        RefreshHotbar(); // výběr slotu se mění klávesou bez události světa → kontrola každý snímek (levná)
+    }
+
+    // Přečte stav hráče a překreslí hotbar, jen když se něco změnilo.
+    void RefreshHotbar()
+    {
+        if (hotbarRT == null || grid == null) return;
+
+        if (hbPlayer == null)
+            foreach (var pc in PlayerController.All)
+                if (pc.playerIndex == playerIndex) { hbPlayer = pc; break; }
+
+        GameData d = grid.gameData;
+        bool p1        = playerIndex == 0;
+        bool onFoot    = hbPlayer != null ? hbPlayer.IsOnFoot : d.isOnFoot;
+        bool hasWeapon = p1 ? d.hasHandWeapon : d.player2HasHandWeapon;
+        bool hasCannon = BoatStats.HasCannon(p1 ? d.shipLevel : d.player2ShipLevel);
+        bool treasure  = d.hasHistoricalTreasure;
+        int  boatAmmo  = p1 ? d.ammo     : d.player2Ammo;
+        int  handAmmo  = p1 ? d.handAmmo : d.player2HandAmmo;
+        // V lodi nemá hráč nic v ruce (kód ovládání slot v lodi vynuluje).
+        int  slot      = onFoot ? (p1 ? d.activeHotbarSlot : d.player2ActiveHotbarSlot) : -1;
+
+        if (!hbDirty && hasWeapon == hbLastWeapon && hasCannon == hbLastCannon && treasure == hbLastTreasure
+            && onFoot == hbLastFoot && boatAmmo == hbLastBoatAmmo && handAmmo == hbLastHandAmmo
+            && slot == hbLastSlot && Loc.En == hbLastEn) return;
+
+        hbDirty = false;
+        hbLastWeapon = hasWeapon; hbLastCannon = hasCannon; hbLastTreasure = treasure; hbLastFoot = onFoot;
+        hbLastBoatAmmo = boatAmmo; hbLastHandAmmo = handAmmo; hbLastSlot = slot; hbLastEn = Loc.En;
+
+        // Vnitřní čísla slotů (activeHotbarSlot): 0 = zbraň, 1 = munice v ruce, 2 = poklad.
+        // Políčka na obrazovce: 0 zbraň, 1 boat ammo, 2 rifle ammo, 3 poklad.
+        int[] slotOfBox = { 0, -2, 1, 2 };            // -2 = boat ammo (nejde vybrat)
+        bool[] owned    = { hasWeapon, hasCannon, hasWeapon, treasure };
+        // Použitelnost teď: pěšky = zbraň/rifle/poklad, v lodi = jen boat ammo.
+        bool[] usable   = { hasWeapon && onFoot, hasCannon && !onFoot, hasWeapon && onFoot, treasure && onFoot };
+        string[] keys   = { Key(0), "", Key(1), Key(2) };
+        string[] counts =
+        {
+            Loc.T("Zbraň", "Rifle"),
+            hasCannon ? boatAmmo.ToString() : "–",
+            hasWeapon ? handAmmo.ToString() : "–",
+            Loc.T("Poklad", "Relic"),
+        };
+
+        for (int i = 0; i < 4; i++)
+        {
+            float a = usable[i] ? 1f : (owned[i] ? 0.55f : 0.28f);
+            hbBg[i].color   = new Color(1f, 1f, 1f, usable[i] ? 1f : (owned[i] ? 0.8f : 0.5f));
+            hbIcon[i].color = new Color(1f, 1f, 1f, a);
+            hbCount[i].color = usable[i] ? Color.white : new Color(0.75f, 0.75f, 0.75f, 0.7f);
+            hbKey[i].color   = new Color(HudSkin.TextWarm.r, HudSkin.TextWarm.g, HudSkin.TextWarm.b, usable[i] ? 1f : 0.5f);
+            hbCount[i].text  = counts[i];
+            hbKey[i].text    = keys[i];
+            hbFrame[i].enabled = slotOfBox[i] >= 0 && slotOfBox[i] == slot;
+        }
+    }
+
+    // Popisek klávesy slotu — P1 klávesnice 1/2/3, P2 horní řada numpadu 7/8/9.
+    string Key(int slotNo) => playerIndex == 0 ? (slotNo + 1).ToString() : "Np" + (7 + slotNo);
 
     // Příběhový cíl — jeden řádek nahoře uprostřed pod quest panelem.
     void BuildStoryPanel(Transform parent)
@@ -224,7 +377,8 @@ public class HUDCounter : MonoBehaviour
         rt.offsetMin = offsetMin; rt.offsetMax = offsetMax;
 
         var t = go.AddComponent<Text>();
-        t.font      = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf"); // vestavěný font
+        t.font      = HudSkin.UiFont != null ? HudSkin.UiFont
+                    : Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf"); // systémové písmo, jinak vestavěné
         t.fontSize  = (int)fontSize;
         t.fontStyle = style;
         t.color     = color;
@@ -283,7 +437,8 @@ public class HUDCounter : MonoBehaviour
         trt.offsetMax = new Vector2(-12, -2);
 
         var text = textGO.AddComponent<Text>();
-        text.font      = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+        text.font      = HudSkin.UiFont != null ? HudSkin.UiFont
+                       : Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
         text.fontSize  = 21;
         text.fontStyle = FontStyle.Bold;
         text.color     = color;
@@ -321,6 +476,14 @@ public class HUDCounter : MonoBehaviour
             questPanelRT.anchoredPosition = new Vector2(0, -16f);
             // V split screenu je půlka obrazovky užší → užší panel.
             questPanelRT.sizeDelta = new Vector2(isSplit ? QUEST_W_SPLIT : QUEST_W_SOLO, questPanelRT.sizeDelta.y);
+        }
+
+        // Hotbar: uprostřed dole na půlce svého hráče.
+        if (hotbarRT != null)
+        {
+            hotbarRT.anchorMin = hotbarRT.anchorMax = new Vector2(questAnchorX, 0f);
+            hotbarRT.pivot     = new Vector2(0.5f, 0f);
+            hotbarRT.anchoredPosition = new Vector2(0f, 22f);
         }
 
         if (storyPanelRT != null)
@@ -385,8 +548,13 @@ public class HUDCounter : MonoBehaviour
                             "Quest: bring the old sailor 1,000 coins and a historic treasure");
                 break;
             case 2:
-                txt = Loc.T($"Úkol: dopluj k ostrovu na  [{d.storyIslandX}, {d.storyIslandY}]",
-                            $"Quest: sail to the island at  [{d.storyIslandX}, {d.storyIslandY}]");
+                if (d.megaIndex == 1 && d.hasLetter)
+                    // Souřadnice druhého ostrova jsou hádanka v dopise — HUD je neprozradí.
+                    txt = Loc.T("Úkol: vyřeš hádanku z dopisu a najdi další ostrov (dopis je v Deníku)",
+                                "Quest: solve the riddle in the letter and find the next island (the letter is in the Journal)");
+                else
+                    txt = Loc.T($"Úkol: dopluj k ostrovu na  [{d.storyIslandX}, {d.storyIslandY}]",
+                                $"Quest: sail to the island at  [{d.storyIslandX}, {d.storyIslandY}]");
                 break;
             case 3:
                 // Názvy ostrovů stejné jako v deníku (JournalScreen).

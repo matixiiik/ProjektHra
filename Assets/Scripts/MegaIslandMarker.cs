@@ -52,6 +52,13 @@ public class MegaIslandMarker : MonoBehaviour
     private RivalNpc    rival;
     private bool        rivalBuilt;
 
+    private bool hasObelisk; // stojí na ostrově obelisk? (Pirátský ostrov ho nemá)
+
+    /// <summary>Stojí na políčku obelisk? Pěšák do něj nesmí vejít (neviditelná bariéra);
+    /// interakce (E) funguje z vedlejšího políčka.</summary>
+    public static bool BlocksWalking(int tx, int ty)
+        => Instance != null && Instance.hasObelisk && tx == Instance.tilePos.x && ty == Instance.tilePos.y;
+
     void Awake()     { Instance = this; }
     void OnDestroy() { if (Instance == this) Instance = null; }
 
@@ -60,9 +67,12 @@ public class MegaIslandMarker : MonoBehaviour
         gridManager = FindFirstObjectByType<GridManager>();
         tilePos = new Vector2Int(Mathf.RoundToInt(transform.position.x), Mathf.RoundToInt(transform.position.z));
 
-        BuildObelisk();
-
         int megaIndex = gridManager != null ? gridManager.gameData.megaIndex : 0;
+
+        // Pirátský ostrov (0) je pevnost s trezorem — žádný obelisk. Ostatní mega
+        // ostrovy si obelisk jako orientační bod ponechávají.
+        if (megaIndex != 0) { BuildObelisk(); hasObelisk = true; }
+
         switch (megaIndex)
         {
             case 0: BuildFortress();       break;
@@ -132,7 +142,7 @@ public class MegaIslandMarker : MonoBehaviour
     {
         BuildSign("Pirátský ostrov — pevnost staré posádky. Hlídá ji ozbrojená posádka a děla na věžích, trezor je někde uvnitř.",
                   "Pirate Island — the old crew's fortress. An armed crew and tower cannons guard it; the vault is somewhere inside.",
-                   new Color(0.5f, 0.24f, 0.18f));
+                   new Color(0.5f, 0.24f, 0.18f), true);
 
         if (gridManager == null) return;
 
@@ -280,42 +290,25 @@ public class MegaIslandMarker : MonoBehaviour
 
     private void BuildWreckGraveyard()
     {
-        BuildSign("Hřbitov lodí — v mělčině kolem hlídkuje Bludný Holanďan.",
-                  "Ship Graveyard — the Flying Dutchman patrols the shoals around it.",
+        BuildSign("Hřbitov lodí — v mělčině kolem se ukrývají kousky roztržené mapy. Hledej trosky trčící z vody.",
+                  "Ship Graveyard — pieces of a torn map hide in the shoals around it. Look for wrecks sticking out of the water.",
                    new Color(0.32f, 0.36f, 0.42f));
 
         if (gridManager == null) return;
         var d = gridManager.gameData;
 
-        // Obrana (Holanďan) se staví, jen když ještě nebyla poražená — po
-        // reloadu rovnou obnov to, co z ostrova zbývá (mapa/podpalubí).
-        if (d.megaTask > 0)
+        // Bludný Holanďan už tady NEhlídkuje — napadne hráče až při odjezdu z tohoto
+        // ostrova (viz StoryEvents.CheckGhost). Kousky mapy jsou proto dostupné hned po
+        // příjezdu: megaTask 0 → 1. Po reloadu se rovnou obnoví, co z ostrova zbývá.
+        if (d.megaTask == 0)
         {
-            SpawnDigSpots();
-            if (d.megaTask >= 2) BuildHoldIfNeeded();
-            return;
-        }
-
-        Vector2Int? guardSpot = FindGuardWaterSpot();
-        if (guardSpot != null)
-        {
-            var w = guardSpot.Value;
-            myGhostShip = PirateShip.SpawnGhost(new Vector3(w.x, 0f, w.y), 1); // střední loď
-            myGhostShip.SetGuard(new Vector3(w.x, 0f, w.y));
-            myGhostShip.guardIslandKey = "mega";
-            if (CombatDirector.Instance != null) CombatDirector.Instance.RegisterGuardShip(myGhostShip);
-            ghostShipSpawnedOk = true;
-        }
-        else
-        {
-            // Nouzovka — i po širším hledání se nenašla voda na hlídku (nemělo
-            // by nastat, ostrov vždycky obklopuje moře). Ať hráč nezůstane
-            // zaseknutý: rovnou pusť dál na kopání.
             d.megaTask = 1;
             gridManager.Save();
-            SpawnDigSpots();
+            gridManager.NotifyWorldChanged();
         }
-        graveyardGuardSpawned = true;
+
+        SpawnDigSpots();
+        if (d.megaTask >= 2) BuildHoldIfNeeded();
     }
 
     // Vodní dlaždice na hlídku (strážce/Holanďan) — nejdřív zkus blízký pás
@@ -522,7 +515,9 @@ public class MegaIslandMarker : MonoBehaviour
 
     // Dřevěná cedule kousek od obelisku — jen orientační, dokud nevznikne
     // skutečný obsah ostrova. Text se ukáže jako toast při interakci (E).
-    private void BuildSign(string csText, string enText, Color boardColor)
+    // atCenter = cedule stojí přesně na středu ostrova (tam, kde se na E ozve její text) —
+    // používá Pirátský ostrov, který nemá obelisk. Jinak stojí kousek od obelisku.
+    private void BuildSign(string csText, string enText, Color boardColor, bool atCenter = false)
     {
         signTextCs = csText;
         signTextEn = enText;
@@ -530,8 +525,9 @@ public class MegaIslandMarker : MonoBehaviour
         Material wood  = MakeMat(new Color(0.35f, 0.24f, 0.14f));
         Material board = MakeMat(boardColor);
 
-        Box("SignPost",  new Vector3(1.8f, 0.6f,  1.8f), new Vector3(0.12f, 1.2f, 0.12f), wood);
-        Box("SignBoard", new Vector3(1.8f, 1.25f, 1.8f), new Vector3(1.1f,  0.6f, 0.08f),  board);
+        float o = atCenter ? 0f : 1.8f;
+        Box("SignPost",  new Vector3(o, 0.6f,  o), new Vector3(0.12f, 1.2f, 0.12f), wood);
+        Box("SignBoard", new Vector3(o, 1.25f, o), new Vector3(1.1f,  0.6f, 0.08f),  board);
     }
 
     // ── Hradby ostrova 1 (Kenney Pirate Kit) ─────────────────────────────────
@@ -547,6 +543,40 @@ public class MegaIslandMarker : MonoBehaviour
     //      dlaždic — díly na sebe navazují bez mezery i bez překryvu, protože
     //      Kenney hradba je při WALL_SCALE přesně 1.0 j široká = 1 dlaždice.
     // Čistě dekorativní, žádný vliv na hratelnost/kolize (modely nemají collider).
+    // ── Střely vs. hradby ──────────────────────────────────────────────────
+    // Tvar hradeb a věží posledního postaveného ostrova (statické — hradby stojí i po
+    // zničení markeru). CannonBall se přes BlocksShot ptá, jestli střela do něčeho narazila.
+    private static List<WallRun> shotRuns;
+    private static List<Vector2> shotTowers;
+    private const float WALL_SHOT_HEIGHT  = 1.8f; // do jaké výšky zeď střelu zastaví (výš přeletí)
+    private const float TOWER_SHOT_HEIGHT = 3.2f;
+    private const float TOWER_SHOT_RADIUS = 0.8f;
+
+    /// <summary>Narazila by střela v bodě "p" do hradby nebo věže? (střela letící vysoko zeď přeletí)</summary>
+    public static bool BlocksShot(Vector3 p)
+    {
+        if (shotRuns != null && p.y <= WALL_SHOT_HEIGHT)
+        {
+            Vector2 pt = new Vector2(p.x, p.z);
+            foreach (var run in shotRuns)
+            {
+                float len = run.EffLength;
+                if (len <= 0f) continue;
+                Vector2 a = run.EffStart;
+                float t = Mathf.Clamp(Vector2.Dot(pt - a, run.Dir), 0f, len);
+                if ((pt - (a + run.Dir * t)).sqrMagnitude <= WALL_HALF_DEPTH * WALL_HALF_DEPTH) return true;
+            }
+        }
+
+        if (shotTowers != null && p.y <= TOWER_SHOT_HEIGHT)
+        {
+            Vector2 pt = new Vector2(p.x, p.z);
+            foreach (var tw in shotTowers)
+                if ((pt - tw).sqrMagnitude <= TOWER_SHOT_RADIUS * TOWER_SHOT_RADIUS) return true;
+        }
+        return false;
+    }
+
     private const float WALL_SCALE = 0.5f; // Kenney hradba/brána jsou při scale 1 přes 2/4 j — 0.5 = přesně 1.0/2.0 j (1/2 dlaždice)
 
     // Vrací pozice postavených věží (world XZ) — BuildFortress na některé
@@ -574,11 +604,16 @@ public class MegaIslandMarker : MonoBehaviour
         if (runs.Count == 0) return null;
 
         var towerCorners = PickTowerCorners(runs, 5);
-        if (wallsAlreadyBuilt) return towerCorners;
 
         // Rohy: zeď je tlustá, takže bez úpravy by u každého rohu chyběl vnější
         // výřez a uvnitř by se dva díly překrývaly (viz MiterRuns).
         MiterRuns(runs);
+
+        // Zapamatuj si tvar hradeb a věží — střely přes ně nesmí prolétnout (BlocksShot).
+        shotRuns   = runs;
+        shotTowers = towerCorners;
+
+        if (wallsAlreadyBuilt) return towerCorners;
 
         // Směr k molu = stejný vzorec jako v GridManager.PlaceMegaIsland (mola
         // se vždy dává na stranu přivrácenou ke světovému počátku) — brána jde
@@ -714,11 +749,27 @@ public class MegaIslandMarker : MonoBehaviour
     // "prokousla" — bránu pak najde BuildWalls podle směru k molu.
     private List<Vector2> TraceIslandBoundary()
     {
-        bool IsLand(int x, int y)
+        // "Pevná" dlaždice = pevnina ostrova. Molo (Pier) se nepočítá, hradba ho
+        // obchází zvenku — jen u starých savů je základna mola přepsané pobřežní
+        // políčko obklopené pevninou aspoň ze 3 stran, to za pevnou bereme.
+        bool IsSolid(int x, int y)
         {
             TileType t = gridManager.GetTileType(x, y);
-            return t == TileType.MegaIsland || t == TileType.Pier;
+            if (t == TileType.MegaIsland) return true;
+            if (t != TileType.Pier) return false;
+            int around = 0;
+            if (gridManager.GetTileType(x + 1, y) == TileType.MegaIsland) around++;
+            if (gridManager.GetTileType(x - 1, y) == TileType.MegaIsland) around++;
+            if (gridManager.GetTileType(x, y + 1) == TileType.MegaIsland) around++;
+            if (gridManager.GetTileType(x, y - 1) == TileType.MegaIsland) around++;
+            return around >= 3;
         }
+
+        // Hradba stojí o JEDNU dlaždici uvnitř pobřeží: dlaždice počítáme za "zdivo" jen
+        // tehdy, když jsou pevné i všichni čtyři sousedé. Tlustá zeď (1,4 j) tak celá
+        // stojí na pevnině a nepřesahuje nad vodu.
+        bool IsLand(int x, int y)
+            => IsSolid(x, y) && IsSolid(x + 1, y) && IsSolid(x - 1, y) && IsSolid(x, y + 1) && IsSolid(x, y - 1);
 
         // Směrovaná jednotková hrana pro každou "odkrytou" stěnu pevninové
         // dlaždice, orientovaná tak, že sousedící hrany od sousedních dlaždic
@@ -749,7 +800,9 @@ public class MegaIslandMarker : MonoBehaviour
         int guard = 0;
         do
         {
-            loop.Add(new Vector2(cur.Item1 * 0.5f, cur.Item2 * 0.5f));
+            // +0,5: terén ostrova pokrývá dlaždici [x, x+1), zatímco logická dlaždice je
+            // vycentrovaná na x — bez posunu by hradba seděla o půl dlaždice vedle pobřeží.
+            loop.Add(new Vector2(cur.Item1 * 0.5f + 0.5f, cur.Item2 * 0.5f + 0.5f));
             if (!next.TryGetValue(cur, out cur)) return null; // nemělo by nastat u uzavřené smyčky
             guard++;
         }
@@ -873,11 +926,11 @@ public class MegaIslandMarker : MonoBehaviour
         // Trezor (Ostrov pirátů) — dokud není vyřešený, E otevře puzzle; po vyřešení
         // E přečte vzkaz uvnitř (jednou — pak posune příběh na další ostrov).
         if (vault != null && vault.IsAt(x, y))
-            return vault.Solved ? TryReadMessage() : vault.Open(playerIndex);
+            return vault.Solved ? TryReadMessage(playerIndex) : vault.Open(playerIndex);
 
         // Podpalubí vraku (ostrov 2) — E přečte vzkaz, stejně jako trezor.
         if (holdBuilt && x == holdTile.x && y == holdTile.y)
-            return TryReadMessage();
+            return TryReadMessage(playerIndex);
 
         if (x != tilePos.x || y != tilePos.y) return false;
         if (CombatDirector.Instance != null) CombatDirector.Instance.Toast(Loc.T(signTextCs, signTextEn));
@@ -901,7 +954,11 @@ public class MegaIslandMarker : MonoBehaviour
         if (holdBuilt && x == holdTile.x && y == holdTile.y)
             return gridManager != null && gridManager.gameData.megaTask < 3 ? Loc.T("prohledat podpalubí", "search the hold") : null;
 
-        if (x == tilePos.x && y == tilePos.y) return Loc.T("prozkoumat obelisk", "examine the obelisk");
+        if (x == tilePos.x && y == tilePos.y)
+        {
+            bool fortress = gridManager != null && gridManager.gameData.megaIndex == 0; // bez obelisku, jen cedule
+            return fortress ? Loc.T("přečíst tabuli", "read the sign") : Loc.T("prozkoumat obelisk", "examine the obelisk");
+        }
         return null;
     }
 
@@ -939,7 +996,7 @@ public class MegaIslandMarker : MonoBehaviour
 
     // Přečtení vzkazu (v trezoru na ostrově 1 / v podpalubí na ostrově 2) —
     // jen jednou, pak posune příběh na další mega ostrov.
-    private bool TryReadMessage()
+    private bool TryReadMessage(int playerIndex)
     {
         if (gridManager == null) return true;
         var d = gridManager.gameData;
@@ -953,6 +1010,20 @@ public class MegaIslandMarker : MonoBehaviour
 
         d.megaTask = 3;
         gridManager.Save();
+
+        if (d.megaIndex == 0)
+        {
+            // Pirátský ostrov: dopis přes celou obrazovku s hádankou na souřadnice dalšího
+            // ostrova. Ostrov se umístí (souřadnice se tím zjistí), ale waypoint se NEnastaví —
+            // hráč si X a Y z hádanky spočítá a najde je sám na mapě.
+            gridManager.GiveNextMegaIsland(false); // zničí tenhle marker a postaví další ostrov
+            d.hasLetter = true;
+            d.letterX   = d.storyIslandX;
+            d.letterY   = d.storyIslandY;
+            gridManager.Save();
+            LetterScreen.Show(playerIndex, d.letterX, d.letterY);
+            return true;
+        }
 
         string message = BrotherMessage(d.megaIndex);
         if (CombatDirector.Instance != null) CombatDirector.Instance.Toast(message, 7f);

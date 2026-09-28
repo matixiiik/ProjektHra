@@ -106,13 +106,25 @@ public class VaultMechanism : MonoBehaviour
         }
     }
 
+    // 5 materiálů (jeden na symbol), vytvořené jen jednou a pak sdílené — dřív se při
+    // KAŽDÉM otočení kola (TurnWheel → RefreshVisual, až 3× za tah) vyrobil nový
+    // Material přes MakeMat, což je zbytečná alokace i nový shader variant navíc.
+    private static Material[] symbolMats;
+
+    private static Material SymbolMat(int i)
+    {
+        if (symbolMats == null) symbolMats = new Material[SYMBOL_COUNT];
+        if (symbolMats[i] == null) symbolMats[i] = MakeMat(SYMBOL_COLORS[i]);
+        return symbolMats[i];
+    }
+
     private void RefreshVisual()
     {
         for (int i = 0; i < WHEEL_COUNT; i++)
         {
             if (wheelVisual[i] == null) continue;
             var mr = wheelVisual[i].GetComponent<MeshRenderer>();
-            if (mr != null) mr.sharedMaterial = MakeMat(SYMBOL_COLORS[ringPos[i]]);
+            if (mr != null) mr.sharedMaterial = SymbolMat(ringPos[i]);
         }
     }
 
@@ -199,14 +211,27 @@ public class VaultMechanism : MonoBehaviour
 
         // < 2, ne == 1 — trezor teď jde vyřešit i s obranou ještě naživu
         // (megaTask pořád 0), takže sem hráč může dorazit s oběma hodnotami.
+        int reward = 0;
         if (gridManager != null && gridManager.gameData.megaTask < 2)
         {
             gridManager.gameData.megaTask = 2;
+
+            // Odměna za otevření trezoru: 400–500 mincí (jen jednou — díky megaTask < 2
+            // se po dalším načtení už znovu nedává). Dostane ji hráč, který trezor otevřel.
+            reward = Random.Range(400, 501);
+            foreach (var pc in PlayerController.All)
+                if (pc.playerIndex == wasOpenFor) { pc.RewardCoins(reward); break; }
+
             gridManager.Save();
             gridManager.NotifyWorldChanged();
         }
         SoundManager.PlayCoin();
-        if (CombatDirector.Instance != null) CombatDirector.Instance.Toast(Loc.T("Trezor otevřen!", "Vault opened!"));
+        if (CombatDirector.Instance != null)
+        {
+            CombatDirector.Instance.Toast(reward > 0
+                ? Loc.T($"Trezor otevřen!  +{reward} {Loc.CoinsWord(reward)}", $"Vault opened!  +{reward} {Loc.CoinsWord(reward)}")
+                : Loc.T("Trezor otevřen!", "Vault opened!"));
+        }
     }
 
     // ── UI ─────────────────────────────────────────────────────────────────

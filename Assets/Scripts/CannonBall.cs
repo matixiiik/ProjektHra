@@ -2,13 +2,19 @@ using UnityEngine;
 
 // ─────────────────────────────────────────────────────────────────────────────
 //  CannonBall.cs
-//  Dělová koule — jednoduchý projektil BEZ fyziky (jako zbytek hry: jen pohyb
-//  a kontrola vzdálenosti k cílům). Letí rovně dopředu, po chvíli zmizí.
+//  Dělová koule / náboj — jednoduchý projektil BEZ fyziky (jako zbytek hry: jen
+//  pohyb a kontrola vzdálenosti k cílům). Po chvíli zmizí.
 //
-//   • Side.Player  — vystřelil hráč: zasahuje piráty a děla nepřátelských ostrovů
-//   • Side.Enemy   — vystřelil pirát / ostrovní dělo: zasahuje loď hráče
+//   • Side.Player  — vystřelil hráč: zasahuje piráty, děla, strážce a příšeru
+//   • Side.Enemy   — vystřelil pirát / ostrovní dělo / strážce: zasahuje hráče
 //
-//  Vytváří se přes CannonBall.Fire(...). Model = malá tmavá koule z primitivu.
+//  Dva způsoby výstřelu:
+//   • Fire(...)       — nepřátelé: rovně těsně nad hladinou (jako dřív)
+//   • FireAimed(...)  — hráč: PŘÍMÁ dráha s náměrem nahoru/dolů podle kamery
+//                       (viz PlayerController.AimElevationDeg). Vzhůru se dá trefit
+//                       dělo na věži, příliš dolů koule spadne do vody.
+//
+//  Žádná střela neprojde majákem (a hradbami mega ostrova — MegaIslandMarker.BlocksShot).
 // ─────────────────────────────────────────────────────────────────────────────
 
 public class CannonBall : MonoBehaviour
@@ -18,25 +24,52 @@ public class CannonBall : MonoBehaviour
     private const float SPEED       = 15f;
     private const float LIFETIME    = 2.4f;
     private const float HIT_RADIUS  = 1.0f;
-    private const float FLIGHT_Y    = 0.1f; // těsně nad hladinou
-    private const float GRAVITY     = 15f;  // jen pro koule s náměrem (launchAngleDeg > 0)
+    private const float HIT_HEIGHT  = 1.9f;   // jak moc smí být cíl výš/níž než střela (jen u hráčových střel)
+    private const float FLIGHT_Y    = 0.1f;   // těsně nad hladinou (nepřátelské střely)
+    private const float WATER_Y     = 0.05f;  // pod touhle výškou přímá střela spadla do vody
+    private const float BUILDING_H  = 6f;     // do téhle výšky blokuje maják / hradby
+    private const float ARM_TIME    = 0.12f;  // první chvíli střela stavby ignoruje (vylétá zpoza zdi / z věže)
 
     private Side    side;
     private float   damage;
-    private Vector3 vel;      // vodorovná složka rychlosti
-    private float   velY;     // svislá složka (jen když se střílí s náměrem)
+    private Vector3 vel;       // vodorovná složka rychlosti
+    private float   velY;      // svislá složka (u přímé střely = náměr)
+    private bool    straight;  // true = přímá dráha bez gravitace (hráč)
     private float   life;
 
-    /// <summary>Vystřelí dělovou kouli z bodu "from" ve směru "dir" (vodorovně).
-    /// Nepovinný `launchAngleDeg` (0 = rovná dráha jako dřív) jí dá reálný
-    /// oblouk — viz PlayerController.TryShoot/TryShootOnFoot, kde náměr řídí
-    /// sklon kamery (přehled/oblouk podle toho, jak moc hráč kouká dolů).</summary>
-    public static void Fire(Vector3 from, Vector3 dir, float damage, Side side, float launchAngleDeg = 0f)
+    // Sdílené materiály (jedna instance na stranu, ne nový materiál na každou střelu).
+    private static Material playerMat, enemyMat;
+    private static GridManager gridRef; // pro kontrolu majáků
+
+    /// <summary>Nepřátelská střela: letí rovně těsně nad hladinou (bez náměru).</summary>
+    public static void Fire(Vector3 from, Vector3 dir, float damage, Side side)
     {
         dir.y = 0f;
         if (dir.sqrMagnitude < 0.0001f) dir = Vector3.forward;
         dir.Normalize();
 
+        var cb = Create(new Vector3(from.x, FLIGHT_Y, from.z) + dir * 0.9f, damage, side);
+        cb.vel = dir * SPEED;
+    }
+
+    /// <summary>Hráčova střela: přímá dráha z výšky ústí hlavně, `elevationDeg` = náměr
+    /// (kladný nahoru, záporný dolů). Vodorovný směr je `dir`.</summary>
+    public static void FireAimed(Vector3 from, Vector3 dir, float elevationDeg, float damage, Side side)
+    {
+        dir.y = 0f;
+        if (dir.sqrMagnitude < 0.0001f) dir = Vector3.forward;
+        dir.Normalize();
+
+        var cb = Create(from + dir * 0.9f, damage, side);
+        float e = elevationDeg * Mathf.Deg2Rad;
+        cb.vel      = dir * SPEED * Mathf.Cos(e);
+        cb.velY     = SPEED * Mathf.Sin(e);
+        cb.straight = true;
+    }
+
+    // Vytvoří objekt střely (koule) na dané pozici. Rychlost nastaví volající.
+    private static CannonBall Create(Vector3 pos, float damage, Side side)
+    {
         var go = GameObject.CreatePrimitive(PrimitiveType.Sphere);
         go.name = "CannonBall";
         go.transform.localScale = Vector3.one * 0.32f;
@@ -46,60 +79,101 @@ public class CannonBall : MonoBehaviour
         var mr = go.GetComponent<MeshRenderer>();
         if (mr != null)
         {
-            Shader sh = Shader.Find("Universal Render Pipeline/Lit") ?? Shader.Find("Standard");
-            if (sh != null)
-            {
-                var m = new Material(sh);
-                Color c = side == Side.Player ? new Color(0.15f, 0.15f, 0.17f) : new Color(0.25f, 0.1f, 0.08f);
-                if (m.HasProperty("_BaseColor")) m.SetColor("_BaseColor", c);
-                if (m.HasProperty("_Color"))     m.SetColor("_Color", c);
-                mr.sharedMaterial = m;
-            }
+            Material m = GetMaterial(side);
+            if (m != null) mr.sharedMaterial = m;
             mr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
         }
 
-        go.transform.position = new Vector3(from.x, FLIGHT_Y, from.z) + dir * 0.9f;
+        go.transform.position = pos;
 
-        float angleRad = launchAngleDeg * Mathf.Deg2Rad;
         var cb = go.AddComponent<CannonBall>();
         cb.side   = side;
         cb.damage = damage;
-        cb.vel    = dir * SPEED * Mathf.Cos(angleRad);
-        cb.velY   = SPEED * Mathf.Sin(angleRad);
+        return cb;
+    }
+
+    // Jeden sdílený materiál na stranu (dřív vznikal nový materiál pro každou střelu).
+    private static Material GetMaterial(Side side)
+    {
+        Material existing = side == Side.Player ? playerMat : enemyMat;
+        if (existing != null) return existing;
+
+        Shader sh = Shader.Find("Universal Render Pipeline/Lit") ?? Shader.Find("Standard");
+        if (sh == null) return null;
+
+        var m = new Material(sh);
+        Color c = side == Side.Player ? new Color(0.15f, 0.15f, 0.17f) : new Color(0.25f, 0.1f, 0.08f);
+        if (m.HasProperty("_BaseColor")) m.SetColor("_BaseColor", c);
+        if (m.HasProperty("_Color"))     m.SetColor("_Color", c);
+
+        if (side == Side.Player) playerMat = m; else enemyMat = m;
+        return m;
     }
 
     void Update()
     {
-        transform.position += vel * Time.deltaTime;
+        Vector3 pos = transform.position;
+        pos += vel * Time.deltaTime;
 
-        // Svislý pohyb — bez náměru (velY==0) se drží přesně FLIGHT_Y jako dřív;
-        // s náměrem letí obloukem (gravitace) a nikdy neklesne pod hladinu.
-        velY -= GRAVITY * Time.deltaTime;
-        float newY = transform.position.y + velY * Time.deltaTime;
-        if (newY < FLIGHT_Y) { newY = FLIGHT_Y; velY = 0f; }
-        transform.position = new Vector3(transform.position.x, newY, transform.position.z);
+        if (straight)
+        {
+            // Přímá dráha: jen se posouvá i svisle; pod hladinou střela zaniká.
+            pos.y += velY * Time.deltaTime;
+            if (pos.y < WATER_Y) { Destroy(gameObject); return; }
+        }
+        else
+        {
+            // Nepřátelská střela drží výšku FLIGHT_Y (velY je 0).
+            pos.y = FLIGHT_Y;
+        }
+        transform.position = pos;
 
         life += Time.deltaTime;
         if (life >= LIFETIME) { Destroy(gameObject); return; }
+
+        // Stavby (maják, hradby) střelu zastaví — pro hráče i nepřátele.
+        if (life >= ARM_TIME && HitsStructure()) { Destroy(gameObject); return; }
 
         if (side == Side.Player) CheckEnemyHits();
         else                     CheckPlayerHits();
     }
 
-    // Hráčova koule → piráti a děla nepřátelských ostrovů.
+    // Narazila střela do majáku nebo hradby (ve výšce budovy)?
+    bool HitsStructure()
+    {
+        Vector3 p = transform.position;
+        if (p.y > BUILDING_H) return false;
+
+        if (gridRef == null) gridRef = FindFirstObjectByType<GridManager>();
+        if (gridRef != null &&
+            gridRef.GetTileType(Mathf.RoundToInt(p.x), Mathf.RoundToInt(p.z)) == TileType.Lighthouse)
+            return true;
+
+        // Hradby a věže Pirátského ostrova (střela letící dost vysoko je přeletí).
+        return MegaIslandMarker.BlocksShot(p);
+    }
+
+    // Je cíl ve výšce, kam střela doletí? (Jen přímé hráčovy střely — nepřátelské letí nízko.)
+    bool HeightOk(Component target)
+    {
+        if (!straight || target == null) return true;
+        return Mathf.Abs(target.transform.position.y - transform.position.y) <= HIT_HEIGHT;
+    }
+
+    // Hráčova koule → piráti, děla nepřátelských ostrovů, příšera a strážci.
     void CheckEnemyHits()
     {
         var dir = CombatDirector.Instance;
         if (dir == null) return;
 
         PirateShip pirate = dir.PirateNear(transform.position, HIT_RADIUS);
-        if (pirate != null) { pirate.TakeHit(damage); SoundManager.PlayHit(); Destroy(gameObject); return; }
+        if (pirate != null && HeightOk(pirate)) { pirate.TakeHit(damage); SoundManager.PlayHit(); Destroy(gameObject); return; }
 
         HostileIslandCannon cannon = dir.CannonNear(transform.position, HIT_RADIUS);
-        if (cannon != null) { cannon.TakeHit(damage); SoundManager.PlayHit(); Destroy(gameObject); return; }
+        if (cannon != null && HeightOk(cannon)) { cannon.TakeHit(damage); SoundManager.PlayHit(); Destroy(gameObject); return; }
 
         SeaMonster monster = dir.MonsterNear(transform.position, HIT_RADIUS);
-        if (monster != null) { monster.TakeHit(damage); SoundManager.PlayHit(); Destroy(gameObject); return; }
+        if (monster != null && HeightOk(monster)) { monster.TakeHit(damage); SoundManager.PlayHit(); Destroy(gameObject); return; }
 
         // Stacionární strážce mega ostrova (viz PlayerController.TryShootOnFoot —
         // hráčova pěší zbraň teď na ně umí střílet, ne jen E na blízko).

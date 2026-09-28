@@ -14,7 +14,10 @@ using System.Collections.Generic;
 public static class IslandTerrain
 {
     public  const float LAND_Y = 0.02f;   // výška pevniny (nad hladinou)
-    private const float DEEP_Y = -0.75f;  // kam se svažuje okraj (pod hladinu)
+    // Veřejné, ať se na stejnou hloubku (a stejnou vzdálenost BEACH) může navázat
+    // SeaFloor.SHELF_Y — jinak mezi koncem pláže a mořským dnem vznikne viditelný
+    // schod/hrana (dvě různé hloubky ve stejném místě), viz .claude/story-plan.md.
+    public  const float DEEP_Y = -0.75f;  // kam se svažuje okraj (pod hladinu)
     private const float RES    = 0.5f;    // rozteč vrcholů mřížky (jemnější = hladší)
     private const float BEACH  = 1.25f;   // šířka svahu pláže (kolik za pevninu mesh sahá)
 

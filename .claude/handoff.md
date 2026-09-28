@@ -8,6 +8,74 @@ sem Claude píše, kde se přestalo, aby se dalo pokračovat i z notebooku.
 
 ---
 
+## STAV 2026-09-28 — Napady2.txt fáze 1–6 hotové, ověřené v Unity a ZMERGOVANÉ do main
+(PR #2, merge commit `53dee82`; feature commit `39dc4c0` na smazané větvi
+`napady2-story-presets-polish`). Detail průběhu a rozpad na fáze:
+Claude paměť `napady2-plan-progress.md` + plán
+`.claude/../../.claude/plans/vytvorime-si-plan-na-keen-cat.md` (mimo repo, u
+uživatele v `~/.claude/plans/`).
+
+Předchozí session (bez MCP) napsala kód pro fáze 1–4 z `Napady2.txt` (uživatelův
+~35bodový seznam požadavků — hotbar, kamera, střelba, plavání, Pirátský ostrov,
+trezor/dopis, megalodon, Holanďan, konzole `story 1–10`), ale nic z toho nebylo
+ověřené v Play. Tahle session (28. 9., S MCP) prošla celý seznam v Play módu a
+pokračovala fázemi 5–6:
+
+**Ověřeno funkční (fáze 1–4):** hotbar dole uprostřed, zoom+first person,
+náměr nahoru/dolů, ruka drží zbraň procedurálně, plavání bez mola, hradby+
+brána+molo Pirátského ostrova, trezor (puzzle), dopis (**hádanka ověřena ručním
+výpočtem** — přesně sedí na skutečné souřadnice dalšího ostrova), megalodon
+(spawn/kroužení/Vulnerable), Bludný Holanďan (spawn, boss bar), presety
+`story 1/4/5/9` (idempotentní).
+
+**Opravené bugy:**
+1. `StoryPresets.ClearStoryObjects` — `Destroy()` starých hradeb se projeví až
+   na konci snímku, takže opakované spuštění presetu ve stejné Play session
+   nepostavilo nové hradby (`GameObject.Find` ještě našel starý objekt). Fix:
+   `SetActive(false)` před `Destroy`.
+2. `SeaMonster.SURFACE_Y` — ve stavu Vulnerable se megalodon vynořil skoro celý
+   z vody (konstanta `FIN_TOP` byla kalibrovaná na jiné proporce modelu, než
+   skutečně načtený `shark.fbx` má). Sníženo z `DEEP_Y+1.1` na `DEEP_Y+0.4`.
+3. **Fáze 5** — `SeaFloor.SHELF_Y` (−0,5) a konec pláže `IslandTerrain.DEEP_Y`
+   (−0,75) se nepotkávaly ve stejné hloubce → viditelný ostrý schod mezi pískem
+   a mořským dnem (přesně to, co uživatel popisoval jako "vypadá to
+   zabugovaně"). Fix: `SeaFloor.SHELF_Y` teď = `IslandTerrain.DEEP_Y`
+   (zveřejněno jako `public const`). Ověřeno screenshotem před/po.
+4. **Fáze 6** (3 bezpečné výkonnostní zásahy): `VaultMechanism.RefreshVisual`
+   sdílí 5 materiálů místo alokace nového při každém otočení kola trezoru;
+   vraky pokladu (`GridManager.InstantiateTile`) nevrhají zbytečný stín (leží
+   pod hladinou, stín stejně není vidět — dřív ~54 zbytečných stínových
+   kasterů); `OceanSurface.Animate` přepočítává normály/bounds vlnění jen
+   každý 3. snímek místo každého (pozice vrcholů se pořád posouvá každý
+   snímek, žádný viditelný artefakt).
+
+**Jedna oprava zkusena a VRÁCENA zpět:** pokus "opravit" umístění brány v
+hradbách podle osy mola u nepravidelného pobřeží — originální úhlová metoda
+(`PickTowerCorners`/gate-run podle `Mathf.DeltaAngle`) se ukázala správná,
+nová verze bránu u členitého pobřeží posadila na špatnou stranu ostrova.
+Vráceno na původní kód (`MegaIslandMarker.cs` má nakonec čistou diff jen z
+předchozí session, ne z tohohle pokusu).
+
+**Nedělané (vyšší riziko / mimo rozsah téhle session):** rozložení
+`IslandTerrain.Build/BuildGrass` přes korutinu, static batching hradeb +
+vypnuté stíny na dílech, throttling `HostileIslandCannon`/`PirateShip.Update`
+mimo dosah hráče, presety `story 6/7/8/10` nebyly ověřené, fáze 5 body
+(b)/(c) z plánu (mělčina/pěna) se nedělaly — "grid offset 0,85 vs 1,0" z
+původního zadání se v aktuálním `IslandTerrain.cs` nenašel (kód je od té doby
+přepsaný na jeden sjednocený mesh se smoothstep přechodem, tahle obava je
+zastaralá).
+
+**Pasti při testování (nové/potvrzené):** Play/Stop v editoru přepíše aktivní
+save slot testovacím stavem — zálohováno do
+`C:\Users\matix\Desktop\save-backup-story-test\` (+ SHA256.txt), po každém
+Stop obnoveno, hash sedí přesně po celou session. UnityMCP se dvakrát na pár
+sekund odpojilo při vstupu do Play (domain reload) — samo se vrátilo, stačilo
+počkat a zopakovat volání. `execute_code` (CodeDom) občas jednorázově selhalo
+na "Access to path denied" (dočasný zámek `.dll` v temp) — zopakování stejného
+kódu prošlo.
+
+---
+
 ## STAV 2026-09-15 — Kroky 0-7 z story-plan.md hotové, opraveny Console errory
 
 Příběh (mega ostrovy, souboj s mořskou příšerou, duch-loď, konfrontace se

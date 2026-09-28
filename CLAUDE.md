@@ -66,6 +66,9 @@ ostrově). Podporuje lokální split-screen pro dva hráče.
   `SPAWN_ISLAND_CLEARANCE=25` (žádné ryby/vraky/piráti blízko). ~40 % ostrovů je
   **nepřátelských** (`gameData.hostileIslands`) — mají dělo (`HostileIslandCannon`).
 - Hladký terén ostrova = generovaný mesh (`IslandTerrain.Build` + `BuildGrass`).
+  `IslandTerrain.DEEP_Y` (kam se svažuje pláž pod hladinu) je **public** záměrně —
+  `SeaFloor.SHELF_Y` (dno hned u ostrova) na něj navazuje, aby mezi koncem pláže
+  a mořským dnem nevznikl viditelný schod/hrana.
 - `OnWorldChanged` event → překreslení HUD, minimapy.
 - **Mega ostrovy** (`PlaceMegaIsland`, typ `MegaIsland`) — velké příběhové ostrovy,
   vždy aktivní nejvýš jeden. `MegaIslandMarker.megaIndex` (0-2) určuje obsah:
@@ -91,11 +94,23 @@ ostrově). Podporuje lokální split-screen pro dva hráče.
   (`DeathScreen`: Respawn s veslicí na nejbližším ostrově — mince zůstanou,
   kořist + náboje + upgrady zmizí — nebo Hlavní menu).
 - **Souboj**: střelba **levým tlačítkem myši** (P1) / `Numpad *` (P2), spotřebuje
-  `ammo` (kupuje se v obchodě). `IsSailing` / `IsSwimming` — terč pro děla.
+  `ammo` (kupuje se v obchodě). Náměr podle sklonu kamery (`AimElevationDeg`,
+  ±30° ve 3. osobě / ±60° v 1. osobě) — jde trefit i dělo na věži hradby.
+  `IsSailing` / `IsSwimming` — terč pro děla. Kromě lodního děla má hráč i
+  **pěší zbraň** (hotbar slot 0, vlastní munice `handAmmo`), koupí se v obchodě,
+  střílí se vodorovně tam, kam se dívá kamera; panáček se při vytažené zbrani
+  otáčí za kamerou (`UpdateAimFacing`). Držený předmět (zbraň/poklad) sedí
+  procedurálně v pravé ruce modelu (`PoseHeldItem`, kalibrace kosti v klidu).
 - `Space` / `Numpad0` = rybaření (`Water_Fish`) / těžba vraku (`Treasure`).
 - `M` (P1) / `Numpad 2` (P2) = velká **mapa** (jen v lodi, jen s koupenou `hasMap`) —
   klik nastaví waypoint, na minimapě pak jinobarevná šipka.
 - `R` (P1) / `Numpad /` (P2) = oprava naplavané lodě u mola / v obchodě.
+- **Kamera (`CameraOrbit`)**: kolečko myši = zoom (max = výchozí vzdálenost,
+  min → přepne do **first person** — kamera v očích, vlastní model/loď se
+  schová, dá se mířit strměji). P2 zoomuje klávesami, bez first person.
+- **Plavání**: pěšák smí i BEZ rozbité lodi vstoupit do vody blízko pevniny
+  (`footSwimming`, `FOOT_SWIM_RANGE`), pomalu plave, vyleze na jakoukoli
+  pevninu a nasedne do zaparkované lodi v dosahu — nemusí se vracet přes molo.
 - Per-hráč hodnoty jdou přes property (`GridX`, `PCoins`, `PBoatHealth`,
   `PAmmo`, `PQuest`…), které routují do `gameData.xxx` / `gameData.player2Xxx`
   podle `playerIndex`. **Nová per-hráč hodnota musí projít stejně** (property +
@@ -196,11 +211,13 @@ ostrově). Podporuje lokální split-screen pro dva hráče.
 ### UI
 - **IMGUI (`OnGUI`)**: `MainMenuManager`, `PauseMenu`, `GameConsole`,
   `UpgradeShopManager`, `QuestShopManager`, `DeathScreen`, `MapScreen`,
-  `StoryNpc` dialog. Styly lazy v `InitStyles()`, pozadí tlačítek 1×1 texturou.
-  Sdílený vzhled: `HudSkin` / `ShopUI`.
-- **Runtime uGUI**: `HUDCounter` (mince/ryby/poklady/quest + health bary),
-  `MinimapUIRenderer` (`Texture2D` po políčkách, **kruhová** — `MaskCircle`,
-  kompas + waypoint šipka).
+  `StoryNpc`/`RivalNpc` dialog, `VaultMechanism` puzzle, `LetterScreen` (dopis
+  přes celou obrazovku, zavírá se Esc/NumpadEnter bez pauzy). Styly lazy v
+  `InitStyles()`, pozadí tlačítek 1×1 texturou. Sdílený vzhled: `HudSkin` / `ShopUI`.
+- **Runtime uGUI**: `HUDCounter` (mince/ryby/poklady/quest + health bary +
+  **hotbar** dole uprostřed — 4 sloty Zbraň·Boat ammo·Rifle ammo·Hist. poklad,
+  v lodi zamknutý), `MinimapUIRenderer` (`Texture2D` po políčkách, **kruhová**
+  — `MaskCircle`, kompas + waypoint šipka).
 
 ### Vstup blokovaný přes flagy (respektuj v novém ovládání)
 Globální (mrazí oba hráče): `GameConsole.IsOpen`, `MainMenuManager.IsVisible`.
@@ -213,9 +230,17 @@ neřídí `Time.timeScale` (jako obchod/mapa), v sólu ji pauzuje `SoloPause`.
 
 ### Herní konzole (cheaty) — `GameConsole`, klávesa `` ` ``
 `get money/fish/treasure`, `get boat row/small/medium/large`,
-`get item map/ammo/histtreasure/sellbonus/megamap`, `upgrade speed/rod/mining`,
-`tp <x> <y>`, `explore [radius]`, `locate [fish/treasure/chest/island/pirate/quest]`,
-`respawn`, `story [krok/island/histtreasure]`, `reset money`, `clear`.
+`get item map/ammo/handweapon/handammo/histtreasure/sellbonus/megamap`,
+`upgrade speed/rod/mining`, `tp <x> <y>`, `explore [radius]`,
+`locate [fish/treasure/chest/island/pirate/quest]`, `respawn`, `reset money`, `clear`.
+- **`story <1-10>`** — PRESET (`StoryPresets.cs`): přenese hráče přímo na místo dané
+  části příběhu a dá mu odpovídající výbavu (loď, náboje, mapu…) — slouží k rychlému
+  otestování libovolného úseku bez nutnosti hrát od začátku. Seznam presetů je
+  v hlavičce `StoryPresets.cs`. Idempotentní (uklidí staré příběhové objekty a
+  nastaví `GameData` znovu i při opakovaném spuštění).
+- **`story step <0-9>`** — jen nastaví `storyStep` (dřívější `story <n>`, přejmenováno
+  kvůli kolizi s presety výše). Dál: `story island`, `story histtreasure`,
+  `story megatask <0-3>`, `story ending <0-2>`, `story nextisland`.
 
 ## Konvence v kódu
 

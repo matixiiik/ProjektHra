@@ -221,6 +221,15 @@ public class PirateShip : MonoBehaviour
         Strip(cloth, sail);
     }
 
+    // Loď, co jen bloumá DALEKO od všech hráčů (mimo dohled — mlha končí ~70 j,
+    // viz CLAUDE.md), se hýbe a počítá vyhýbání pevnině úplně zbytečně — nikdo ji
+    // nevidí. Throttling se týká JEN tohohle neškodného stavu (nikdy nezaútočila,
+    // není hlídka ani lovec) — hlídky/lovec/aktivní souboj musí reagovat okamžitě,
+    // těch je navíc vždycky jen pár. `+ GetInstanceID()` rozprostře throttlované
+    // lodě do různých snímků, ať se neaktualizují všechny najednou (fáze 6 výkon).
+    private const float OFFSCREEN_RANGE            = 70f;
+    private const int   IDLE_UPDATE_EVERY_N_FRAMES = 4;
+
     void Update()
     {
         var target = CombatDirector.Instance != null
@@ -228,6 +237,10 @@ public class PirateShip : MonoBehaviour
 
         float dist = target != null ? Vector3.Distance(transform.position, target.transform.position) : 999f;
         if (target != null) lastPlayerPos = target.transform.position;
+
+        bool idleFarAway = !isHunter && !isGuard && !everEngaged && dist > OFFSCREEN_RANGE;
+        if (idleFarAway && (Time.frameCount + GetInstanceID()) % IDLE_UPDATE_EVERY_N_FRAMES != 0)
+            return; // mimo dohled a nic se neděje — přeskoč snímek
 
         // Jakmile jednou zaútočil, "zavětří" hráče na větší vzdálenost, ať se
         // souboj nerozpadne kvůli tomu, že hráč o kousek popojel.

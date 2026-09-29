@@ -35,8 +35,10 @@ public class SeaFloor : MonoBehaviour
 
     // Stejná hloubka jako konec pláže (IslandTerrain.DEEP_Y) — jinak se dno u ostrova
     // potkává s koncem pláže v jiné výšce a je vidět ostrý schod/hrana (ověřeno v Play,
-    // viz .claude/story-plan.md fáze 5).
-    private const float SHELF_Y       = IslandTerrain.DEEP_Y;
+    // viz .claude/story-plan.md fáze 5). SeaFloor na rozdíl od IslandTerrain nemá
+    // žádného rodiče s posunem v ose Y, takže si IslandTerrain.Y_OFFSET musí připočítat
+    // sám — jinak by zůstal drobný (0,1 j) zbytkový schod.
+    private const float SHELF_Y       = IslandTerrain.DEEP_Y + IslandTerrain.Y_OFFSET;
     private const float SHELF_CORE    = 2.5f;  // do téhle vzdálenosti od pevniny je dno rovnou na SHELF_Y (síť dna je hrubá)
     private const float SHELF_RADIUS  = 15f;   // za jádrem se dno lineárně svažuje zpátky do hloubky
 

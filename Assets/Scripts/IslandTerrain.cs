@@ -21,6 +21,14 @@ public static class IslandTerrain
     private const float RES    = 0.5f;    // rozteč vrcholů mřížky (jemnější = hladší)
     private const float BEACH  = 1.25f;   // šířka svahu pláže (kolik za pevninu mesh sahá)
 
+    // GridManager staví celý terén ostrova (písek + tráva + mělčina/pěna) jako
+    // potomky jednoho GameObjectu posunutého o tohle v ose Y (aby ostrov ležel na
+    // stejné rovině jako dlaždice) — `LAND_Y`/`DEEP_Y` výš jsou tedy MÍSTNÍ hodnoty
+    // meshe, skutečná světová výška = hodnota + `Y_OFFSET`. `SeaFloor` je samostatný
+    // objekt bez rodiče, takže když z něj navazuje na `DEEP_Y`, musí si `Y_OFFSET`
+    // připočítat sám (jinak vznikne malý, ale viditelný schod).
+    public  const float Y_OFFSET = -0.1f;
+
     // ── Travnatý povrch (druhý mesh navrch písku) ──────────────────────────
     // Tráva roste jen ve vnitřku ostrova — u pláže se plynule "zaryje" pod
     // písek, takže mezi pískem a trávou není žádná hrana.
@@ -56,17 +64,7 @@ public static class IslandTerrain
             {
                 float wx = x0 + i * RES;
                 float wz = z0 + j * RES;
-
-                float dist = NearestLandDist(land, wx, wz); // 0 = uvnitř pevniny
-                float t = Mathf.Clamp01((BEACH - dist) / BEACH);
-                t = t * t * (3f - 2f * t); // smoothstep → měkký přechod
-
-                float h = Mathf.Lerp(DEEP_Y, LAND_Y, t);
-
-                // Lehké vlnky jen tam, kde je souš (ať pláž zůstane hladká).
-                if (t > 0.65f)
-                    h += (Mathf.PerlinNoise(wx * 0.55f + 11.3f, wz * 0.55f + 4.7f) - 0.5f) * 0.14f;
-
+                float h  = SandHeight(land, wx, wz, out _);
                 grid[i, j] = new Vector3(wx, h, wz);
             }
         }
@@ -95,6 +93,120 @@ public static class IslandTerrain
         }
 
         var mesh = new Mesh { name = "IslandTerrain" };
+        if (verts.Count > 65000)
+            mesh.indexFormat = UnityEngine.Rendering.IndexFormat.UInt32;
+        mesh.SetVertices(verts);
+        mesh.SetTriangles(tris, 0);
+        mesh.RecalculateNormals();
+        mesh.RecalculateBounds();
+        return mesh;
+    }
+
+    // Výška pískového terénu v bodě [wx,wz] — stejný vzorec jako uvnitř `Build`,
+    // vytažený zvlášť, aby ho mohly použít i `BuildFoam`/`BuildShallow` níž (ty
+    // potřebují ležet přesně NAD pískem, ne v jiné výšce). `dist` = vzdálenost
+    // k nejbližší pevninové dlaždici (0 = uvnitř pevniny), vrací se ven, protože
+    // podle ní `BuildFoam`/`BuildShallow` poznají, jestli bod patří do jejich pásu.
+    private static float SandHeight(HashSet<Vector2Int> land, float wx, float wz, out float dist)
+    {
+        dist = NearestLandDist(land, wx, wz);
+        float t = Mathf.Clamp01((BEACH - dist) / BEACH);
+        t = t * t * (3f - 2f * t); // smoothstep → měkký přechod
+
+        float h = Mathf.Lerp(DEEP_Y, LAND_Y, t);
+
+        // Lehké vlnky jen tam, kde je souš (ať pláž zůstane hladká).
+        if (t > 0.65f)
+            h += (Mathf.PerlinNoise(wx * 0.55f + 11.3f, wz * 0.55f + 4.7f) - 0.5f) * 0.14f;
+
+        return h;
+    }
+
+    // ── Mělčina kolem pobřeží (fáze 5 doplnění) ──────────────────────────────
+    // Jemně tyrkysový průhledný pás kousek od břehu, navrch pískového meshe
+    // (stejná výška přes `SandHeight` + malý zvedák `OVERLAY_LIFT`, ať mělčina
+    // nebojuje o stejné vrcholy s pískem = z-fighting).
+    //
+    // Původně měly být DVA pásy (úzká pěna hned u břehu + širší mělčina za ní),
+    // ale mřížka terénu má rozteč RES=0,5 a `NearestLandDist` roste od pobřeží
+    // "po skocích" (0 → 0,5 → 0,7 → 0,9…, ověřeno v Play) — pás užší než necelá
+    // 1 j tak buď nemá žádný čtverec se všemi 4 rohy uvnitř (mesh vyjde
+    // prázdný), nebo musí sahat až k `dist == 0`, což ale znamená "kdekoli
+    // uvnitř pevniny", ne jen "na pobřeží" — takový pás pak pokryje celý
+    // vnitřek ostrova (viděno v Play: mělčina prorazila i nad trávou a celý
+    // ostrov zbělal). Jeden širší pás, bezpečně nad nulou, je spolehlivější.
+    private const float SHALLOW_MIN  = 0.30f; // bezpečně za hranicí pevniny (viz komentář výš)
+    private const float SHALLOW_MAX  = 1.40f; // dál splyne s hlubší vodou (SeaFloor)
+    // 0,02 bylo příliš málo — v Play splývalo s pískem (z-fighting), takže se
+    // průhledná mělčina renderovala skoro neprůhledně bíle (ověřeno: po zvednutí
+    // o 2 j se stejný materiál ukázal správně průsvitný). 0,12 je pořád
+    // "přilepené" k terénu (grass nad pískem má lift jen 0,05), ale bezpečně mimo
+    // z-fighting.
+    private const float OVERLAY_LIFT = 0.12f;
+
+    /// <summary>Jemně tyrkysová mělčina kousek od břehu, mizí do hlubší vody.</summary>
+    public static Mesh BuildShallow(HashSet<Vector2Int> land)
+        => BuildOverlay(land, SHALLOW_MIN, SHALLOW_MAX, OVERLAY_LIFT, "IslandShallow");
+
+    // Základ pro BuildShallow — stejná mřížka jako Build/BuildGrass, jen se kreslí
+    // čtverec, jen když jsou všechny 4 rohy ve vzdálenosti [distMin,distMax] od
+    // pevniny (stejný princip jako `hasGr` v BuildGrass).
+    private static Mesh BuildOverlay(HashSet<Vector2Int> land, float distMin, float distMax, float lift, string meshName)
+    {
+        int minX = int.MaxValue, minY = int.MaxValue, maxX = int.MinValue, maxY = int.MinValue;
+        foreach (var c in land)
+        {
+            if (c.x < minX) minX = c.x;
+            if (c.y < minY) minY = c.y;
+            if (c.x > maxX) maxX = c.x;
+            if (c.y > maxY) maxY = c.y;
+        }
+
+        float m  = distMax + 0.6f;
+        float x0 = minX - m, x1 = maxX + 1 + m;
+        float z0 = minY - m, z1 = maxY + 1 + m;
+
+        int nx = Mathf.CeilToInt((x1 - x0) / RES) + 1;
+        int nz = Mathf.CeilToInt((z1 - z0) / RES) + 1;
+
+        var grid   = new Vector3[nx, nz];
+        var inBand = new bool[nx, nz];
+
+        for (int i = 0; i < nx; i++)
+        {
+            for (int j = 0; j < nz; j++)
+            {
+                float wx = x0 + i * RES;
+                float wz = z0 + j * RES;
+
+                float h = SandHeight(land, wx, wz, out float dist) + lift;
+                inBand[i, j] = dist >= distMin && dist <= distMax;
+
+                grid[i, j] = new Vector3(wx, h, wz);
+            }
+        }
+
+        var verts = new List<Vector3>();
+        var tris  = new List<int>();
+
+        for (int i = 0; i < nx - 1; i++)
+        {
+            for (int j = 0; j < nz - 1; j++)
+            {
+                if (!inBand[i, j] || !inBand[i + 1, j] || !inBand[i, j + 1] || !inBand[i + 1, j + 1])
+                    continue;
+
+                Vector3 a = grid[i, j];
+                Vector3 b = grid[i + 1, j];
+                Vector3 c = grid[i, j + 1];
+                Vector3 d = grid[i + 1, j + 1];
+
+                AddTri(verts, tris, a, c, b);
+                AddTri(verts, tris, b, c, d);
+            }
+        }
+
+        var mesh = new Mesh { name = meshName };
         if (verts.Count > 65000)
             mesh.indexFormat = UnityEngine.Rendering.IndexFormat.UInt32;
         mesh.SetVertices(verts);

@@ -1175,7 +1175,7 @@ public class GridManager : MonoBehaviour
 
         var go = new GameObject("IslandTerrain " + islandKey);
         go.transform.SetParent(transform);
-        go.transform.position = new Vector3(0f, -0.1f, 0f); // stejná rovina jako dlaždice
+        go.transform.position = new Vector3(0f, IslandTerrain.Y_OFFSET, 0f); // stejná rovina jako dlaždice
         var mf = go.AddComponent<MeshFilter>();
         var mr = go.AddComponent<MeshRenderer>();
         mf.sharedMesh      = IslandTerrain.Build(land);
@@ -1191,6 +1191,17 @@ public class GridManager : MonoBehaviour
         gmf.sharedMesh       = IslandTerrain.BuildGrass(land);
         gmr.sharedMaterial   = IslandGrassMaterial();
         gmr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.On;
+
+        // Mělčina (jemně tyrkysový nádech vody) — jen vizuální, průsvitná,
+        // kreslí se nad pískem a pod hladinou moře (fáze 5 doplnění, viz
+        // IslandTerrain.BuildShallow).
+        var shallow = new GameObject("IslandShallow " + islandKey);
+        shallow.transform.SetParent(go.transform, false);
+        var shmf = shallow.AddComponent<MeshFilter>();
+        var shmr = shallow.AddComponent<MeshRenderer>();
+        shmf.sharedMesh        = IslandTerrain.BuildShallow(land);
+        shmr.sharedMaterial    = IslandShallowMaterial();
+        shmr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
 
         islandTerrains[islandKey] = new IslandRec { go = go, tileKeys = keys };
     }
@@ -1211,6 +1222,38 @@ public class GridManager : MonoBehaviour
         if (grassMaterialCache.HasProperty("_BaseColor")) grassMaterialCache.SetColor("_BaseColor", green);
         if (grassMaterialCache.HasProperty("_Color"))     grassMaterialCache.SetColor("_Color", green);
         return grassMaterialCache;
+    }
+
+    // ── Mělčina (fáze 5 doplnění) ─────────────────────────────────────────────
+    private Material shallowMaterialCache;
+    private Material IslandShallowMaterial()
+    {
+        if (shallowMaterialCache == null)
+            shallowMaterialCache = MakeOverlayMaterial(new Color(0.55f, 0.85f, 0.80f, 0.35f), "IslandShallow (runtime)");
+        return shallowMaterialCache;
+    }
+
+    // Průsvitný materiál — ruční přepnutí čerstvého Lit/Unlit materiálu do
+    // průhledného URP režimu (_Surface/_SrcBlend/...) vycházelo v Play pořád
+    // skoro neprůhledně bílé, ať byla alpha/shader jakýkoli (ověřeno, viz
+    // .claude/handoff.md). Místo skládání vlastního materiálu od nuly proto
+    // klon `waterPrefab` materiálu — STEJNÝ recept jako OceanSurface.Init,
+    // který je prokazatelně průhledný (skrz hladinu je vidět dno i vraky).
+    private Material MakeOverlayMaterial(Color c, string matName)
+    {
+        Material src = null;
+        if (waterPrefab != null)
+        {
+            var r = waterPrefab.GetComponentInChildren<MeshRenderer>();
+            if (r != null) src = r.sharedMaterial;
+        }
+
+        var mat = src != null ? new Material(src) : new Material(Shader.Find("Universal Render Pipeline/Lit"));
+        mat.name = matName;
+
+        if (mat.HasProperty("_BaseColor")) mat.SetColor("_BaseColor", c);
+        if (mat.HasProperty("_Color"))     mat.SetColor("_Color", c);
+        return mat;
     }
 
     // Smaže terénní meshe ostrovů, ze kterých už nezůstalo žádné aktivní políčko.

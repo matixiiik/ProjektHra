@@ -1,3 +1,4 @@
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -676,7 +677,22 @@ public class MegaIslandMarker : MonoBehaviour
             }
         }
 
+        // Hradby jsou statické (nikdy se nehýbou) a sdílejí jeden materiál (viz
+        // BuildPirateKitPart) — ideální kandidát na static batching. Bez něj je
+        // to 100+ samostatných draw callů (věže + brána + desítky dílů zdi) i
+        // pro shadow pass; Combine je slije do pár dávek (fáze 6 výkon). Volané
+        // rovnou tady (stejný snímek, hned po Instantiate všech dílů) v Play
+        // ověřeně NEFUNGOVALO (isPartOfStaticBatch zůstalo false u všeho) —
+        // stejné volání o snímek později už spolehlivě zabralo, proto korutina.
+        StartCoroutine(CombineWallsNextFrame(wallsGo));
+
         return towerCorners;
+    }
+
+    private IEnumerator CombineWallsNextFrame(GameObject wallsGo)
+    {
+        yield return new WaitForEndOfFrame();
+        if (wallsGo != null) StaticBatchingUtility.Combine(wallsGo);
     }
 
     // Postaví díly hradby v rozsahu [from, to] (vzdálenost od začátku úseku).

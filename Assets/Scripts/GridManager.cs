@@ -1,4 +1,5 @@
 using UnityEngine;
+using System.Collections;
 using System.Collections.Generic;
 using System;
 
@@ -1176,11 +1177,34 @@ public class GridManager : MonoBehaviour
         var go = new GameObject("IslandTerrain " + islandKey);
         go.transform.SetParent(transform);
         go.transform.position = new Vector3(0f, IslandTerrain.Y_OFFSET, 0f); // stejná rovina jako dlaždice
+        islandTerrains[islandKey] = new IslandRec { go = go, tileKeys = keys };
+
+        // Písek (hlavní tvar ostrova) se postaví hned — ostrov se objeví okamžitě,
+        // jakmile na něj hráč dohlédne. Tráva a mělčina (BuildGrass/BuildShallow)
+        // jsou další dva stejně drahé průchody přes stejnou mřížku (desítky tisíc
+        // vrcholů u velkých ostrovů, dotaz na okolní dlaždice u každého) — kdyby
+        // se postavily ve stejném snímku jako písek, je to znát jako zaškubnutí
+        // (naměřeno dřív: nejhorší krok ~20 ms i jen s pískem+trávou). Rozloženy
+        // přes korutinu o snímek/dva později — ostrovy se generují s dostatečným
+        // předstihem před tím, než k nim hráč doplave, takže si toho nevšimne
+        // (fáze 6 výkon).
         var mf = go.AddComponent<MeshFilter>();
         var mr = go.AddComponent<MeshRenderer>();
         mf.sharedMesh      = IslandTerrain.Build(land);
         mr.sharedMaterial  = islandTerrainMaterial;
         mr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.On;
+
+        StartCoroutine(BuildIslandExtrasNextFrames(go, land, islandKey));
+    }
+
+    // Tráva a mělčina ostrova, postavené o 1–2 snímky později (viz komentář
+    // v EnsureIslandTerrain výš). `go` může mezitím zaniknout — hráč rychle
+    // odpluje pryč a CleanupIslandTerrains ostrov zničí dřív, než korutina
+    // doběhne — proto se po každém čekání ověří, že pořád existuje.
+    private IEnumerator BuildIslandExtrasNextFrames(GameObject go, HashSet<Vector2Int> land, string islandKey)
+    {
+        yield return null;
+        if (go == null) yield break;
 
         // Travnatý povrch navrch písku (jen vnitřek ostrova). Stejný materiál
         // jako písek, jen obarvený do zelena → sedí do světla scény.
@@ -1188,9 +1212,12 @@ public class GridManager : MonoBehaviour
         grass.transform.SetParent(go.transform, false);
         var gmf = grass.AddComponent<MeshFilter>();
         var gmr = grass.AddComponent<MeshRenderer>();
-        gmf.sharedMesh       = IslandTerrain.BuildGrass(land);
-        gmr.sharedMaterial   = IslandGrassMaterial();
+        gmf.sharedMesh        = IslandTerrain.BuildGrass(land);
+        gmr.sharedMaterial    = IslandGrassMaterial();
         gmr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.On;
+
+        yield return null;
+        if (go == null) yield break;
 
         // Mělčina (jemně tyrkysový nádech vody) — jen vizuální, průsvitná,
         // kreslí se nad pískem a pod hladinou moře (fáze 5 doplnění, viz
@@ -1202,8 +1229,6 @@ public class GridManager : MonoBehaviour
         shmf.sharedMesh        = IslandTerrain.BuildShallow(land);
         shmr.sharedMaterial    = IslandShallowMaterial();
         shmr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
-
-        islandTerrains[islandKey] = new IslandRec { go = go, tileKeys = keys };
     }
 
     // Zelený materiál pro trávu — odvozený jednou z pískového materiálu, ať má

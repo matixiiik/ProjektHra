@@ -1616,6 +1616,13 @@ public class GridManager : MonoBehaviour
                 if (activeTiles.TryGetValue(key, out GameObject old)) { Destroy(old); activeTiles.Remove(key); }
             }
 
+        // Odstraň jednodlaždicové "škrtiny" v čerstvém tvaru — jinak by
+        // MegaIslandMarker.TraceIslandBoundary/BuildWalls mohl dostat ostrov se
+        // dvěma laloky spojenými jen jednou řadou dlaždic (nebo jen diagonálně),
+        // na kterém neumí obejít hranici jednou uzavřenou smyčkou (viz tam) —
+        // BuildWalls by pak vrátil null a ostrov by zůstal bez hradeb/věží/děl.
+        SmoothMegaIslandShape(centerX, centerY, R);
+
         // Molo na kraji přivráceném ke světu (odkud hráč připluje) — 4 dlaždice dlouhé
         // a 2 široké, VYČNÍVÁ z ostrova do vody (žádná pevnina se nepřepisuje). Směr se
         // srovná na dominantní osu (vodorovně / svisle), ať je molo rovné.
@@ -1662,6 +1669,115 @@ public class GridManager : MonoBehaviour
 
         Save();
         NotifyWorldChanged();
+    }
+
+    // Vyčistí čerstvě vzniklou plochu MegaIsland z PlaceMegaIsland, ať ji
+    // MegaIslandMarker.TraceIslandBoundary umí bezpečně obejít jako JEDNU
+    // uzavřenou smyčku (jinak BuildWalls vrátí null a ostrov zůstane bez
+    // hradeb/věží/děl — obojí by na "škrtině" nebo diagonálním dotyku dvou
+    // laloků pevniny skončilo na stejném rohu se dvěma různými pokračováními
+    // a trasování hranice by se zaseklo):
+    //  1) Eroze o 2 dlaždice (dvě po sobě jdoucí kola "přežije jen dlaždice se
+    //     všemi 4 sousedy taky pevninou") spolehlivě rozpojí i škrtinu, co se
+    //     uprostřed na chvíli rozšíří (jedno kolo eroze by ji nemuselo prokousat).
+    //  2) Z toho, co erozi přežilo, se ponechá JEN souvislá část obsahující
+    //     `tilePos` (BFS) — malé oddělené kusy (typicky druhý konec bývalé
+    //     škrtiny) se zahodí, ať ostrov nemá víc než jedno těleso.
+    //  3) Dilatace o 2 dlaždice (ohraničená původní plochou, ať se ostrov
+    //     nerozroste za noise-okraj) vrátí ponechanému tělesu jeho původní
+    //     velikost/tvar minus useknutá škrtina.
+    //  4) Zbylý (vzácný) diagonální dotyk na okraji se ještě doplní o jednu
+    //     dlaždici, ať je spojení jednoznačně přes stěnu, ne jen přes roh.
+    private void SmoothMegaIslandShape(int centerX, int centerY, int radius)
+    {
+        int pad = radius + 2;
+        var land = new HashSet<(int, int)>();
+        for (int dx = -pad; dx <= pad; dx++)
+            for (int dy = -pad; dy <= pad; dy++)
+                if (GetTileType(centerX + dx, centerY + dy) == TileType.MegaIsland)
+                    land.Add((centerX + dx, centerY + dy));
+
+        var eroded = land;
+        for (int pass = 0; pass < 2; pass++)
+        {
+            var survivors = new HashSet<(int, int)>();
+            foreach (var t in eroded)
+            {
+                int x = t.Item1, y = t.Item2;
+                if (eroded.Contains((x + 1, y)) && eroded.Contains((x - 1, y)) &&
+                    eroded.Contains((x, y + 1)) && eroded.Contains((x, y - 1)))
+                    survivors.Add(t);
+            }
+            eroded = survivors;
+        }
+
+        // BFS od středu ostrova — ponech jen jeho vlastní souvislé jádro.
+        var core = new HashSet<(int, int)>();
+        var startKey = (centerX, centerY);
+        if (eroded.Contains(startKey))
+        {
+            var queue = new Queue<(int, int)>();
+            queue.Enqueue(startKey);
+            core.Add(startKey);
+            while (queue.Count > 0)
+            {
+                var t = queue.Dequeue();
+                int x = t.Item1, y = t.Item2;
+                var n1 = (x + 1, y); var n2 = (x - 1, y); var n3 = (x, y + 1); var n4 = (x, y - 1);
+                if (eroded.Contains(n1) && core.Add(n1)) queue.Enqueue(n1);
+                if (eroded.Contains(n2) && core.Add(n2)) queue.Enqueue(n2);
+                if (eroded.Contains(n3) && core.Add(n3)) queue.Enqueue(n3);
+                if (eroded.Contains(n4) && core.Add(n4)) queue.Enqueue(n4);
+            }
+        }
+        // Střed sám erozi nepřežil (výjimečně malý/vychýlený ostrov) — nic
+        // bezpečně useknout nejde, nech tvar beze změny.
+        if (core.Count == 0) return;
+
+        var final = core;
+        for (int pass = 0; pass < 2; pass++)
+        {
+            var grown = new HashSet<(int, int)>(final);
+            foreach (var t in final)
+            {
+                int x = t.Item1, y = t.Item2;
+                var n1 = (x + 1, y); var n2 = (x - 1, y); var n3 = (x, y + 1); var n4 = (x, y - 1);
+                if (land.Contains(n1)) grown.Add(n1);
+                if (land.Contains(n2)) grown.Add(n2);
+                if (land.Contains(n3)) grown.Add(n3);
+                if (land.Contains(n4)) grown.Add(n4);
+            }
+            final = grown;
+        }
+
+        for (int dx = -pad; dx < pad; dx++)
+            for (int dy = -pad; dy < pad; dy++)
+            {
+                int x = centerX + dx, y = centerY + dy;
+                bool a = final.Contains((x, y));
+                bool b = final.Contains((x + 1, y + 1));
+                bool c = final.Contains((x + 1, y));
+                bool d = final.Contains((x, y + 1));
+                if (a && b && !c && !d) final.Add((x + 1, y));
+                else if (c && d && !a && !b) final.Add((x, y));
+            }
+
+        // Dlaždice, co po vyčištění změnily stav (pevnina→voda kvůli oříznutí
+        // škrtiny/odděleného kusu, nebo voda→pevnina kvůli diagonální záplatě).
+        foreach (var t in land)
+        {
+            if (final.Contains(t)) continue;
+            string key = GridKey(t.Item1, t.Item2);
+            gameData.tileData[key] = new TileStatus((int)TileType.Water);
+            if (activeTiles.TryGetValue(key, out GameObject old)) { Destroy(old); activeTiles.Remove(key); }
+        }
+        foreach (var t in final)
+        {
+            if (land.Contains(t)) continue;
+            string key = GridKey(t.Item1, t.Item2);
+            gameData.tileData[key] = new TileStatus((int)TileType.MegaIsland);
+            if (activeTiles.TryGetValue(key, out GameObject old)) { Destroy(old); activeTiles.Remove(key); }
+        }
     }
 
     /// <summary>Kde stojí PRVNÍ mega ostrov (Pirátský) pro hráče, který stál na [px, py],

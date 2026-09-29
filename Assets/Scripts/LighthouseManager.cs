@@ -62,7 +62,7 @@ public class LighthouseManager : MonoBehaviour
         var grid = FindFirstObjectByType<GridManager>();
         if (grid != null && grid.gameData != null)
         {
-            if (playerIndex == 0) grid.gameData.isOnFoot = true; // po návratu ať P1 stojí pěšky
+            if (playerIndex == 0) grid.gameData.players[0].isOnFoot = true; // po návratu ať P1 stojí pěšky
             grid.SaveNow(); // odcházíme z hlavní scény — ulož hned
         }
 

@@ -165,27 +165,27 @@ public class GameConsole : MonoBehaviour
         {
             case "money":
                 if (p.Length < 3 || !int.TryParse(p[2], out int coins)) { Log("Použití: get money <částka>"); return; }
-                grid.gameData.coins += coins;
-                Log($"<color=#ffdd44>+{coins} mincí</color>  (celkem: {grid.gameData.coins})");
+                grid.gameData.players[0].coins += coins;
+                Log($"<color=#ffdd44>+{coins} mincí</color>  (celkem: {grid.gameData.players[0].coins})");
                 break;
 
             case "fish":
                 if (p.Length < 3 || !int.TryParse(p[2], out int fish)) { Log("Použití: get fish <počet>"); return; }
-                grid.gameData.fishCount += fish;
-                Log($"<color=#44ddff>+{fish} ryb</color>  (celkem: {grid.gameData.fishCount})");
+                grid.gameData.players[0].fishCount += fish;
+                Log($"<color=#44ddff>+{fish} ryb</color>  (celkem: {grid.gameData.players[0].fishCount})");
                 break;
 
             case "treasure":
                 if (p.Length < 3 || !int.TryParse(p[2], out int tr)) { Log("Použití: get treasure <počet>"); return; }
-                grid.gameData.treasureCount += tr;
-                Log($"<color=#ffaa22>+{tr} pokladů</color>  (celkem: {grid.gameData.treasureCount})");
+                grid.gameData.players[0].treasureCount += tr;
+                Log($"<color=#ffaa22>+{tr} pokladů</color>  (celkem: {grid.gameData.players[0].treasureCount})");
                 break;
 
             case "boat":
                 if (p.Length < 3) { Log("Použití: get boat <row/small/medium/large>"); return; }
                 int level = p[2] == "row" ? 0 : p[2] == "small" ? 1 : p[2] == "medium" ? 2 : p[2] == "large" ? 3 : -1;
                 if (level < 0) { Log("Neznámá loď — použij: row, small, medium, large"); return; }
-                grid.gameData.shipLevel = level;
+                grid.gameData.players[0].shipLevel = level;
                 shipSwitcher?.Apply();
                 Log($"Loď změněna na: <color=#44ff44>{p[2]}</color>");
                 break;
@@ -208,7 +208,8 @@ public class GameConsole : MonoBehaviour
     // Vrací false, když nic nepřidal (chybu si vypíše sám).
     bool HandleGetItem(string[] p)
     {
-        var d = grid.gameData;
+        var d  = grid.gameData;
+        var ps = d.players[0];
         if (p.Length < 3)
         {
             Log("Použití: get item <map / ammo [pocet] / handweapon / handammo [pocet] / histtreasure / sellbonus / megamap>");
@@ -218,20 +219,20 @@ public class GameConsole : MonoBehaviour
         switch (p[2])
         {
             case "map":
-                d.hasMap = true;
+                ps.hasMap = true;
                 Log("<color=#44ddff>Mapa</color> — v lodi klávesa M otevře velkou mapu.");
                 return true;
 
             case "ammo":
                 int n = 20;
                 if (p.Length >= 4) int.TryParse(p[3], out n);
-                d.ammo += n;
-                Log($"<color=#cccccc>+{n} nábojů do děla</color>  (celkem: {d.ammo})");
+                ps.ammo += n;
+                Log($"<color=#cccccc>+{n} nábojů do děla</color>  (celkem: {ps.ammo})");
                 return true;
 
             case "handweapon":
             case "pistol":
-                d.hasHandWeapon = true;
+                ps.hasHandWeapon = true;
                 Log("<color=#cccccc>Zbraň pro boj pěšky</color> — hotbar 1.");
                 return true;
 
@@ -239,8 +240,8 @@ public class GameConsole : MonoBehaviour
             case "pistolammo":
                 int hn = 20;
                 if (p.Length >= 4) int.TryParse(p[3], out hn);
-                d.handAmmo += hn;
-                Log($"<color=#cccccc>+{hn} nábojů do pěší zbraně</color>  (celkem: {d.handAmmo})");
+                ps.handAmmo += hn;
+                Log($"<color=#cccccc>+{hn} nábojů do pěší zbraně</color>  (celkem: {ps.handAmmo})");
                 return true;
 
             case "histtreasure":
@@ -250,20 +251,20 @@ public class GameConsole : MonoBehaviour
                 return true;
 
             case "sellbonus":
-                d.sellBonus = true;
+                ps.sellBonus = true;
                 Log("<color=#66ff66>Trvalý bonus na výkup</color> odemčen.");
                 return true;
 
             case "megamap":
             case "megaquest":
-                if (d.megaQuest.active) { Log("Mega quest už máš rozdělaný."); return false; }
-                d.megaQuest.active      = true;
-                d.megaQuest.dug         = false;
-                d.megaQuest.targetX     = d.playerGridX + 20;
-                d.megaQuest.targetY     = d.playerGridY + 15;
-                d.megaQuest.rewardCoins = 600;
-                d.megaQuest.grantsHistoricalTreasure = true;
-                Log($"<color=#ffcc44>Mega quest (mapa)</color> — poklad na [{d.megaQuest.targetX}, {d.megaQuest.targetY}], historický.");
+                if (ps.megaQuest.active) { Log("Mega quest už máš rozdělaný."); return false; }
+                ps.megaQuest.active      = true;
+                ps.megaQuest.dug         = false;
+                ps.megaQuest.targetX     = ps.gridX + 20;
+                ps.megaQuest.targetY     = ps.gridY + 15;
+                ps.megaQuest.rewardCoins = 600;
+                ps.megaQuest.grantsHistoricalTreasure = true;
+                Log($"<color=#ffcc44>Mega quest (mapa)</color> — poklad na [{ps.megaQuest.targetX}, {ps.megaQuest.targetY}], historický.");
                 return true;
 
             default:
@@ -279,9 +280,9 @@ public class GameConsole : MonoBehaviour
 
         switch (p[1])
         {
-            case "speed":  grid.gameData.hasSpeedUpgrade  = true; Log("✓ <color=#44ff44>Rychlost lodi</color> odemčena"); break;
-            case "rod":    grid.gameData.hasRodUpgrade    = true; Log("✓ <color=#44ff44>Lepší prut</color> odemčen");    break;
-            case "mining": grid.gameData.hasMiningUpgrade = true; Log("✓ <color=#44ff44>Rychlost těžby</color> odemčena"); break;
+            case "speed":  grid.gameData.players[0].hasSpeedUpgrade  = true; Log("✓ <color=#44ff44>Rychlost lodi</color> odemčena"); break;
+            case "rod":    grid.gameData.players[0].hasRodUpgrade    = true; Log("✓ <color=#44ff44>Lepší prut</color> odemčen");    break;
+            case "mining": grid.gameData.players[0].hasMiningUpgrade = true; Log("✓ <color=#44ff44>Rychlost těžby</color> odemčena"); break;
             default: Log($"Neznámý upgrade: {p[1]}  (speed / rod / mining)"); return;
         }
 
@@ -304,15 +305,15 @@ public class GameConsole : MonoBehaviour
     {
         int radius = 25;
         if (p.Length >= 2) int.TryParse(p[1], out radius);
-        grid.MarkAreaExplored(grid.gameData.playerGridX, grid.gameData.playerGridY, radius);
+        grid.MarkAreaExplored(grid.gameData.players[0].gridX, grid.gameData.players[0].gridY, radius);
         Log($"Odkryto oblast {radius * 2 + 1}×{radius * 2 + 1}");
     }
 
     // locate [typ] — vypíše, kde je nejbližší hledaná věc (směr + vzdálenost)
     void HandleLocate(string[] p)
     {
-        int px = grid.gameData.playerGridX;
-        int py = grid.gameData.playerGridY;
+        int px = grid.gameData.players[0].gridX;
+        int py = grid.gameData.players[0].gridY;
 
         // Bez argumentu → vypiš nejbližší od každého druhu.
         if (p.Length < 2)
@@ -351,9 +352,9 @@ public class GameConsole : MonoBehaviour
                 else
                 {
                     // Nastav i waypoint, ať tě k němu na minimapě vede šipka.
-                    grid.gameData.hasWaypoint = true;
-                    grid.gameData.waypointX   = h.Value.x;
-                    grid.gameData.waypointY   = h.Value.y;
+                    grid.gameData.players[0].hasWaypoint = true;
+                    grid.gameData.players[0].waypointX   = h.Value.x;
+                    grid.gameData.players[0].waypointY   = h.Value.y;
                     grid.Save();
                     grid.NotifyWorldChanged();
 
@@ -363,7 +364,7 @@ public class GameConsole : MonoBehaviour
                 break;
             }
             case "quest":
-                var mq = grid.gameData.megaQuest;
+                var mq = grid.gameData.players[0].megaQuest;
                 if (mq != null && mq.active && !mq.dug)
                     ReportNearest("poklad z mapy", new Vector2Int(mq.targetX, mq.targetY), px, py);
                 else
@@ -436,9 +437,9 @@ public class GameConsole : MonoBehaviour
         }
         else if (p[1] == "island")
         {
-            int sx = d.playerGridX + 60, sy = d.playerGridY + 40;
+            int sx = d.players[0].gridX + 60, sy = d.players[0].gridY + 40;
             grid.PlaceMegaIsland(sx, sy);
-            d.storyStep = 2; d.hasWaypoint = true; d.waypointX = sx; d.waypointY = sy;
+            d.storyStep = 2; d.players[0].hasWaypoint = true; d.players[0].waypointX = sx; d.players[0].waypointY = sy;
             grid.Save(); grid.NotifyWorldChanged();
             Log($"Mega ostrov na [{sx}, {sy}], storyStep=2, waypoint nastaven.");
         }
@@ -489,7 +490,7 @@ public class GameConsole : MonoBehaviour
         if (p.Length < 2) { Log("Použití: reset money"); return; }
         if (p[1] == "money")
         {
-            grid.gameData.coins = 0;
+            grid.gameData.players[0].coins = 0;
             grid.Save();
             grid.NotifyWorldChanged();
             Log("Mince vynulovány.");

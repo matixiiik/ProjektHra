@@ -119,8 +119,7 @@ public class RivalNpc : MonoBehaviour
     {
         Data.storyDone   = true;
         Data.storyEnding = ending;
-        if (talkingWith == 0) Data.coins        += EconomyConfig.FamilyTreasureReward;
-        else                  Data.player2Coins += EconomyConfig.FamilyTreasureReward;
+        Data.players[talkingWith].coins += EconomyConfig.FamilyTreasureReward;
         gridManager.Save();
         gridManager.NotifyWorldChanged();
         SoundManager.PlayCoin();
@@ -220,8 +219,8 @@ public class RivalNpc : MonoBehaviour
 
     private void MaybeHint(int playerIndex)
     {
-        int px = playerIndex == 0 ? gridManager.gameData.playerGridX : gridManager.gameData.player2GridX;
-        int py = playerIndex == 0 ? gridManager.gameData.playerGridY : gridManager.gameData.player2GridY;
+        int px = gridManager.gameData.players[playerIndex].gridX;
+        int py = gridManager.gameData.players[playerIndex].gridY;
 
         float dist = Mathf.Max(Mathf.Abs(px - tilePos.x), Mathf.Abs(py - tilePos.y));
         if (dist > HintRange) return;

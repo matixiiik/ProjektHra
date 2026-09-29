@@ -78,8 +78,8 @@ public class StoryNpc : MonoBehaviour
         // nezávisle na StoryStep (ten se po ostrovu 3 už nikam neposouvá).
         if (Data.storyDone) { BuildEndingDialog(); return; }
 
-        int shipLevel  = talkingWith == 0 ? Data.shipLevel : Data.player2ShipLevel;
-        int coins      = talkingWith == 0 ? Data.coins     : Data.player2Coins;
+        int shipLevel  = Data.players[talkingWith].shipLevel;
+        int coins      = Data.players[talkingWith].coins;
 
         // Klávesy se liší podle hráče (P1 = WASD + myš, P2 = šipky + numpad) — děda
         // je říká správně tomu, kdo s ním zrovna mluví. Česky i anglicky zvlášť,
@@ -267,7 +267,7 @@ public class StoryNpc : MonoBehaviour
     {
         if (StoryStep == 0)
         {
-            int shipLevel = talkingWith == 0 ? Data.shipLevel : Data.player2ShipLevel;
+            int shipLevel = Data.players[talkingWith].shipLevel;
             if (shipLevel >= 1) { Data.storyStep = 1; gridManager.Save(); }
         }
         // StoryStep 3 už dialog sám dál neposouvá — to teď dělá postup na
@@ -278,24 +278,23 @@ public class StoryNpc : MonoBehaviour
     // Tlačítko "dát starému námořníkovi 1000 mincí + historický poklad" (krok 1).
     private void GiveToSailor()
     {
-        int coins = talkingWith == 0 ? Data.coins : Data.player2Coins;
+        int coins = Data.players[talkingWith].coins;
         if (coins < PROVE_COST || !Data.hasHistoricalTreasure) return;
 
-        if (talkingWith == 0) Data.coins        -= PROVE_COST;
-        else                  Data.player2Coins -= PROVE_COST;
+        Data.players[talkingWith].coins -= PROVE_COST;
         Data.hasHistoricalTreasure = false;
 
         // Vylosuj daleké místo pro příběhový mega ostrov (deterministicky podle
         // pozice hráče, ať to má každá hra jinde).
-        Vector2Int first = GridManager.FirstMegaIslandPos(Data.playerGridX, Data.playerGridY);
+        Vector2Int first = GridManager.FirstMegaIslandPos(Data.players[0].gridX, Data.players[0].gridY);
         int sx = first.x, sy = first.y;
 
         gridManager.PlaceMegaIsland(sx, sy);
 
         Data.storyStep   = 2;
-        Data.hasWaypoint = true;   // šipka na minimapě povede k ostrovu
-        Data.waypointX   = sx;
-        Data.waypointY   = sy;
+        Data.players[0].hasWaypoint = true;   // šipka na minimapě povede k ostrovu (P1)
+        Data.players[0].waypointX   = sx;
+        Data.players[0].waypointY   = sy;
         gridManager.Save();
         gridManager.NotifyWorldChanged();
         SoundManager.PlayCoin();
@@ -326,7 +325,7 @@ public class StoryNpc : MonoBehaviour
         if (d == null || d.storyStep != 2) return;
 
         d.storyStep   = 3;
-        d.hasWaypoint = false; // cíl splněn
+        d.players[0].hasWaypoint = false; // cíl splněn
         GameSession.Instance.Save();
 
         var grid = FindFirstObjectByType<GridManager>();
@@ -634,8 +633,8 @@ public class StoryNpc : MonoBehaviour
 
     private void MaybeHint(int playerIndex)
     {
-        int px = playerIndex == 0 ? gridManager.gameData.playerGridX : gridManager.gameData.player2GridX;
-        int py = playerIndex == 0 ? gridManager.gameData.playerGridY : gridManager.gameData.player2GridY;
+        int px = gridManager.gameData.players[playerIndex].gridX;
+        int py = gridManager.gameData.players[playerIndex].gridY;
 
         float dist = Mathf.Max(Mathf.Abs(px - tilePos.x), Mathf.Abs(py - tilePos.y));
         if (dist > HintRange) return;

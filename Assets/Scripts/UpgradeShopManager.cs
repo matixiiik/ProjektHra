@@ -95,64 +95,48 @@ public class UpgradeShopManager : MonoBehaviour
     }
 
     // ── Per-buyer přístup k datům (P1 vs P2) ─────────────────────────────────
-    int  Coins()         => buyerIndex == 0 ? Data.coins : Data.player2Coins;
-    void SetCoins(int v)  { if (buyerIndex == 0) Data.coins = v; else Data.player2Coins = v; }
+    PlayerState PS() => Data.players[buyerIndex];
+
+    int  Coins()         => PS().coins;
+    void SetCoins(int v)  => PS().coins = v;
 
     // upgradeType: 0 = speed, 1 = rod (prut), 2 = mining (těžba)
     bool GetUpgrade(int t)
-        => t == 0 ? (buyerIndex == 0 ? Data.hasSpeedUpgrade  : Data.player2HasSpeedUpgrade)
-         : t == 1 ? (buyerIndex == 0 ? Data.hasRodUpgrade    : Data.player2HasRodUpgrade)
-         :          (buyerIndex == 0 ? Data.hasMiningUpgrade : Data.player2HasMiningUpgrade);
+        => t == 0 ? PS().hasSpeedUpgrade
+         : t == 1 ? PS().hasRodUpgrade
+         :          PS().hasMiningUpgrade;
 
     void SetUpgrade(int t, bool v)
     {
-        if (buyerIndex == 0)
-        {
-            if      (t == 0) Data.hasSpeedUpgrade  = v;
-            else if (t == 1) Data.hasRodUpgrade    = v;
-            else             Data.hasMiningUpgrade = v;
-        }
-        else
-        {
-            if      (t == 0) Data.player2HasSpeedUpgrade  = v;
-            else if (t == 1) Data.player2HasRodUpgrade    = v;
-            else             Data.player2HasMiningUpgrade = v;
-        }
+        if      (t == 0) PS().hasSpeedUpgrade  = v;
+        else if (t == 1) PS().hasRodUpgrade    = v;
+        else             PS().hasMiningUpgrade = v;
     }
 
-    int  ShipLevel()         => buyerIndex == 0 ? Data.shipLevel : Data.player2ShipLevel;
-    void SetShipLevel(int v)  { if (buyerIndex == 0) Data.shipLevel = v; else Data.player2ShipLevel = v; }
+    int  ShipLevel()         => PS().shipLevel;
+    void SetShipLevel(int v)  => PS().shipLevel = v;
 
-    int  Ammo()              => buyerIndex == 0 ? Data.ammo : Data.player2Ammo;
-    void AddAmmo(int n)       { if (buyerIndex == 0) Data.ammo += n; else Data.player2Ammo += n; }
+    int  Ammo()              => PS().ammo;
+    void AddAmmo(int n)       => PS().ammo += n;
 
-    // Zbraň pro pěší boj — oddělená od lodní munice (viz GameData.hasHandWeapon/handAmmo).
-    bool HasHandWeapon()      => buyerIndex == 0 ? Data.hasHandWeapon : Data.player2HasHandWeapon;
-    void GiveHandWeapon()     { if (buyerIndex == 0) Data.hasHandWeapon = true; else Data.player2HasHandWeapon = true; }
-    int  HandAmmo()           => buyerIndex == 0 ? Data.handAmmo : Data.player2HandAmmo;
-    void AddHandAmmo(int n)   { if (buyerIndex == 0) Data.handAmmo += n; else Data.player2HandAmmo += n; }
+    // Zbraň pro pěší boj — oddělená od lodní munice (viz GameData.PlayerState.hasHandWeapon/handAmmo).
+    bool HasHandWeapon()      => PS().hasHandWeapon;
+    void GiveHandWeapon()     => PS().hasHandWeapon = true;
+    int  HandAmmo()           => PS().handAmmo;
+    void AddHandAmmo(int n)   => PS().handAmmo += n;
 
-    bool HasMap()             => buyerIndex == 0 ? Data.hasMap : Data.player2HasMap;
-    void GiveMap()            { if (buyerIndex == 0) Data.hasMap = true; else Data.player2HasMap = true; }
+    bool HasMap()             => PS().hasMap;
+    void GiveMap()            => PS().hasMap = true;
 
-    int  BoatHp()            => buyerIndex == 0 ? Data.boatHealth : Data.player2BoatHealth;
-    bool BoatWrecked()       => buyerIndex == 0 ? Data.boatWrecked : Data.player2BoatWrecked;
+    int  BoatHp()            => PS().boatHealth;
+    bool BoatWrecked()       => PS().boatWrecked;
     void FixBoat()
     {
-        if (buyerIndex == 0)
-        {
-            bool wasWrecked = Data.boatWrecked;
-            Data.boatHealth = BoatStats.MaxHealth;
-            Data.boatWrecked = false;
-            if (wasWrecked) Data.boatNeedsRehome = true; // přemístit loď k molu, až se hráč vrátí
-        }
-        else
-        {
-            bool wasWrecked = Data.player2BoatWrecked;
-            Data.player2BoatHealth = BoatStats.MaxHealth;
-            Data.player2BoatWrecked = false;
-            if (wasWrecked) Data.player2BoatNeedsRehome = true;
-        }
+        var ps = PS();
+        bool wasWrecked = ps.boatWrecked;
+        ps.boatHealth = BoatStats.MaxHealth;
+        ps.boatWrecked = false;
+        if (wasWrecked) ps.boatNeedsRehome = true; // přemístit loď k molu, až se hráč vrátí
     }
 
     // ── Nákup vylepšení ─────────────────────────────────────────────────────

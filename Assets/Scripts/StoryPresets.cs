@@ -58,7 +58,7 @@ public static class StoryPresets
             case 2:
                 SetGear(d, 1, false, false);
                 d.storyStep = 1;
-                d.coins = 200;
+                d.players[0].coins = 200;
                 PutOnStartIsland(grid, player);
                 desc = "Startovní ostrov, malá loď. Děda chce 1000 mincí + historický poklad.";
                 break;
@@ -66,7 +66,7 @@ public static class StoryPresets
             case 3:
                 SetGear(d, 2, false, false);
                 d.storyStep = 1;
-                d.coins = 1000;
+                d.players[0].coins = 1000;
                 d.hasHistoricalTreasure = true;
                 PutOnStartIsland(grid, player);
                 desc = "Startovní ostrov, střední loď, historický poklad + 1000 mincí — jde ho odevzdat dědovi.";
@@ -76,7 +76,7 @@ public static class StoryPresets
                 SetGear(d, 2, true, false);
                 PlaceIslands(grid, 0);
                 d.storyStep = 2;
-                d.hasWaypoint = true; d.waypointX = i0.x; d.waypointY = i0.y;
+                d.players[0].hasWaypoint = true; d.players[0].waypointX = i0.x; d.players[0].waypointY = i0.y;
                 PutInBoat(grid, player, i0 - Direction(Vector2Int.zero, i0) * FAR);
                 desc = $"100 políček od Pirátského ostrova [{i0.x}, {i0.y}], střední loď, náboje, zbraň.";
                 break;
@@ -127,7 +127,7 @@ public static class StoryPresets
                 MarkLetter(d, i1);
                 d.ambush1Done = true;
                 d.storyStep = 2;
-                d.hasWaypoint = true; d.waypointX = i2.x; d.waypointY = i2.y;
+                d.players[0].hasWaypoint = true; d.players[0].waypointX = i2.x; d.players[0].waypointY = i2.y;
                 PutInBoat(grid, player, i2 - Direction(i1, i2) * FAR);
                 desc = $"100 políček od posledního ostrova [{i2.x}, {i2.y}] — Bludný Holanďan zaútočí hned po vyplutí.";
                 break;
@@ -162,25 +162,26 @@ public static class StoryPresets
         d.storyDone = false; d.storyEnding = 0;
         d.hasLetter = false; d.letterX = 0; d.letterY = 0;
         d.routeStartSet = false; d.routeStartX = 0; d.routeStartY = 0;
-        d.hasWaypoint = false;
-        d.boatWrecked = false; d.boatNeedsRehome = false;
-        d.boatHealth = 100; d.playerHealth = 100;
-        d.activeHotbarSlot = -1;
+        d.players[0].hasWaypoint = false;
+        d.players[0].boatWrecked = false; d.players[0].boatNeedsRehome = false;
+        d.players[0].boatHealth = 100; d.players[0].playerHealth = 100;
+        d.players[0].activeHotbarSlot = -1;
     }
 
     // Výbava hráče 1: loď, mapa, případně náboje + zbraň a všechna vylepšení.
     private static void SetGear(GameData d, int shipLevel, bool ammoAndWeapon, bool fullUpgrades)
     {
-        d.shipLevel = shipLevel;
-        d.hasMap = true; // mapa je u všech částí příběhu
+        var ps = d.players[0];
+        ps.shipLevel = shipLevel;
+        ps.hasMap = true; // mapa je u všech částí příběhu
 
-        d.hasHandWeapon = ammoAndWeapon;
-        d.ammo          = ammoAndWeapon ? 80 : 0;
-        d.handAmmo      = ammoAndWeapon ? 80 : 0;
+        ps.hasHandWeapon = ammoAndWeapon;
+        ps.ammo          = ammoAndWeapon ? 80 : 0;
+        ps.handAmmo      = ammoAndWeapon ? 80 : 0;
 
-        d.hasSpeedUpgrade = d.hasRodUpgrade = d.hasMiningUpgrade = fullUpgrades;
-        d.sellBonus = fullUpgrades;
-        if (fullUpgrades) d.coins = Mathf.Max(d.coins, 500);
+        ps.hasSpeedUpgrade = ps.hasRodUpgrade = ps.hasMiningUpgrade = fullUpgrades;
+        ps.sellBonus = fullUpgrades;
+        if (fullUpgrades) ps.coins = Mathf.Max(ps.coins, 500);
     }
 
     // Dopis z trezoru je přečtený (hádanka s polohou Hřbitova lodí, jde znovu přečíst v Deníku).
@@ -251,30 +252,30 @@ public static class StoryPresets
     // Hráč pěšky na startovním ostrově, loď (veslice…) stojí ve vodě u mola.
     private static void PutOnStartIsland(GridManager grid, PlayerController player)
     {
-        var d = grid.gameData;
+        var ps = grid.gameData.players[0];
         player.TeleportTo(0, 0); // vygeneruje svět kolem počátku
 
         Vector2Int spot = grid.NearestHarborTile(0, 0) ?? Vector2Int.zero;
         var water = grid.FindWaterNextTo(spot.x, spot.y);
 
-        d.playerGridX = spot.x; d.playerGridY = spot.y;
-        d.boatGridX = water != null ? water.Value.x : spot.x;
-        d.boatGridY = water != null ? water.Value.y : spot.y;
-        d.isOnFoot = true;
+        ps.gridX = spot.x; ps.gridY = spot.y;
+        ps.boatGridX = water != null ? water.Value.x : spot.x;
+        ps.boatGridY = water != null ? water.Value.y : spot.y;
+        ps.isOnFoot = true;
         player.ReloadFromData();
     }
 
     // Hráč v lodi na vodním políčku nejblíž danému bodu.
     private static void PutInBoat(GridManager grid, PlayerController player, Vector2 point)
     {
-        var d = grid.gameData;
+        var ps = grid.gameData.players[0];
         int x = Mathf.RoundToInt(point.x), y = Mathf.RoundToInt(point.y);
         player.TeleportTo(x, y); // vygeneruje svět kolem cíle, ať je kde hledat vodu
 
         Vector2Int spot = FindWater(grid, x, y);
-        d.playerGridX = spot.x; d.playerGridY = spot.y;
-        d.boatGridX   = spot.x; d.boatGridY   = spot.y;
-        d.isOnFoot = false;
+        ps.gridX = spot.x; ps.gridY = spot.y;
+        ps.boatGridX = spot.x; ps.boatGridY = spot.y;
+        ps.isOnFoot = false;
         player.ReloadFromData();
     }
 

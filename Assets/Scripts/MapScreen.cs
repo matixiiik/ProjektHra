@@ -69,9 +69,7 @@ public class MapScreen : MonoBehaviour
         instance.grid  = g;
 
         var d = g.gameData;
-        instance.centerTile = new Vector2(
-            playerIndex == 0 ? d.playerGridX : d.player2GridX,
-            playerIndex == 0 ? d.playerGridY : d.player2GridY);
+        instance.centerTile = new Vector2(d.players[playerIndex].gridX, d.players[playerIndex].gridY);
         instance.zoom  = 0.45f;
         instance.dirty = true;
         IsOpen = true;
@@ -123,7 +121,7 @@ public class MapScreen : MonoBehaviour
 
         // Klávesy, které mapu zavírají, jsou pro každého hráče jiné.
         string closeKeys = owner == 0 ? "M / Esc" : "Numpad2 / NumpadEnter";
-        bool hasWp = owner == 0 ? grid.gameData.hasWaypoint : grid.gameData.player2HasWaypoint;
+        bool hasWp = grid.gameData.players[owner].hasWaypoint;
         GUI.Label(new Rect(halfX, mapRect.yMax + 34f, halfW, 24f),
             hasWp ? Loc.T($"cíl nastaven — vede tě k němu azurová šipka na minimapě  ({closeKeys} = zavřít)",
                           $"target set — the cyan arrow on the minimap leads you there  ({closeKeys} = close)")
@@ -210,26 +208,17 @@ public class MapScreen : MonoBehaviour
     {
         ScreenToTile(mouse, mapRect, out int tileX, out int tileY);
 
-        var d = grid.gameData;
-        bool hadWp = owner == 0 ? d.hasWaypoint : d.player2HasWaypoint;
-        int  wx    = owner == 0 ? d.waypointX   : d.player2WaypointX;
-        int  wy    = owner == 0 ? d.waypointY   : d.player2WaypointY;
+        var ps = grid.gameData.players[owner];
+        bool hadWp = ps.hasWaypoint;
+        int  wx    = ps.waypointX;
+        int  wy    = ps.waypointY;
 
         // Klik na stávající cíl (±1) = zrušení.
         bool clear = hadWp && Mathf.Abs(tileX - wx) <= 1 && Mathf.Abs(tileY - wy) <= 1;
 
-        if (owner == 0)
-        {
-            d.hasWaypoint = !clear;
-            d.waypointX   = tileX;
-            d.waypointY   = tileY;
-        }
-        else
-        {
-            d.player2HasWaypoint = !clear;
-            d.player2WaypointX   = tileX;
-            d.player2WaypointY   = tileY;
-        }
+        ps.hasWaypoint = !clear;
+        ps.waypointX   = tileX;
+        ps.waypointY   = tileY;
 
         SoundManager.PlayClick();
         grid.Save();
@@ -261,17 +250,13 @@ public class MapScreen : MonoBehaviour
         }
 
         // Značky.
-        StampCross(d.playerGridX, d.playerGridY, Color.white, 3);
+        StampCross(d.players[0].gridX, d.players[0].gridY, Color.white, 3);
         if (MultiplayerManager.IsMultiplayer)
-            StampCross(d.player2GridX, d.player2GridY, new Color(1f, 0.5f, 0f), 3);
+            StampCross(d.players[1].gridX, d.players[1].gridY, new Color(1f, 0.5f, 0f), 3);
 
-        bool hasWp = owner == 0 ? d.hasWaypoint : d.player2HasWaypoint;
-        if (hasWp)
-        {
-            int wx = owner == 0 ? d.waypointX : d.player2WaypointX;
-            int wy = owner == 0 ? d.waypointY : d.player2WaypointY;
-            StampCross(wx, wy, new Color(0.3f, 0.95f, 0.95f), 4);
-        }
+        var ownerPs = d.players[owner];
+        if (ownerPs.hasWaypoint)
+            StampCross(ownerPs.waypointX, ownerPs.waypointY, new Color(0.3f, 0.95f, 0.95f), 4);
 
         tex.SetPixels(buf);
         tex.Apply(false);

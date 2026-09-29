@@ -204,15 +204,15 @@ public class HUDCounter : MonoBehaviour
                 if (pc.playerIndex == playerIndex) { hbPlayer = pc; break; }
 
         GameData d = grid.gameData;
-        bool p1        = playerIndex == 0;
-        bool onFoot    = hbPlayer != null ? hbPlayer.IsOnFoot : d.isOnFoot;
-        bool hasWeapon = p1 ? d.hasHandWeapon : d.player2HasHandWeapon;
-        bool hasCannon = BoatStats.HasCannon(p1 ? d.shipLevel : d.player2ShipLevel);
+        PlayerState ps = d.players[playerIndex];
+        bool onFoot    = hbPlayer != null ? hbPlayer.IsOnFoot : ps.isOnFoot;
+        bool hasWeapon = ps.hasHandWeapon;
+        bool hasCannon = BoatStats.HasCannon(ps.shipLevel);
         bool treasure  = d.hasHistoricalTreasure;
-        int  boatAmmo  = p1 ? d.ammo     : d.player2Ammo;
-        int  handAmmo  = p1 ? d.handAmmo : d.player2HandAmmo;
+        int  boatAmmo  = ps.ammo;
+        int  handAmmo  = ps.handAmmo;
         // V lodi nemá hráč nic v ruce (kód ovládání slot v lodi vynuluje).
-        int  slot      = onFoot ? (p1 ? d.activeHotbarSlot : d.player2ActiveHotbarSlot) : -1;
+        int  slot      = onFoot ? ps.activeHotbarSlot : -1;
 
         if (!hbDirty && hasWeapon == hbLastWeapon && hasCannon == hbLastCannon && treasure == hbLastTreasure
             && onFoot == hbLastFoot && boatAmmo == hbLastBoatAmmo && handAmmo == hbLastHandAmmo
@@ -511,15 +511,16 @@ public class HUDCounter : MonoBehaviour
         GameData d = grid.gameData;
 
         // Vyber čísla podle toho, jestli jsme P1 nebo P2.
-        int fish     = playerIndex == 0 ? d.fishCount     : d.player2FishCount;
-        int treasure = playerIndex == 0 ? d.treasureCount : d.player2TreasureCount;
-        int coins    = playerIndex == 0 ? d.coins         : d.player2Coins;
-        ActiveQuest q = playerIndex == 0 ? d.activeQuest   : d.player2ActiveQuest;
+        PlayerState ps = d.players[playerIndex];
+        int fish      = ps.fishCount;
+        int treasure  = ps.treasureCount;
+        int coins     = ps.coins;
+        ActiveQuest q = ps.activeQuest;
 
-        MegaQuest mq = playerIndex == 0 ? d.megaQuest : d.player2MegaQuest;
+        MegaQuest mq = ps.megaQuest;
 
-        int gx = playerIndex == 0 ? d.playerGridX : d.player2GridX;
-        int gy = playerIndex == 0 ? d.playerGridY : d.player2GridY;
+        int gx = ps.gridX;
+        int gy = ps.gridY;
 
         fishText.text     = Loc.T("Ryby: ",   "Fish: ")     + fish;
         treasureText.text = Loc.T("Poklady: ", "Treasure: ") + treasure;

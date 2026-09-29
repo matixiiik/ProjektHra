@@ -5,7 +5,7 @@ using UnityEngine;
 //  Na jednom místě: co která úroveň lodě umí. Loď se kupuje v obchodě
 //  (UpgradeShopManager) a KAŽDÁ vyšší úroveň je znatelně lepší než předchozí.
 //
-//  Úrovně (gameData.shipLevel / player2ShipLevel):
+//  Úrovně (gameData.players[i].shipLevel):
 //     0 = veslice ("boat row small")  — s tou hra začíná, je pomalá
 //     1 = malá plachetnice            — normální rychlost
 //     2 = střední loď                 — +25 % rychlost, rychlejší těžba

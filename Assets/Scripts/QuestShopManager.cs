@@ -103,16 +103,18 @@ public class QuestShopManager : MonoBehaviour
     }
 
     // ── Per-buyer přístup k datům (P1 vs P2) ─────────────────────────────────
-    int         GetCoins()         => buyerIndex == 0 ? Data.coins         : Data.player2Coins;
-    void        SetCoins(int v)    { if (buyerIndex == 0) Data.coins = v;         else Data.player2Coins = v; }
-    int         GetFish()          => buyerIndex == 0 ? Data.fishCount     : Data.player2FishCount;
-    void        SetFish(int v)     { if (buyerIndex == 0) Data.fishCount = v;     else Data.player2FishCount = v; }
-    int         GetTreasure()      => buyerIndex == 0 ? Data.treasureCount : Data.player2TreasureCount;
-    void        SetTreasure(int v) { if (buyerIndex == 0) Data.treasureCount = v; else Data.player2TreasureCount = v; }
-    ActiveQuest GetQuest()         => buyerIndex == 0 ? Data.activeQuest    : Data.player2ActiveQuest;
-    MegaQuest   GetMega()          => buyerIndex == 0 ? Data.megaQuest      : Data.player2MegaQuest;
-    bool        HasSellBonus()     => buyerIndex == 0 ? Data.sellBonus      : Data.player2SellBonus;
-    void        GiveSellBonus()    { if (buyerIndex == 0) Data.sellBonus = true; else Data.player2SellBonus = true; }
+    PlayerState PS() => Data.players[buyerIndex];
+
+    int         GetCoins()         => PS().coins;
+    void        SetCoins(int v)    => PS().coins = v;
+    int         GetFish()          => PS().fishCount;
+    void        SetFish(int v)     => PS().fishCount = v;
+    int         GetTreasure()      => PS().treasureCount;
+    void        SetTreasure(int v) => PS().treasureCount = v;
+    ActiveQuest GetQuest()         => PS().activeQuest;
+    MegaQuest   GetMega()          => PS().megaQuest;
+    bool        HasSellBonus()     => PS().sellBonus;
+    void        GiveSellBonus()    => PS().sellBonus = true;
 
     // Výkupní ceny — po splnění mega questu trvale bonus za kus.
     int FishPrice()     => EconomyConfig.FishPrice     + (HasSellBonus() ? EconomyConfig.SellBonusPerItem : 0);

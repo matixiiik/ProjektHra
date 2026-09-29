@@ -69,13 +69,63 @@ public class MegaQuest
 }
 
 /// <summary>
+/// Jeden hráč (ekonomika, loď, výbava). `GameData.players[0]` = P1,
+/// `players[1]` = P2 (P2 se používá jen v multiplayeru). Nahrazuje starší
+/// dvojici polí "xxx"/"player2Xxx" přímo v GameData — nový kód čte/zapisuje
+/// VÝHRADNĚ přes tohle pole (viz GameData.players, SaveManager.MigrateIfNeeded).
+/// </summary>
+[Serializable]
+public class PlayerState
+{
+    public int  gridX;             // pozice hráče na mřížce (X)
+    public int  gridY;             // pozice hráče na mřížce (Y)
+    public bool isOnFoot;          // true = hráč je pěšky na ostrově, ne v lodi
+    public int  boatGridX;         // kde nechal zakotvenou loď (X)
+    public int  boatGridY;         // kde nechal zakotvenou loď (Y)
+    public int  coins;             // mince
+    public int  fishCount;         // nalovené ryby (k prodeji)
+    public int  treasureCount;     // vytěžené poklady (k prodeji)
+    public bool hasSpeedUpgrade;   // koupená rychlost lodě (pohyb o 2 pole)
+    public bool hasRodUpgrade;     // koupený lepší prut (2 ryby na zátah)
+    public bool hasMiningUpgrade;  // koupená rychlejší těžba
+    public int  shipLevel;         // loď: 0=veslice (start), 1=malá plachetnice, 2=střední, 3=velká (viz BoatStats)
+    public bool sellBonus;         // trvalý bonus k výkupním cenám (odměna za mega quest)
+    public int  boatHealth   = 100;// zdraví lodě (0–100); opravuje se v přístavu / obchodě
+    public int  playerHealth = 100;// zdraví hráče (0–100); 0 = smrt (respawn / menu)
+    public bool boatWrecked;       // loď je rozbitá → hráč plave ve vodě, dokud ji neopraví v obchodě
+    public bool boatNeedsRehome;   // po opravě rozbité lodě: přemístit ji k nejbližšímu molu
+    public int  ammo;              // náboje do děla na lodi (kupují se v obchodě)
+    public bool hasMap;            // koupená mapa → klávesa M v lodi otevře velkou mapu
+    public bool hasWaypoint;       // hráč si na mapě klikl cíl (navádí šipka na minimapě)
+    public int  waypointX;         // souřadnice cíle (X)
+    public int  waypointY;         // souřadnice cíle (Y)
+    public ActiveQuest activeQuest = new ActiveQuest();
+    public MegaQuest   megaQuest   = new MegaQuest();
+    public List<string> openedChests = new List<string>(); // klíče "x,y" už otevřených beden
+
+    // Zbraň panáčka (pěší boj) + hotbar — viz komentář u starých polí níž
+    // v GameData, proč jsou tu zvlášť za ostatními.
+    public bool hasHandWeapon;
+    public int  handAmmo;
+    public int  activeHotbarSlot;      // 0=zbraň, 1=munice (jen zobrazení), 2=historický poklad (jen když ho hráč má)
+}
+
+/// <summary>
 /// Veškerý ukládaný stav hry. Jeden objekt = jeden save slot.
-/// Pole "player2..." se používají jen v multiplayeru (split screen).
 /// </summary>
 [Serializable]
 public class GameData
 {
-    // ── Hráč 1 — pozice a ekonomika ───────────────────────────────────────────
+    // ── Hráči (P1 = index 0, P2 = index 1) ────────────────────────────────────
+    // Jediný zdroj pravdy pro P1/P2 ekonomiku a výbavu — VŠECHEN nový kód čte
+    // a zapisuje přes tohle pole (players[playerIndex]), ne přes staré ploché
+    // "xxx"/"player2Xxx" fieldy níž. Ty zůstávají v třídě jen kvůli migraci
+    // starých savů (saveVersion < 2, viz SaveManager.MigrateIfNeeded) — po
+    // migraci se už nikdy nečtou ani nezapisují, jsou to "zkamenělá" data.
+    public PlayerState[] players = new PlayerState[] { new PlayerState(), new PlayerState() };
+    // ── LEGACY — jen zdroj pro jednorázovou migraci starých savů do `players[0]`
+    // (SaveManager.MigrateIfNeeded, saveVersion < 2). Nový kód s tímhle NEPRACUJE,
+    // viz `players` výš. Nemazat — staré savy bez migrace by přišly o postup.
     public int  playerGridX;       // pozice hráče na mřížce (X)
     public int  playerGridY;       // pozice hráče na mřížce (Y)
     public int  coins;             // mince
@@ -117,7 +167,7 @@ public class GameData
     public int  storyNpcX;             // políčko dědy (X)
     public int  storyNpcY;             // políčko dědy (Y)
 
-    // ── Hráč 2 — oddělená ekonomika (jen multiplayer) ─────────────────────────
+    // ── LEGACY — zdroj pro migraci do `players[1]`, viz komentář u hráče 1 výš.
     public int  player2GridX;
     public int  player2GridY;
     public bool player2IsOnFoot;    // true = P2 je pěšky na ostrově, ne v lodi
@@ -169,14 +219,8 @@ public class GameData
     public int  letterX;        // souřadnice ostrova, ze kterých se skládá hádanka v dopise
     public int  letterY;
 
-    // ── Zbraň panáčka (pěší boj) + hotbar ─────────────────────────────────────
-    // Zbraň se kupuje v obchodě s vylepšeními a střílí se jí PĚŠKY (na rozdíl
-    // od `ammo`, což je munice do LODNÍHO děla — viz PlayerController.TryShoot
-    // vs. TryShootOnFoot). Hotbar má 3 sloty (klávesy 1/2/3 u P1, viz
-    // PlayerController): 0 = zbraň (jediný slot, co se dá reálně použít —
-    // LMB/Numpad* střílí, jen když je vybraný a hráč má zbraň i munici),
-    // 1 = munice (jen zobrazení stavu), 2 = historický poklad (jen když ho
-    // hráč má — hasHistoricalTreasure).
+    // ── LEGACY (zbraň panáčka + hotbar) — zdroj pro migraci, viz výš. Bývala tu
+    // samostatná sekce, protože se přidala později (staré savy ji dřív neměly).
     public bool hasHandWeapon;
     public int  handAmmo;
     public int  activeHotbarSlot;      // 0/1/2, viz výše
@@ -190,7 +234,7 @@ public class GameData
     // významu existujícího pole — NE prosté přidání nového pole na konec, to
     // JsonUtility zvládne samo doplněním výchozí hodnoty). Migrace se dělá
     // v SaveManager.LoadGame().
-    public const int CURRENT_SAVE_VERSION = 1;
+    public const int CURRENT_SAVE_VERSION = 2; // v2: P1/P2 sjednoceno do `players[]`, viz SaveManager.MigrateIfNeeded
     public int  saveVersion = CURRENT_SAVE_VERSION; // staré savy (bez pole) se načtou jako 0 = "před verzováním"
 }
 

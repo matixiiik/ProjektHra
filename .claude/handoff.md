@@ -8,6 +8,52 @@ sem Claude píše, kde se přestalo, aby se dalo pokračovat i z notebooku.
 
 ---
 
+## STAV 2026-09-29 — Fáze 5 (mělčina) dodělaná a ZMERGOVANÁ do main
+(PR #3, merge commit `02f03c4`; feature commit `38bfb1c` na smazané větvi
+`fáze5-melcina-pobrezi`). Předchozí session (28. 9.) fázi 5 popsala jen jako
+"schod mezi pískem a dnem opraven, mělčina/pěna zbývá" — tahle session tu
+mělčinu dodělala.
+
+Jeden průsvitný tyrkysový pás mělké vody kolem každého ostrova
+(`IslandTerrain.BuildShallow`, nový GameObject "IslandShallow <klíč>" pod
+terénem ostrova). Zároveň drobná korekce: `SeaFloor.SHELF_Y` teď přesně
+navazuje na `IslandTerrain.DEEP_Y + Y_OFFSET` (nový veřejný
+`IslandTerrain.Y_OFFSET = -0.1f` — posun rodičovského GameObjectu terénu
+ostrova, dřív se na něj zapomnělo, takže zůstával drobný 0,1 j zbytkový schod
+z předešlé opravy).
+
+**Dvě slepé uličky zapsané, ať se příště nezkouší znovu:**
+1. Původní plán (úzká pěna u břehu + širší mělčina za ní, dva pásy) nejde na
+   týhle mřížce terénu (`RES=0,5`) spolehlivě udělat — `NearestLandDist` roste
+   od pobřeží po skocích (0 → 0,5 → 0,7 → 0,9…), takže pás užší než ~1 j buď
+   nemá žádný čtverec se všemi 4 rohy uvnitř (mesh = 0 vrcholů), nebo musí
+   sahat k `dist==0`, což znamená "kdekoli uvnitř pevniny" (ne jen pobřeží) —
+   pak pás pokryje celý vnitřek ostrova (viděno v Play: mělčina prorazila i
+   nad trávou, celý ostrov zbělal). Řešení: jeden širší pás (0,3–1,4 j od
+   břehu), bezpečně mimo pevninu.
+2. Ruční přepnutí čerstvého Lit/Unlit materiálu do průhledného URP režimu
+   (`_Surface`, `_SrcBlend`/`_DstBlend`, keywords) vycházelo v Play skoro
+   neprůhledně bíle, ať byla alpha/shader/smoothness jakýkoli — vyzkoušeno
+   Lit i Unlit, obojí stejný výsledek, hodiny ladění. Skutečná příčina:
+   materiál ležel jen 0,02 j nad pískem → z-fighting s opakovou pískovou
+   vrstvou (ověřeno diagnostikou: po zvednutí o 2 j se STEJNÝ materiál ukázal
+   správně průsvitný). Oprava: `OVERLAY_LIFT=0.12` + materiál je klon
+   `waterPrefab` (stejný recept jako `OceanSurface.Init`, prokazatelně
+   funkční), ne skládaný od nuly přes ruční nastavení blend stavu.
+
+Ověřeno v Play (UnityMCP): běžný ostrov i velký mega ostrov (Pirátská
+pevnost) — subtilní tyrkysový lem u paty zdí/pláže, žádný bílý zákal,
+tráva/písek beze změny, 0 chyb v Console, frame time srovnatelný s dřívějším
+měřením (~13 ms). Dotčené soubory: `IslandTerrain.cs`, `GridManager.cs`,
+`SeaFloor.cs`.
+
+**Zbývá:** fáze 6 zbytek (static batching hradeb, throttling
+`HostileIslandCannon`/`PirateShip.Update` mimo dosah, rozložení
+`IslandTerrain.Build/BuildGrass/BuildShallow` přes korutinu) — vyšší riziko,
+víc zásahů do kódu, dělá se teď.
+
+---
+
 ## STAV 2026-09-28 — Napady2.txt fáze 1–6 hotové, ověřené v Unity a ZMERGOVANÉ do main
 (PR #2, merge commit `53dee82`; feature commit `39dc4c0` na smazané větvi
 `napady2-story-presets-polish`). Detail průběhu a rozpad na fáze:

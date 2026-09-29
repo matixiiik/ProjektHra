@@ -8,6 +8,26 @@ sem Claude píše, kde se přestalo, aby se dalo pokračovat i z notebooku.
 
 ---
 
+## STAV 2026-09-29 (večer) — Napady2.txt KOMPLETNÍ, poslední položka fáze 6 hotová
+(PR #7, merge `b5fdf79`.) Uživatel po zneplatnění tokenu řekl "ať se do toho
+pustíš teď" na poslední zbývající položku.
+
+**`IslandTerrain.Build/BuildGrass/BuildShallow` přes korutinu** —
+`GridManager.EnsureIslandTerrain` stavěl 3 stejně drahé heightfield meshe
+(písek, tráva, mělčina) v jednom snímku. Písek se teď staví hned synchronně
+(ostrov se objeví okamžitě), tráva a mělčina přes novou korutinu
+`BuildIslandExtrasNextFrames` o snímek/dva později. Pojistka
+(`if (go == null) yield break` po každém `yield return`) proti zániku
+ostrova uprostřed běhu (hráč rychle odpluje, `CleanupIslandTerrains` zasáhne
+dřív) — **přímo otestováno** ručním zničením objektu uprostřed korutiny,
+0 výjimek. Ověřeno na běžném i mega ostrově (Pirátská pevnost), žádná
+vizuální změna, static batching hradeb beze změny funkční.
+
+**Tohle byla poslední položka z celého `Napady2.txt` (~35bodový seznam
+uživatele, fáze 1–6). Plán je teď KOMPLETNÍ — nic z něj nezbývá.**
+
+---
+
 ## STAV 2026-09-29 (pozdě) — Fáze 6 zbytek (2 ze 3) ZMERGOVÁN do main
 (PR #5, merge `93a0c39`.) Uživatel řekl "udělej to nejlíp sám" pro zbývající
 body 1–4 z dřívějšího návrhu (merge fáze 5, dokumentace, token cleanup, fáze 6).

@@ -65,10 +65,17 @@ ostrově). Podporuje lokální split-screen pro dva hráče.
   — nesmí ostrov rozdělit ani stát u mola), s 25 % šancí bedna, klidná zóna
   `SPAWN_ISLAND_CLEARANCE=25` (žádné ryby/vraky/piráti blízko). ~40 % ostrovů je
   **nepřátelských** (`gameData.hostileIslands`) — mají dělo (`HostileIslandCannon`).
-- Hladký terén ostrova = generovaný mesh (`IslandTerrain.Build` + `BuildGrass`).
-  `IslandTerrain.DEEP_Y` (kam se svažuje pláž pod hladinu) je **public** záměrně —
-  `SeaFloor.SHELF_Y` (dno hned u ostrova) na něj navazuje, aby mezi koncem pláže
-  a mořským dnem nevznikl viditelný schod/hrana.
+- Hladký terén ostrova = generovaný mesh (`IslandTerrain.Build` + `BuildGrass` +
+  `BuildShallow`). `IslandTerrain.DEEP_Y` (kam se svažuje pláž pod hladinu) a
+  `Y_OFFSET` (posun rodičovského GameObjectu terénu ostrova v ose Y) jsou
+  **public** záměrně — `SeaFloor.SHELF_Y` (dno hned u ostrova) navazuje na
+  `DEEP_Y + Y_OFFSET`, aby mezi koncem pláže a mořským dnem nevznikl viditelný
+  schod/hrana. `BuildShallow` staví jeden průsvitný tyrkysový pás mělké vody
+  (`GameObject "IslandShallow <klíč>"`, materiál = klon `waterPrefab`, ne
+  skládaný od nuly — ruční přepnutí čerstvého Lit/Unlit materiálu do
+  průhledného režimu v Play vycházelo skoro neprůhledně bíle kvůli z-fightingu
+  s pískem). Pás je jen jeden, širší (0,3–1,4 j od břehu) — dva tenké pásy vedle
+  sebe (pěna + mělčina) na týhle mřížce terénu (`RES=0,5`) spolehlivě nejdou.
 - `OnWorldChanged` event → překreslení HUD, minimapy.
 - **Mega ostrovy** (`PlaceMegaIsland`, typ `MegaIsland`) — velké příběhové ostrovy,
   vždy aktivní nejvýš jeden. `MegaIslandMarker.megaIndex` (0-2) určuje obsah:

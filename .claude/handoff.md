@@ -8,6 +8,34 @@ sem Claude píše, kde se přestalo, aby se dalo pokračovat i z notebooku.
 
 ---
 
+## STAV 2026-09-29 (pozdě) — Fáze 6 zbytek (2 ze 3) ZMERGOVÁN do main
+(PR #5, merge `93a0c39`.) Uživatel řekl "udělej to nejlíp sám" pro zbývající
+body 1–4 z dřívějšího návrhu (merge fáze 5, dokumentace, token cleanup, fáze 6).
+
+**1. Static batching hradeb** (`MegaIslandMarker.BuildWalls`, 102 dílů →
+`StaticBatchingUtility.Combine`). Půlhodinové pátrání po tom, proč se
+`isPartOfStaticBatch` nenastavilo — volání hned po `Instantiate` (i o víc
+snímků později přes `yield return null`) v Play nefungovalo, fungovalo až
+`yield return new WaitForEndOfFrame()`. Zapsáno do kódu i sem, ať se příště
+nezkouší znovu ta samá slepá ulička.
+
+**2. Throttling `PirateShip.Update`** — neaktivní piráti (nikdy nezaútočili,
+nejsou hlídka/lovec) dál než 70 j od hráče se aktualizují jen 1 snímek ze 4.
+
+**3. NEUDĚLÁNO záměrně:** `HostileIslandCannon` throttling (už má early-return,
+nic dalšího drahého tam není) a hlavně **rozložení `IslandTerrain.Build/
+BuildGrass/BuildShallow` přes korutinu** — nejinvazivnější položka z celého
+seznamu (mění časování generování světa), záměrně odloženo na samostatnou
+session s prostorem na pořádné otestování.
+
+**Vedlejší práce tuhle session:**
+- Fáze 5 (mělčina) i dnešní fáze 6 dokumentace zmergovány (viz záznam níž).
+- **Token v URL remote origin** — krok 1 (Claude) hotový: `origin` přepnutý na
+  URL bez tokenu (`gh auth setup-git`, push/fetch ověřené). Krok 2 (zneplatnit
+  starý token na GitHubu) čeká na uživatele — Claude to udělat nemůže.
+
+---
+
 ## STAV 2026-09-29 — Fáze 5 (mělčina) dodělaná a ZMERGOVANÁ do main
 (PR #3, merge commit `02f03c4`; feature commit `38bfb1c` na smazané větvi
 `fáze5-melcina-pobrezi`). Předchozí session (28. 9.) fázi 5 popsala jen jako

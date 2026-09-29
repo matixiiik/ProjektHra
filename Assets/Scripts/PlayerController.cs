@@ -67,82 +67,84 @@ public class PlayerController : MonoBehaviour
 
     public bool IsOnFoot => isOnFoot;
 
-    // ── Routování pozice do správných polí GameData (P1 vs P2) ───────────────
+    // ── Routování do GameData.players[playerIndex] (P1 = 0, P2 = 1) ─────────
+    // Dřív dvojice polí "xxx"/"player2Xxx" + ternary v každé property — teď
+    // jeden indexer do GameData.players (viz GameData.PlayerState). Nová
+    // per-hráč hodnota tak stačí přidat jen na 2 místa (PlayerState + tahle
+    // property, pokud ji volající kód potřebuje), ne na 3.
+    PlayerState PS => gridManager.gameData.players[playerIndex];
+
     int GridX
     {
-        get => playerIndex == 0 ? gridManager.gameData.playerGridX : gridManager.gameData.player2GridX;
-        set { if (playerIndex == 0) gridManager.gameData.playerGridX = value; else gridManager.gameData.player2GridX = value; }
+        get => PS.gridX;
+        set => PS.gridX = value;
     }
     int GridY
     {
-        get => playerIndex == 0 ? gridManager.gameData.playerGridY : gridManager.gameData.player2GridY;
-        set { if (playerIndex == 0) gridManager.gameData.playerGridY = value; else gridManager.gameData.player2GridY = value; }
+        get => PS.gridY;
+        set => PS.gridY = value;
     }
 
     // ── Routování ekonomiky a upgradů (P1 vs P2) ────────────────────────────
     int PCoins
     {
-        get => playerIndex == 0 ? gridManager.gameData.coins : gridManager.gameData.player2Coins;
-        set { if (playerIndex == 0) gridManager.gameData.coins = value; else gridManager.gameData.player2Coins = value; }
+        get => PS.coins;
+        set => PS.coins = value;
     }
     int PFishCount
     {
-        get => playerIndex == 0 ? gridManager.gameData.fishCount : gridManager.gameData.player2FishCount;
-        set { if (playerIndex == 0) gridManager.gameData.fishCount = value; else gridManager.gameData.player2FishCount = value; }
+        get => PS.fishCount;
+        set => PS.fishCount = value;
     }
     int PTreasureCount
     {
-        get => playerIndex == 0 ? gridManager.gameData.treasureCount : gridManager.gameData.player2TreasureCount;
-        set { if (playerIndex == 0) gridManager.gameData.treasureCount = value; else gridManager.gameData.player2TreasureCount = value; }
+        get => PS.treasureCount;
+        set => PS.treasureCount = value;
     }
-    bool PHasRodUpgrade    => playerIndex == 0 ? gridManager.gameData.hasRodUpgrade    : gridManager.gameData.player2HasRodUpgrade;
-    bool PHasMiningUpgrade => playerIndex == 0 ? gridManager.gameData.hasMiningUpgrade : gridManager.gameData.player2HasMiningUpgrade;
-    bool PHasSpeedUpgrade  => playerIndex == 0 ? gridManager.gameData.hasSpeedUpgrade  : gridManager.gameData.player2HasSpeedUpgrade;
-    int  PShipLevel        => playerIndex == 0 ? gridManager.gameData.shipLevel        : gridManager.gameData.player2ShipLevel;
+    bool PHasRodUpgrade    => PS.hasRodUpgrade;
+    bool PHasMiningUpgrade => PS.hasMiningUpgrade;
+    bool PHasSpeedUpgrade  => PS.hasSpeedUpgrade;
+    int  PShipLevel        => PS.shipLevel;
 
     int PBoatHealth
     {
-        get => playerIndex == 0 ? gridManager.gameData.boatHealth : gridManager.gameData.player2BoatHealth;
-        set { int v = Mathf.Clamp(value, 0, BoatStats.MaxHealth);
-              if (playerIndex == 0) gridManager.gameData.boatHealth = v; else gridManager.gameData.player2BoatHealth = v; }
+        get => PS.boatHealth;
+        set => PS.boatHealth = Mathf.Clamp(value, 0, BoatStats.MaxHealth);
     }
     int PPlayerHealth
     {
-        get => playerIndex == 0 ? gridManager.gameData.playerHealth : gridManager.gameData.player2PlayerHealth;
-        set { int v = Mathf.Clamp(value, 0, BoatStats.MaxHealth);
-              if (playerIndex == 0) gridManager.gameData.playerHealth = v; else gridManager.gameData.player2PlayerHealth = v; }
+        get => PS.playerHealth;
+        set => PS.playerHealth = Mathf.Clamp(value, 0, BoatStats.MaxHealth);
     }
     int PAmmo
     {
-        get => playerIndex == 0 ? gridManager.gameData.ammo : gridManager.gameData.player2Ammo;
-        set { int v = Mathf.Max(0, value);
-              if (playerIndex == 0) gridManager.gameData.ammo = v; else gridManager.gameData.player2Ammo = v; }
+        get => PS.ammo;
+        set => PS.ammo = Mathf.Max(0, value);
     }
     bool PBoatWrecked
     {
-        get => playerIndex == 0 ? gridManager.gameData.boatWrecked : gridManager.gameData.player2BoatWrecked;
-        set { if (playerIndex == 0) gridManager.gameData.boatWrecked = value; else gridManager.gameData.player2BoatWrecked = value; }
+        get => PS.boatWrecked;
+        set => PS.boatWrecked = value;
     }
     bool PBoatNeedsRehome
     {
-        get => playerIndex == 0 ? gridManager.gameData.boatNeedsRehome : gridManager.gameData.player2BoatNeedsRehome;
-        set { if (playerIndex == 0) gridManager.gameData.boatNeedsRehome = value; else gridManager.gameData.player2BoatNeedsRehome = value; }
+        get => PS.boatNeedsRehome;
+        set => PS.boatNeedsRehome = value;
     }
-    bool PHasMap => playerIndex == 0 ? gridManager.gameData.hasMap : gridManager.gameData.player2HasMap;
+    bool PHasMap => PS.hasMap;
 
     // ── Zbraň pro pěší boj + hotbar (koupí se v obchodě, viz UpgradeShopManager) ──
-    bool PHasHandWeapon => playerIndex == 0 ? gridManager.gameData.hasHandWeapon : gridManager.gameData.player2HasHandWeapon;
+    bool PHasHandWeapon => PS.hasHandWeapon;
     int  PHandAmmo
     {
-        get => playerIndex == 0 ? gridManager.gameData.handAmmo : gridManager.gameData.player2HandAmmo;
-        set { int v = Mathf.Max(0, value);
-              if (playerIndex == 0) gridManager.gameData.handAmmo = v; else gridManager.gameData.player2HandAmmo = v; }
+        get => PS.handAmmo;
+        set => PS.handAmmo = Mathf.Max(0, value);
     }
     // Aktivní slot hotbaru (0=zbraň, 1=munice — jen zobrazení, 2=historický poklad).
     int  PHotbarSlot
     {
-        get => playerIndex == 0 ? gridManager.gameData.activeHotbarSlot : gridManager.gameData.player2ActiveHotbarSlot;
-        set { if (playerIndex == 0) gridManager.gameData.activeHotbarSlot = value; else gridManager.gameData.player2ActiveHotbarSlot = value; }
+        get => PS.activeHotbarSlot;
+        set => PS.activeHotbarSlot = value;
     }
 
     /// <summary>Je hráč zrovna v lodi na vodě? (pro soubojový systém)</summary>
@@ -187,7 +189,7 @@ public class PlayerController : MonoBehaviour
         || (RivalNpc.Instance != null && RivalNpc.Instance.IsTalkingWith(playerIndex))
         || LetterScreen.IsOpenFor(playerIndex) // čte dopis z trezoru
         || LighthouseManager.IsInside(playerIndex);
-    ActiveQuest PQuest     => playerIndex == 0 ? gridManager.gameData.activeQuest      : gridManager.gameData.player2ActiveQuest;
+    ActiveQuest PQuest     => PS.activeQuest;
 
     // ── Pomocníci na klávesy (P1 dostane k1, P2 dostane k2) ─────────────────
     bool P1 => playerIndex == 0;
@@ -207,19 +209,21 @@ public class PlayerController : MonoBehaviour
         if (playerIndex == 0)
         {
             // P1 obnoví svůj stav z uložených dat.
-            isOnFoot  = gridManager.gameData.isOnFoot;
-            boatGridX = gridManager.gameData.boatGridX;
-            boatGridY = gridManager.gameData.boatGridY;
-            transform.position = new Vector3(gridManager.gameData.playerGridX, 0.5f, gridManager.gameData.playerGridY);
+            isOnFoot  = PS.isOnFoot;
+            boatGridX = PS.boatGridX;
+            boatGridY = PS.boatGridY;
+            transform.position = new Vector3(PS.gridX, 0.5f, PS.gridY);
         }
         else
         {
             // Hráč 2 startuje hned vedle hráče 1 a ve stejném režimu (pěšky / loď) —
-            // takže při nové hře se oba probudí jako panáčci na ostrově.
-            isOnFoot = gridManager.gameData.isOnFoot;
+            // takže při nové hře se oba probudí jako panáčci na ostrově. Záměrně
+            // čte P1 stav (players[0]), ne vlastní — P2 se teprve umisťuje poprvé.
+            var p1 = gridManager.gameData.players[0];
+            isOnFoot = p1.isOnFoot;
 
-            int p1x = gridManager.gameData.playerGridX;
-            int p1y = gridManager.gameData.playerGridY;
+            int p1x = p1.gridX;
+            int p1y = p1.gridY;
 
             // Najdi políčko hned vedle P1, na které P2 smí vstoupit.
             int sx = p1x, sy = p1y;
@@ -233,12 +237,12 @@ public class PlayerController : MonoBehaviour
                 if (ok) { sx = p1x + d.x; sy = p1y + d.y; break; }
             }
 
-            gridManager.gameData.player2GridX = sx;
-            gridManager.gameData.player2GridY = sy;
+            PS.gridX = sx;
+            PS.gridY = sy;
 
             // Loď P2 — druhé molo (piery jsou vždy dva vedle sebe), jinak stejné jako P1.
-            boatGridX = gridManager.gameData.boatGridX;
-            boatGridY = gridManager.gameData.boatGridY;
+            boatGridX = p1.boatGridX;
+            boatGridY = p1.boatGridY;
             foreach (var d in around)
                 if (gridManager.GetTileType(boatGridX + d.x, boatGridY + d.y) == TileType.Pier)
                 { boatGridX += d.x; boatGridY += d.y; break; }
@@ -497,7 +501,7 @@ public class PlayerController : MonoBehaviour
         PBoatWrecked     = true;
         PBoatHealth      = 0;
         isOnFoot         = false;
-        if (playerIndex == 0) gridManager.gameData.isOnFoot = false;
+        PS.isOnFoot = false;
         damageGraceUntil = Time.time + 2f; // chvilka na nadechnutí
 
         // Půlka nákladu se vysype do vody jako vrak — chvíli plave, doplaveš k
@@ -976,11 +980,8 @@ public class PlayerController : MonoBehaviour
 
         boatGridX = water.Value.x;
         boatGridY = water.Value.y;
-        if (playerIndex == 0)
-        {
-            gridManager.gameData.boatGridX = boatGridX;
-            gridManager.gameData.boatGridY = boatGridY;
-        }
+        PS.boatGridX = boatGridX;
+        PS.boatGridY = boatGridY;
     }
 
     // ── Oprava lodě v přístavu ─────────────────────────────────────────────
@@ -1128,7 +1129,7 @@ public class PlayerController : MonoBehaviour
             if (IsLand(here))
             {
                 isOnFoot = true;
-                if (playerIndex == 0) gridManager.gameData.isOnFoot = true;
+                PS.isOnFoot = true;
                 ShowBoatOrFoot();
             }
         }
@@ -1137,11 +1138,8 @@ public class PlayerController : MonoBehaviour
         {
             boatGridX = tx;
             boatGridY = ty;
-            if (playerIndex == 0)
-            {
-                gridManager.gameData.boatGridX = boatGridX;
-                gridManager.gameData.boatGridY = boatGridY;
-            }
+            PS.boatGridX = boatGridX;
+            PS.boatGridY = boatGridY;
         }
 
         // Doplul jsi k cíli z mapy (waypoint) → zruš ho.
@@ -1164,15 +1162,13 @@ public class PlayerController : MonoBehaviour
     // Když je hráč u svého waypointu (±1 políčko), cíl se splní a zmizí.
     void ClearWaypointIfReached(int tx, int ty)
     {
-        var d = gridManager.gameData;
-        bool has = playerIndex == 0 ? d.hasWaypoint : d.player2HasWaypoint;
-        if (!has) return;
+        if (!PS.hasWaypoint) return;
 
-        int wx = playerIndex == 0 ? d.waypointX : d.player2WaypointX;
-        int wy = playerIndex == 0 ? d.waypointY : d.player2WaypointY;
+        int wx = PS.waypointX;
+        int wy = PS.waypointY;
         if (Mathf.Abs(tx - wx) > 1 || Mathf.Abs(ty - wy) > 1) return;
 
-        if (playerIndex == 0) d.hasWaypoint = false; else d.player2HasWaypoint = false;
+        PS.hasWaypoint = false;
         if (CombatDirector.Instance != null) CombatDirector.Instance.Toast(Loc.T("Dorazil jsi k cíli z mapy.", "You have reached the target from the map."));
         gridManager.Save();
     }
@@ -1256,7 +1252,7 @@ public class PlayerController : MonoBehaviour
             Vector2Int? land = FindAdjacent(px, py, TileType.Pier) ?? FindAdjacent(px, py, TileType.Harbor);
             if (land == null) return;
             isOnFoot = true;
-            if (playerIndex == 0) gridManager.gameData.isOnFoot = true;
+            PS.isOnFoot = true;
             ShowBoatOrFoot();
             GridX = land.Value.x;
             GridY = land.Value.y;
@@ -1273,14 +1269,11 @@ public class PlayerController : MonoBehaviour
             // Loď zůstane plavat přesně tady.
             boatGridX = px;
             boatGridY = py;
-            if (playerIndex == 0)
-            {
-                gridManager.gameData.boatGridX = px;
-                gridManager.gameData.boatGridY = py;
-            }
+            PS.boatGridX = px;
+            PS.boatGridY = py;
 
             isOnFoot = true;
-            if (playerIndex == 0) gridManager.gameData.isOnFoot = true;
+            PS.isOnFoot = true;
             SpawnParkedBoat();  // necháme plavat kopii lodě na místě
             ShowBoatOrFoot();   // a schováme loď u hráče
 
@@ -1302,15 +1295,12 @@ public class PlayerController : MonoBehaviour
                 if (spot == null) return; // fakt není kam / čím nasednout
                 boatGridX = spot.Value.x;
                 boatGridY = spot.Value.y;
-                if (playerIndex == 0)
-                {
-                    gridManager.gameData.boatGridX = boatGridX;
-                    gridManager.gameData.boatGridY = boatGridY;
-                }
+                PS.boatGridX = boatGridX;
+                PS.boatGridY = boatGridY;
             }
 
             isOnFoot = false;
-            if (playerIndex == 0) gridManager.gameData.isOnFoot = false;
+            PS.isOnFoot = false;
             DespawnParkedBoat();
             ShowBoatOrFoot();
 
@@ -1447,8 +1437,7 @@ public class PlayerController : MonoBehaviour
     }
 
     // Můj mega quest (P1 / P2).
-    private MegaQuest MyMegaQuest =>
-        playerIndex == 0 ? gridManager.gameData.megaQuest : gridManager.gameData.player2MegaQuest;
+    private MegaQuest MyMegaQuest => PS.megaQuest;
 
     // Kopání pokladu z mapy — po chvíli nastaví dug = true (odměna se bere v QuestShopu).
     IEnumerator DigRoutine()
@@ -1629,22 +1618,13 @@ public class PlayerController : MonoBehaviour
     /// <summary>Znovu načte stav hráče z GameData (po načtení slotu / nové hře).</summary>
     public void ReloadFromData()
     {
-        if (playerIndex == 0)
-        {
-            isOnFoot  = gridManager.gameData.isOnFoot;
-            boatGridX = gridManager.gameData.boatGridX;
-            boatGridY = gridManager.gameData.boatGridY;
-        }
-        else
-        {
-            // P2 se jinak neukládá — jen po respawnu GridManager přes tato pole předá,
-            // že se má objevit pěšky na ostrově a kde mu stojí loď (jednorázově).
-            var gd = gridManager.gameData;
-            isOnFoot  = gd.player2IsOnFoot;
-            boatGridX = gd.player2IsOnFoot ? gd.player2BoatGridX : GridX;
-            boatGridY = gd.player2IsOnFoot ? gd.player2BoatGridY : GridY;
-            gd.player2IsOnFoot = false;
-        }
+        // Dřív se P2 isOnFoot/boatGridX/Y během běžné hry vůbec neukládaly (jen
+        // GridManager je jednorázově nastavil po respawnu) — sjednocením do
+        // `players[]` (viz PS) se teď ukládají průběžně pro oba hráče stejně,
+        // takže načtení je teď symetrické.
+        isOnFoot  = PS.isOnFoot;
+        boatGridX = PS.boatGridX;
+        boatGridY = PS.boatGridY;
 
         isMoving = false;
         isWorking = false;

@@ -190,12 +190,12 @@ public class LighthouseInterior : MonoBehaviour
         if (MultiplayerManager.IsMultiplayer)
         {
             // Ukaž mince každého hráče, co je uvnitř, na jeho půlce obrazovky.
-            if (figures[0] != null) DrawCoins(0, data.coins);
-            if (figures[1] != null) DrawCoins(1, data.player2Coins);
+            if (figures[0] != null) DrawCoins(0, data.players[0].coins);
+            if (figures[1] != null) DrawCoins(1, data.players[1].coins);
         }
         else
         {
-            DrawCoins(0, data.coins);
+            DrawCoins(0, data.players[0].coins);
         }
     }
 

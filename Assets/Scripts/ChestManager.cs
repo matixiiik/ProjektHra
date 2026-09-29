@@ -41,8 +41,8 @@ public class ChestManager : MonoBehaviour
     {
         if (grid == null) grid = FindFirstObjectByType<GridManager>();
         string key = x + "," + y;
-        return grid.gameData.openedChests.Contains(key)
-            || grid.gameData.player2OpenedChests.Contains(key);
+        return grid.gameData.players[0].openedChests.Contains(key)
+            || grid.gameData.players[1].openedChests.Contains(key);
     }
 
     /// <summary>Hráč otevírá bednu na [x,y]. Vrací true, když šlo o bednu.</summary>
@@ -60,8 +60,7 @@ public class ChestManager : MonoBehaviour
             return true; // pořád "vyřízeno" — ať se hráč nezkusí nalodit
         }
 
-        var opened = playerIndex == 0 ? grid.gameData.openedChests : grid.gameData.player2OpenedChests;
-        opened.Add(key);
+        grid.gameData.players[playerIndex].openedChests.Add(key);
 
         // Pár mincí rovnou z bedny.
         int loot = Random.Range(EconomyConfig.ChestCoinsMin, EconomyConfig.ChestCoinsMax + 1);
@@ -69,7 +68,7 @@ public class ChestManager : MonoBehaviour
         string msg = Loc.T($"Bedna otevřena!  +{loot} {Loc.CoinsWord(loot)}.", $"Chest opened!  +{loot} {Loc.CoinsWord(loot)}.");
 
         // Mapa (mega quest) — jen když hráč žádný rozdělaný nemá.
-        MegaQuest mq = playerIndex == 0 ? grid.gameData.megaQuest : grid.gameData.player2MegaQuest;
+        MegaQuest mq = grid.gameData.players[playerIndex].megaQuest;
         if (!mq.active)
         {
             AssignTreasureMap(mq, x, y);
@@ -111,8 +110,7 @@ public class ChestManager : MonoBehaviour
 
     private void AddCoins(int playerIndex, int amount)
     {
-        if (playerIndex == 0) grid.gameData.coins        += amount;
-        else                  grid.gameData.player2Coins += amount;
+        grid.gameData.players[playerIndex].coins += amount;
     }
 
     private void Toast(string text)

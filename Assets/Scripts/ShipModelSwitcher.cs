@@ -44,9 +44,10 @@ public class ShipModelSwitcher : MonoBehaviour
 
         // Který hráč jsme (P1 nebo P2) — každý má vlastní úroveň lodě a stav "pěšky".
         bool isP2    = player != null && player.playerIndex == 1;
-        int  level   = isP2 ? grid.gameData.player2ShipLevel  : grid.gameData.shipLevel;
-        bool onFoot  = player != null ? player.IsOnFoot : grid.gameData.isOnFoot;
-        bool wrecked = isP2 ? grid.gameData.player2BoatWrecked : grid.gameData.boatWrecked;
+        var  ps      = grid.gameData.players[isP2 ? 1 : 0];
+        int  level   = ps.shipLevel;
+        bool onFoot  = player != null ? player.IsOnFoot : ps.isOnFoot;
+        bool wrecked = ps.boatWrecked;
         bool hideBoat = onFoot || wrecked; // rozbitá loď se nezobrazuje (panáček plave)
 
         // Nejdřív vypni všechny lodě.

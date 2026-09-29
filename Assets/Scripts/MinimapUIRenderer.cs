@@ -213,8 +213,8 @@ public class MinimapUIRenderer : MonoBehaviour
     void RefreshHealthBars()
     {
         GameData d = grid.gameData;
-        int boatHp   = playerIndex == 0 ? d.boatHealth   : d.player2BoatHealth;
-        int playerHp = playerIndex == 0 ? d.playerHealth : d.player2PlayerHealth;
+        int boatHp   = d.players[playerIndex].boatHealth;
+        int playerHp = d.players[playerIndex].playerHealth;
 
         SetHpBar(boatHpFillRT,   boatHpLabel,   Loc.T("Loď",    "Boat"),   boatHp,   HpBoatColor);
         SetHpBar(playerHpFillRT, playerHpLabel, Loc.T("Panáček", "Sailor"), playerHp, HpPlayerColor);
@@ -433,15 +433,16 @@ public class MinimapUIRenderer : MonoBehaviour
     void Refresh()
     {
         GameData d = grid.gameData;
+        var ps = d.players[playerIndex];
 
         // Střed minimapy = pozice tohoto hráče.
-        int cx = playerIndex == 0 ? d.playerGridX : d.player2GridX;
-        int cy = playerIndex == 0 ? d.playerGridY : d.player2GridY;
+        int cx = ps.gridX;
+        int cy = ps.gridY;
 
-        UpdateCompass(playerIndex == 0 ? d.megaQuest : d.player2MegaQuest, cx, cy);
-        bool hasWp = playerIndex == 0 ? d.hasWaypoint : d.player2HasWaypoint;
-        int  wpX   = playerIndex == 0 ? d.waypointX   : d.player2WaypointX;
-        int  wpY   = playerIndex == 0 ? d.waypointY   : d.player2WaypointY;
+        UpdateCompass(ps.megaQuest, cx, cy);
+        bool hasWp = ps.hasWaypoint;
+        int  wpX   = ps.waypointX;
+        int  wpY   = ps.waypointY;
         UpdateWaypointArrow(hasWp, wpX, wpY, cx, cy);
         RefreshHealthBars();
 
@@ -465,8 +466,9 @@ public class MinimapUIRenderer : MonoBehaviour
         // Druhý hráč — oranžový bod (jen v multiplayeru a jen když je na mapě vidět).
         if (MultiplayerManager.IsMultiplayer)
         {
-            int ox = playerIndex == 0 ? d.player2GridX : d.playerGridX;
-            int oy = playerIndex == 0 ? d.player2GridY : d.playerGridY;
+            var other = d.players[playerIndex == 0 ? 1 : 0];
+            int ox = other.gridX;
+            int oy = other.gridY;
             int rx = ox - cx + viewRadius; // přepočet na pixel minimapy
             int ry = oy - cy + viewRadius;
             if (rx >= 0 && rx < size && ry >= 0 && ry < size)

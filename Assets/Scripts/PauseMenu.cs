@@ -134,7 +134,7 @@ public class PauseMenu : MonoBehaviour
             GUILayout.Space(4);
 
             GUILayout.BeginHorizontal();
-            int c1 = grid.gameData.coins, c2 = grid.gameData.player2Coins;
+            int c1 = grid.gameData.players[0].coins, c2 = grid.gameData.players[1].coins;
             GUILayout.Label($"P1: {c1} " + Loc.Plural(c1, "mince", "mince", "mincí", "coin", "coins"), coinInfoStyle, GUILayout.ExpandWidth(true));
             GUILayout.Label($"P2: {c2} " + Loc.Plural(c2, "mince", "mince", "mincí", "coin", "coins"), coinInfoStyle, GUILayout.ExpandWidth(true));
             GUILayout.EndHorizontal();
@@ -167,7 +167,7 @@ public class PauseMenu : MonoBehaviour
         Time.timeScale = 1f;
         isOpen = false; IsPaused = false;
         if (grid   != null) grid.NewGameReset();
-        if (player != null) player.TeleportTo(grid.gameData.playerGridX, grid.gameData.playerGridY);
+        if (player != null) player.TeleportTo(grid.gameData.players[0].gridX, grid.gameData.players[0].gridY);
         FindFirstObjectByType<ShipModelSwitcher>()?.Apply();
     }
 
@@ -187,11 +187,10 @@ public class PauseMenu : MonoBehaviour
         // Neplatná / nulová částka → nic nedělej.
         if (!int.TryParse(transferAmount, out int amount) || amount <= 0) return;
 
-        int fromCoins = from == 0 ? grid.gameData.coins : grid.gameData.player2Coins;
-        if (fromCoins < amount) return; // odesílatel nemá dost
+        if (grid.gameData.players[from].coins < amount) return; // odesílatel nemá dost
 
-        if (from == 0) { grid.gameData.coins        -= amount; grid.gameData.player2Coins += amount; }
-        else           { grid.gameData.player2Coins -= amount; grid.gameData.coins        += amount; }
+        grid.gameData.players[from].coins -= amount;
+        grid.gameData.players[to].coins   += amount;
 
         grid.Save();
         grid.NotifyWorldChanged();

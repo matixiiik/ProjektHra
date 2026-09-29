@@ -112,7 +112,7 @@ public class GridManager : MonoBehaviour
         // Načti seznam ostrovů, co jsou už na velké mapě.
         mappedIslandKeys = new HashSet<string>(gameData.mappedIslands);
 
-        GenerateWorld(gameData.playerGridX, gameData.playerGridY);
+        GenerateWorld(gameData.players[0].gridX, gameData.players[0].gridY);
         CreateSeaWorld();
 
         // Po načtení save s už objeveným mega ostrovem obnov jeho obelisk.
@@ -253,8 +253,8 @@ public class GridManager : MonoBehaviour
         {
             var (x, y) = ParseGridKey(entry.Key);
 
-            bool isTooFar = Mathf.Abs(x - gameData.playerGridX) > CLEANUP_LIMIT
-                         || Mathf.Abs(y - gameData.playerGridY) > CLEANUP_LIMIT;
+            bool isTooFar = Mathf.Abs(x - gameData.players[0].gridX) > CLEANUP_LIMIT
+                         || Mathf.Abs(y - gameData.players[0].gridY) > CLEANUP_LIMIT;
 
             bool isImportant = entry.Value.isExplored || IsIslandTile(entry.Value.type);
 
@@ -316,8 +316,8 @@ public class GridManager : MonoBehaviour
         // V multiplayeru drž naživu i okolí obou hráčů.
         if (MultiplayerManager.IsMultiplayer)
         {
-            int p1x = gameData.playerGridX,  p1y = gameData.playerGridY;
-            int p2x = gameData.player2GridX, p2y = gameData.player2GridY;
+            int p1x = gameData.players[0].gridX, p1y = gameData.players[0].gridY;
+            int p2x = gameData.players[1].gridX, p2y = gameData.players[1].gridY;
             if (centerX != p1x || centerY != p1y) GenerateRegion(p1x, p1y);
             if (centerX != p2x || centerY != p2y) GenerateRegion(p2x, p2y);
         }
@@ -1295,9 +1295,9 @@ public class GridManager : MonoBehaviour
                 // ostrov nemá per-dlaždicové objekty, tak se ptáme na souřadnice).
                 if (activeTiles.ContainsKey(tk)) { anyActive = true; break; }
                 var (tx, ty) = ParseGridKey(tk);
-                bool nearP1 = Mathf.Abs(tx - gameData.playerGridX) <= keep && Mathf.Abs(ty - gameData.playerGridY) <= keep;
+                bool nearP1 = Mathf.Abs(tx - gameData.players[0].gridX) <= keep && Mathf.Abs(ty - gameData.players[0].gridY) <= keep;
                 bool nearP2 = MultiplayerManager.IsMultiplayer
-                           && Mathf.Abs(tx - gameData.player2GridX) <= keep && Mathf.Abs(ty - gameData.player2GridY) <= keep;
+                           && Mathf.Abs(tx - gameData.players[1].gridX) <= keep && Mathf.Abs(ty - gameData.players[1].gridY) <= keep;
                 if (nearP1 || nearP2) { anyActive = true; break; }
             }
 
@@ -1386,11 +1386,11 @@ public class GridManager : MonoBehaviour
         {
             var (x, y) = ParseGridKey(tile.Key);
 
-            bool nearP1 = Mathf.Abs(x - gameData.playerGridX) <= dist
-                       && Mathf.Abs(y - gameData.playerGridY) <= dist;
+            bool nearP1 = Mathf.Abs(x - gameData.players[0].gridX) <= dist
+                       && Mathf.Abs(y - gameData.players[0].gridY) <= dist;
             bool nearP2 = MultiplayerManager.IsMultiplayer
-                       && Mathf.Abs(x - gameData.player2GridX) <= dist
-                       && Mathf.Abs(y - gameData.player2GridY) <= dist;
+                       && Mathf.Abs(x - gameData.players[1].gridX) <= dist
+                       && Mathf.Abs(y - gameData.players[1].gridY) <= dist;
 
             if (!nearP1 && !nearP2) keysToRemove.Add(tile.Key);
         }
@@ -1721,9 +1721,9 @@ public class GridManager : MonoBehaviour
         // (LetterScreen) — má je vypočítat a najít na mapě sám.
         if (setWaypoint)
         {
-            gameData.hasWaypoint = true;
-            gameData.waypointX   = sx;
-            gameData.waypointY   = sy;
+            gameData.players[0].hasWaypoint = true;
+            gameData.players[0].waypointX   = sx;
+            gameData.players[0].waypointY   = sy;
         }
         gameData.storyStep   = 2; // "pluješ k dalšímu ostrovu" — stejný krok jako poprvé
 
@@ -1738,9 +1738,10 @@ public class GridManager : MonoBehaviour
     /// </summary>
     public void RespawnPlayerAtNearestIsland(int playerIndex)
     {
-        var d = gameData;
-        int fromX = playerIndex == 0 ? d.playerGridX : d.player2GridX;
-        int fromY = playerIndex == 0 ? d.playerGridY : d.player2GridY;
+        var d  = gameData;
+        var ps = d.players[playerIndex];
+        int fromX = ps.gridX;
+        int fromY = ps.gridY;
 
         // Nejbližší už vygenerovaný ostrov. Když je moc daleko (třeba jen startovní
         // ostrov zůstal v paměti), vygeneruj nový poblíž místa smrti — a pak vezmi
@@ -1757,35 +1758,16 @@ public class GridManager : MonoBehaviour
         Vector2Int boatAt = water != null ? new Vector2Int(water.Value.x, water.Value.y) : spot;
 
         // ── Vynuluj kořist + vylepšení (mince a mega quest zůstávají) ──────
-        if (playerIndex == 0)
-        {
-            d.fishCount = 0; d.treasureCount = 0; d.ammo = 0;
-            d.hasSpeedUpgrade = d.hasRodUpgrade = d.hasMiningUpgrade = false;
-            d.hasMap = false; d.sellBonus = false;
-            d.hasHandWeapon = false; d.handAmmo = 0; d.activeHotbarSlot = -1;
-            d.shipLevel = 0;
-            d.activeQuest.Reset();
-            d.boatHealth = 100; d.playerHealth = 100; d.boatWrecked = false; d.boatNeedsRehome = false;
-            d.isOnFoot   = true;
-            d.playerGridX = spot.x; d.playerGridY = spot.y;
-            d.boatGridX   = boatAt.x; d.boatGridY = boatAt.y;
-        }
-        else
-        {
-            d.player2FishCount = 0; d.player2TreasureCount = 0; d.player2Ammo = 0;
-            d.player2HasSpeedUpgrade = d.player2HasRodUpgrade = d.player2HasMiningUpgrade = false;
-            d.player2HasMap = false; d.player2SellBonus = false;
-            d.player2HasHandWeapon = false; d.player2HandAmmo = 0; d.player2ActiveHotbarSlot = -1;
-            d.player2ShipLevel = 0;
-            d.player2ActiveQuest.Reset();
-            d.player2BoatHealth = 100; d.player2PlayerHealth = 100;
-            d.player2BoatWrecked = false; d.player2BoatNeedsRehome = false;
-            d.player2GridX = spot.x; d.player2GridY = spot.y;
-            // P2 se objeví pěšky (jako P1) a loď mu stojí ve vodě u mola —
-            // PlayerController.ReloadFromData si to jednorázově převezme.
-            d.player2IsOnFoot = true;
-            d.player2BoatGridX = boatAt.x; d.player2BoatGridY = boatAt.y;
-        }
+        ps.fishCount = 0; ps.treasureCount = 0; ps.ammo = 0;
+        ps.hasSpeedUpgrade = ps.hasRodUpgrade = ps.hasMiningUpgrade = false;
+        ps.hasMap = false; ps.sellBonus = false;
+        ps.hasHandWeapon = false; ps.handAmmo = 0; ps.activeHotbarSlot = -1;
+        ps.shipLevel = 0;
+        ps.activeQuest.Reset();
+        ps.boatHealth = 100; ps.playerHealth = 100; ps.boatWrecked = false; ps.boatNeedsRehome = false;
+        ps.isOnFoot   = true;
+        ps.gridX = spot.x; ps.gridY = spot.y;
+        ps.boatGridX = boatAt.x; ps.boatGridY = boatAt.y;
 
         GenerateWorld(spot.x, spot.y);
         MarkAreaExplored(spot.x, spot.y, 3);
@@ -1858,26 +1840,26 @@ public class GridManager : MonoBehaviour
             var (px, py) = ParseGridKey(kv.Key);
 
             var water = FindWaterNextTo(px, py);
-            gameData.boatGridX = water != null ? water.Value.x : px;
-            gameData.boatGridY = water != null ? water.Value.y : py;
+            gameData.players[0].boatGridX = water != null ? water.Value.x : px;
+            gameData.players[0].boatGridY = water != null ? water.Value.y : py;
 
             var foot = FindHarborNextTo(px, py);
             if (foot != null)
             {
-                gameData.playerGridX = foot.Value.x;
-                gameData.playerGridY = foot.Value.y;
-                gameData.isOnFoot    = true;
+                gameData.players[0].gridX     = foot.Value.x;
+                gameData.players[0].gridY     = foot.Value.y;
+                gameData.players[0].isOnFoot  = true;
             }
             else
             {
                 // pojistka: kdyby vedle mola nebyla pevnina, nech hráče na molu v lodi
-                gameData.playerGridX = px;
-                gameData.playerGridY = py;
+                gameData.players[0].gridX = px;
+                gameData.players[0].gridY = py;
             }
             break;
         }
 
-        MarkAreaExplored(gameData.playerGridX, gameData.playerGridY, ISLAND_CANVAS);
+        MarkAreaExplored(gameData.players[0].gridX, gameData.players[0].gridY, ISLAND_CANVAS);
     }
 
     // Najde políčko pevniny (Harbor) hned vedle [x,y]. Null, když žádné není.
@@ -1949,7 +1931,6 @@ public class GridManager : MonoBehaviour
     {
         SaveManager.DeleteSave();
         GameSession.Ensure().SetData(new GameData());
-        gameData.shipLevel = 0;
 
         DestroyAllActiveTiles();
 
@@ -1970,7 +1951,7 @@ public class GridManager : MonoBehaviour
 
         GameSession.Ensure().SetData(SaveManager.LoadGame());
         if (gameData.tileData.Count == 0) GenerateInitialWorld();
-        GenerateWorld(gameData.playerGridX, gameData.playerGridY);
+        GenerateWorld(gameData.players[0].gridX, gameData.players[0].gridY);
         SaveNow();
         OnWorldChanged?.Invoke();
     }
@@ -1986,7 +1967,6 @@ public class GridManager : MonoBehaviour
         DestroyAllActiveTiles();
 
         GameSession.Ensure().SetData(new GameData());
-        gameData.shipLevel = 0;
         GenerateInitialWorld();
         GenerateWorld(0, 0);
         SaveNow();

@@ -325,7 +325,10 @@ public class GridManager : MonoBehaviour
         OnWorldChanged?.Invoke();
     }
 
-    // Zajistí data i 3D objekty pro čtverec políček kolem středu.
+    // Zajistí data i 3D objekty pro čtverec políček kolem středu. Většina
+    // volání (hráč popluje o kousek dál) najde skoro všechna políčka už
+    // hotová — ať se to tedy vyřídí JEDNÍM přístupem do tileData na políčko
+    // (TryGetValue), ne třemi (ContainsKey + indexer + indexer jako dřív).
     private void GenerateRegion(int centerX, int centerY)
     {
         for (int x = centerX - ACTIVE_GRID_SIZE; x <= centerX + ACTIVE_GRID_SIZE; x++)
@@ -333,12 +336,18 @@ public class GridManager : MonoBehaviour
             for (int y = centerY - ACTIVE_GRID_SIZE; y <= centerY + ACTIVE_GRID_SIZE; y++)
             {
                 string key = GridKey(x, y);
-                if (!gameData.tileData.ContainsKey(key)) CheckAndGenerateArea(x, y); // vytvoř data
-                if (!activeTiles.ContainsKey(key))       InstantiateTile(x, y, gameData.tileData[key]); // vytvoř objekt
+
+                if (!gameData.tileData.TryGetValue(key, out TileStatus status))
+                {
+                    CheckAndGenerateArea(x, y); // vytvoří data (i pro celý nový ostrov)
+                    status = gameData.tileData[key]; // CheckAndGenerateArea zápis pro [x,y] garantuje
+                }
+
+                if (!activeTiles.ContainsKey(key)) InstantiateTile(x, y, status); // vytvoř objekt
 
                 // Mega ostrov nemá per-dlaždicový prefab (InstantiateTile ho přeskočí) —
                 // terénní mesh se mu tedy musí zajistit tady.
-                if ((TileType)gameData.tileData[key].type == TileType.MegaIsland)
+                if ((TileType)status.type == TileType.MegaIsland)
                     EnsureIslandTerrain(x, y);
             }
         }

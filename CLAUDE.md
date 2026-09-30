@@ -19,7 +19,9 @@ ostrově). Podporuje lokální split-screen pro dva hráče.
 - Veškerý herní kód: `Assets/Scripts/*.cs`. Materiály `Assets/Materials/`,
   runtime-loadované modely `Assets/Resources/{IslandDecor,PirateShips}/`.
 - **Žádný namespace** — všechny třídy jsou globální.
-- **Žádné testy** (balíček test-framework je, suita neexistuje).
+- **Testy:** `Assets/Tests/EditMode` (22 testů: BoatStats, EconomyConfig, GameData, SaveMigration) a
+  `Assets/Tests/PlayMode` (kamera, vlny). Spuštění: Unity *Window → General → Test Runner* nebo MCP
+  `run_tests` + `get_test_job`.
 - Komentáře a herní texty jsou **česky**. Hlavičky souborů/sekcí komentář s čárou `─────`.
 
 ## Jak spustit / ověřit
@@ -30,8 +32,14 @@ ostrově). Podporuje lokální split-screen pro dva hráče.
   kompilovat, editovat scénu.
 - Kompilace bez Unity: `bash .claude/skills/unity-hra/scripts/compile-check.sh`
   (Unity Roslyn + Bee response file). Skill **`unity-hra`** drží celý pracovní postup.
-- Build ani CI nejsou nastavené. `companyName` v Player Settings je zatím
-  `DefaultCompany` — před odevzdávaným buildem nastavit.
+- **Build (Windows):** funguje (30. 9., ~97 MB, přes MCP `manage_build` do `Builds/PosledniMajak/`,
+  složka je v `.gitignore`). Company = `matixiiik`, produkt = `Poslední maják` → **saves leží v
+  `%USERPROFILE%\AppData\LocalLow\matixiiik\Poslední maják\save_N.json`** (změna company/produktu
+  přesune `persistentDataPath`!). Shadery hledané přes `Shader.Find` musí být v *Project Settings →
+  Graphics → Always Included Shaders* (jinak v buildu `null`; přidáno URP Lit/Unlit, Unlit/Color,
+  Unlit/Transparent, Standard). CI není.
+- Dokumentace k ročníkové práci: `Dokumentace/` (generátory `mk_*.js` + `mk_diagramy.py`), licence
+  `LICENSE` (MIT) a `THIRD_PARTY_LICENSES.md`.
 
 ## Architektura
 

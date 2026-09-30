@@ -38,7 +38,7 @@ dědictví a ztraceném bratrovi. Podporuje lokální split-screen pro dva hrá�
 2. Otevři scénu `Assets/Scenes/SampleScene.unity`.
 3. Stiskni **Play**.
 
-Build ani CI zatím nejsou nastavené — hraje se přímo v editoru.
+Windows build se dělá přes *File → Build Profiles* (obě scény jsou v Build Settings); CI zatím není.
 
 ## Ovládání
 

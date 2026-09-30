@@ -1,4 +1,4 @@
-# 🌊 Lodní dobrodružství
+# 🌊 Poslední maják
 
 Maturitní projekt — 3D hra v Unity. Hráč pluje po nekonečně generovaném
 oceánu, rybaří, těží poklady z vraků, bojuje s piráty a nepřátelskými

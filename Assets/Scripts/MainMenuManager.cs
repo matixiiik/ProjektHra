@@ -112,7 +112,7 @@ public class MainMenuManager : MonoBehaviour
         float py = (Screen.height - h) / 2f;
 
         GUILayout.BeginArea(new Rect(px, py, w, h));
-        GUILayout.Label(Loc.T("LODNÍ DOBRODRUŽSTVÍ", "SEA ADVENTURE"), titleStyle);
+        GUILayout.Label(Loc.T("POSLEDNÍ MAJÁK", "THE LAST BEACON"), titleStyle);
         GUILayout.Space(20);
 
         if (SoundManager.Click(GUILayout.Button(Loc.T("Nová hra", "New Game"), buttonStyle, GUILayout.Height(50))))

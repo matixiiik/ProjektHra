@@ -1389,27 +1389,24 @@ public class GridManager : MonoBehaviour
         foreach (string k in dead) islandTerrains.Remove(k);
     }
 
-    // Nasbírá souřadnice políček s vrakem (Treasure) v okolí středu. Používá
-    // SeaFloor, aby pod vraky přírodně zvedl dno (mělčina), místo umělé kupky.
-    public void CollectTreasureTilesNear(int cx, int cz, int radius, List<Vector2Int> outList)
+    // Přidá do seznamů souřadnice políček s vrakem (Treasure) a pevninových
+    // políček ostrova (souš / maják / bedna) ve sloupcích xFrom..xTo a v pásu
+    // cz ± radius. Používá SeaFloor: pod vraky přírodně zvedne dno (mělčina) a
+    // kolem ostrova až k jeho úpatí, aby ostrov "vyrůstal ze dna". Sloupce
+    // se předávají po částech (SeaFloor jich zpracuje pár za snímek), ať sběr
+    // nezasekne jediný snímek; políčko se čte jedním přístupem do slovníku.
+    public void CollectFloorFeatures(int xFrom, int xTo, int cz, int radius,
+                                     List<Vector2Int> wrecks, List<Vector2Int> land)
     {
-        outList.Clear();
-        for (int x = cx - radius; x <= cx + radius; x++)
+        for (int x = xFrom; x <= xTo; x++)
             for (int y = cz - radius; y <= cz + radius; y++)
-                if (GetTileType(x, y) == TileType.Treasure)
-                    outList.Add(new Vector2Int(x, y));
-    }
+            {
+                if (!gameData.tileData.TryGetValue(GridKey(x, y), out TileStatus status)) continue;
 
-    // Nasbírá souřadnice pevninových políček ostrova (souš / maják / bedna) v
-    // okolí středu. Používá SeaFloor, aby kolem ostrova zvedl dno až k jeho
-    // úpatí — ostrov pak "vyrůstá ze dna" a nekončí pod vodou uříznutý.
-    public void CollectIslandTilesNear(int cx, int cz, int radius, List<Vector2Int> outList)
-    {
-        outList.Clear();
-        for (int x = cx - radius; x <= cx + radius; x++)
-            for (int y = cz - radius; y <= cz + radius; y++)
-                if (IsMeshLandTile(GetTileType(x, y)))
-                    outList.Add(new Vector2Int(x, y));
+                TileType type = (TileType)status.type;
+                if (type == TileType.Treasure)         wrecks.Add(new Vector2Int(x, y));
+                else if (IsMeshLandTile(type))         land.Add(new Vector2Int(x, y));
+            }
     }
 
     // Vytvoří barevnou ikonku budovy (čtvereček nad ní) jen pro minimapu.

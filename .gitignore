@@ -49,3 +49,6 @@ sysinfo.txt
 # OS
 .DS_Store
 Thumbs.db
+
+# Buildy (Windows)
+/Builds/

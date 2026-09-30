@@ -52,6 +52,11 @@ public class GridManager : MonoBehaviour
     // Právě existující 3D objekty políček. Klíč "x,y" → objekt ve scéně.
     private Dictionary<string, GameObject> activeTiles = new Dictionary<string, GameObject>();
 
+    // Středy naposled dokončených čtverců okolí (viz GenerateRegion).
+    private const int GENERATED_CENTERS_MAX = 4;
+    private const int GENERATED_REUSE_RANGE = 8;
+    private readonly List<Vector2Int> generatedCenters = new List<Vector2Int>();
+
     // Políčko, na kterém sedí příběhové NPC (děda) — nesmí na něm být žádná
     // dekorace. Zamluví si ho StoryNpc, jakmile se usadí (a znovu při každém
     // vygenerování té dlaždice, když se hráč vrátí).
@@ -311,6 +316,7 @@ public class GridManager : MonoBehaviour
     public void GenerateWorld(int centerX, int centerY)
     {
         ClearOldTiles();
+        ForgetDistantGeneratedCenters();
         GenerateRegion(centerX, centerY);
 
         // V multiplayeru drž naživu i okolí obou hráčů.
@@ -329,27 +335,90 @@ public class GridManager : MonoBehaviour
     // volání (hráč popluje o kousek dál) najde skoro všechna políčka už
     // hotová — ať se to tedy vyřídí JEDNÍM přístupem do tileData na políčko
     // (TryGetValue), ne třemi (ContainsKey + indexer + indexer jako dřív).
+    //
+    // Když hráč popluje jen o kousek dál, čtverec se s tím minulým skoro celý
+    // překrývá — ta část už je hotová, takže se zpracuje jen nově odkrytý
+    // okraj. Pamatujeme si středy naposled dokončených čtverců
+    // (generatedCenters, max. GENERATED_CENTERS_MAX — v multiplayeru dva hráči).
+    // Kdykoli se 3D objekty políček mažou mimo ClearOldTiles (nový mega ostrov,
+    // načtení hry), paměť se zahodí (InvalidateGeneratedRegions) a příští
+    // volání projde celý čtverec jako dřív.
     private void GenerateRegion(int centerX, int centerY)
     {
+        int prevIndex = FindNearbyGeneratedCenter(centerX, centerY);
+        bool hasPrev = prevIndex >= 0;
+        Vector2Int prev = hasPrev ? generatedCenters[prevIndex] : default;
+
+        if (hasPrev && prev.x == centerX && prev.y == centerY) return; // nic nového
+
         for (int x = centerX - ACTIVE_GRID_SIZE; x <= centerX + ACTIVE_GRID_SIZE; x++)
         {
+            bool inPrevX = hasPrev && Mathf.Abs(x - prev.x) <= ACTIVE_GRID_SIZE;
             for (int y = centerY - ACTIVE_GRID_SIZE; y <= centerY + ACTIVE_GRID_SIZE; y++)
             {
-                string key = GridKey(x, y);
+                // Políčko leží i v minulém čtverci → už je zpracované.
+                if (inPrevX && Mathf.Abs(y - prev.y) <= ACTIVE_GRID_SIZE) continue;
 
-                if (!gameData.tileData.TryGetValue(key, out TileStatus status))
-                {
-                    CheckAndGenerateArea(x, y); // vytvoří data (i pro celý nový ostrov)
-                    status = gameData.tileData[key]; // CheckAndGenerateArea zápis pro [x,y] garantuje
-                }
-
-                if (!activeTiles.ContainsKey(key)) InstantiateTile(x, y, status); // vytvoř objekt
-
-                // Mega ostrov nemá per-dlaždicový prefab (InstantiateTile ho přeskočí) —
-                // terénní mesh se mu tedy musí zajistit tady.
-                if ((TileType)status.type == TileType.MegaIsland)
-                    EnsureIslandTerrain(x, y);
+                EnsureTileAt(x, y);
             }
+        }
+
+        var center = new Vector2Int(centerX, centerY);
+        if (hasPrev) generatedCenters[prevIndex] = center;
+        else
+        {
+            if (generatedCenters.Count >= GENERATED_CENTERS_MAX) generatedCenters.RemoveAt(0);
+            generatedCenters.Add(center);
+        }
+    }
+
+    // Zajistí data i 3D objekt jednoho políčka.
+    private void EnsureTileAt(int x, int y)
+    {
+        string key = GridKey(x, y);
+
+        if (!gameData.tileData.TryGetValue(key, out TileStatus status))
+        {
+            CheckAndGenerateArea(x, y); // vytvoří data (i pro celý nový ostrov)
+            status = gameData.tileData[key]; // CheckAndGenerateArea zápis pro [x,y] garantuje
+        }
+
+        if (!activeTiles.ContainsKey(key)) InstantiateTile(x, y, status); // vytvoř objekt
+
+        // Mega ostrov nemá per-dlaždicový prefab (InstantiateTile ho přeskočí) —
+        // terénní mesh se mu tedy musí zajistit tady.
+        if ((TileType)status.type == TileType.MegaIsland)
+            EnsureIslandTerrain(x, y);
+    }
+
+    // Index zapamatovaného středu do 8 políček od daného (jinak -1 = projít celé).
+    private int FindNearbyGeneratedCenter(int centerX, int centerY)
+    {
+        for (int i = 0; i < generatedCenters.Count; i++)
+        {
+            Vector2Int c = generatedCenters[i];
+            if (Mathf.Abs(c.x - centerX) <= GENERATED_REUSE_RANGE
+                && Mathf.Abs(c.y - centerY) <= GENERATED_REUSE_RANGE) return i;
+        }
+        return -1;
+    }
+
+    // Zahodí paměť dokončených čtverců — příští GenerateRegion projde celý čtverec.
+    private void InvalidateGeneratedRegions() => generatedCenters.Clear();
+
+    // Zapomene středy, které už nejsou u žádného hráče (ClearOldTiles jejich
+    // objekty mohl smazat, např. po vynuceném ostrovu daleko od hráčů).
+    private void ForgetDistantGeneratedCenters()
+    {
+        for (int i = generatedCenters.Count - 1; i >= 0; i--)
+        {
+            Vector2Int c = generatedCenters[i];
+            bool nearP1 = Mathf.Abs(c.x - gameData.players[0].gridX) <= GENERATED_REUSE_RANGE
+                       && Mathf.Abs(c.y - gameData.players[0].gridY) <= GENERATED_REUSE_RANGE;
+            bool nearP2 = MultiplayerManager.IsMultiplayer
+                       && Mathf.Abs(c.x - gameData.players[1].gridX) <= GENERATED_REUSE_RANGE
+                       && Mathf.Abs(c.y - gameData.players[1].gridY) <= GENERATED_REUSE_RANGE;
+            if (!nearP1 && !nearP2) generatedCenters.RemoveAt(i);
         }
     }
 
@@ -1608,6 +1677,7 @@ public class GridManager : MonoBehaviour
     /// </summary>
     public void PlaceMegaIsland(int centerX, int centerY)
     {
+        InvalidateGeneratedRegions(); // níž se mažou 3D objekty políček → přegenerovat celý čtverec
         const int R = 13; // poloměr plochy (→ ~26×26 políček)
 
         // Organický kruhový blok — kruh + trochu šumu na okraji, ať to není přesný kruh.
@@ -2103,6 +2173,7 @@ public class GridManager : MonoBehaviour
     {
         foreach (var kv in activeTiles) Destroy(kv.Value);
         activeTiles.Clear();
+        InvalidateGeneratedRegions();
 
         foreach (var kv in islandTerrains) Destroy(kv.Value.go);
         islandTerrains.Clear();

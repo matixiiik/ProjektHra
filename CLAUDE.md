@@ -1,4 +1,4 @@
-# ProjektHra — Lodní dobrodružství
+# ProjektHra — Poslední maják
 
 3D Unity hra: hráč pluje po nekonečném oceánu, rybaří, těží poklady z vraků,
 bojuje s piráty a nepřátelskými ostrovy, kupuje vylepšení v majáku, plní questy

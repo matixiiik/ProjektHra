@@ -361,7 +361,7 @@ const k7 = [
 // ───────── Zdroje a přílohy ─────────
 const src = [
   H1n('Seznam použitých zdrojů'),
-  P('[[Zdroje jsou uvedeny podle ISO 690. U internetových zdrojů doplnit datum citace (poslední přístup) po ověření, že odkaz funguje.]]', { alignment: AlignmentType.LEFT }),
+  P('Zdroje jsou uvedeny podle ISO 690; u internetových zdrojů je uvedeno datum citace (poslední přístup), odkazy byly ověřeny 30. 9. 2026.', { alignment: AlignmentType.LEFT }),
   ...[
     '[1] UNITY TECHNOLOGIES. Unity Manual. Online. Dostupné z: https://docs.unity3d.com/Manual/. [cit. 2026-09-30].',
     '[2] UNITY TECHNOLOGIES. Universal Render Pipeline. Online. Dostupné z: https://docs.unity3d.com/Manual/urp/urp-introduction.html. [cit. 2026-09-30].',

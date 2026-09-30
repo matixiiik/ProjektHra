@@ -146,10 +146,7 @@ public static class SaveManager
         try
         {
             string json = File.ReadAllText(GetPath(CurrentSlot));
-            // ?? new GameData() ošetří případ, kdy je JSON prázdný / null
-            GameData data = JsonUtility.FromJson<GameData>(json) ?? new GameData();
-            MigrateIfNeeded(data);
-            return data;
+            return ParseAndMigrate(json);
         }
         catch (System.Exception e)
         {
@@ -157,6 +154,23 @@ public static class SaveManager
             Debug.LogWarning($"Save slotu {CurrentSlot} je poškozený, spouštím novou hru. ({e.Message})");
             return new GameData();
         }
+    }
+
+    /// <summary>
+    /// Převede JSON savu na GameData a rovnou ho zmigruje. Public kvůli testům.
+    /// </summary>
+    public static GameData ParseAndMigrate(string json)
+    {
+        // ?? new GameData() ošetří případ, kdy je JSON prázdný / null
+        GameData data = JsonUtility.FromJson<GameData>(json) ?? new GameData();
+
+        // JsonUtility u chybějícího pole nechá výchozí hodnotu z inicializátoru
+        // (= aktuální verze), takže nejstarší savy bez "saveVersion" by se tvářily
+        // jako nové a migrace by se přeskočila. Bez pole v JSONu = verze 0.
+        if (!json.Contains("\"saveVersion\"")) data.saveVersion = 0;
+
+        MigrateIfNeeded(data);
+        return data;
     }
 
     /// <summary>

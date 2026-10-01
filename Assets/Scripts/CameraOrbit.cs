@@ -37,6 +37,10 @@ public class CameraOrbit : MonoBehaviour
     [Tooltip("Výška očí nad počátkem hráče v pohledu z první osoby.")]
     public float firstPersonHeight = 1.3f;
 
+    // Co se v první osobě NESMÍ schovat, i když to leží pod hráčem (kamera je jeho potomek) —
+    // puška v ruce na obrazovce (viz PlayerController.BuildFirstPersonWeapon).
+    [HideInInspector] public Transform keepVisibleRoot;
+
     private Vector3 lastMouse;
 
     // ── Zoom + první osoba ───────────────────────────────────────────────────
@@ -179,6 +183,7 @@ public class CameraOrbit : MonoBehaviour
         foreach (var r in scanBuffer)
         {
             // Nechej na pokoji čáry (kroužek práce), stopy a částice — to není tělo hráče.
+            if (keepVisibleRoot != null && r.transform.IsChildOf(keepVisibleRoot)) continue; // viewmodel zbraně
             if (r.enabled && !(r is LineRenderer) && !(r is TrailRenderer) && !(r is ParticleSystemRenderer))
             {
                 r.enabled = false;

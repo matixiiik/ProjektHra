@@ -270,8 +270,8 @@ public class PlayerController : MonoBehaviour
 
     void Update()
     {
-        // Pěšák na vodním políčku plave (vešel z ostrova do vody).
-        footSwimming = IsWaterUnderFoot();
+        // Pěšák ve vodě: nejdřív se brodí (chodí), a až je hluboko, plave.
+        UpdateWaterState();
 
         // Loď zůstává plavat na svém místě, dokud je hráč pěšky (a zase zmizí,
         // až nasedne) — řeší i načtení save uprostřed vylodění.
@@ -454,12 +454,13 @@ public class PlayerController : MonoBehaviour
         // Střílí se tam, kam se dívá kamera (vodorovně) a panáček se k tomu okamžitě otočí,
         // ať míří zbraní přesně směrem výstřelu. Nahoru / dolů podle sklonu kamery.
         Vector3 dir  = AimHorizontalDir();
-        Vector3 from = transform.position + Vector3.up * 0.9f;
+        Vector3 from = fpWeapon != null && fpWeapon.activeSelf ? fpMuzzle.position : transform.position + Vector3.up * 0.9f;
         if (headDot != null) headDot.transform.rotation = Quaternion.LookRotation(dir);
         CombatDirector.Ensure();
         CannonBall.FireAimed(from, dir, AimElevationDeg(), HAND_SHOT_DAMAGE, CannonBall.Side.Player);
 
         SoundManager.PlayHandgun();
+        FirstPersonShotEffect();
         gridManager.NotifyWorldChanged(); // překresli munici v hotbaru
     }
 
@@ -662,10 +663,13 @@ public class PlayerController : MonoBehaviour
     // Puška — hlaveň + tělo + pažba, dost velká, ať je v ruce vidět. Hlaveň míří
     // dopředu = lokální +Z kotvy = směr míření. Kotva je v místě dlaně, takže tělo
     // pušky sedí těsně za ní a hlaveň před ní.
-    private GameObject BuildRifleProp()
+    private GameObject BuildRifleProp() => BuildRifleModel(heldAnchor, "WeaponProp");
+
+    // Samotný model pušky z primitiv — používá ho věc v ruce panáčka i pohled z první osoby.
+    private static GameObject BuildRifleModel(Transform parent, string name)
     {
-        var root = new GameObject("WeaponProp");
-        root.transform.SetParent(heldAnchor, false);
+        var root = new GameObject(name);
+        root.transform.SetParent(parent, false);
         root.transform.localPosition = Vector3.zero;
 
         Material dark  = MakeHeldMat(new Color(0.10f, 0.10f, 0.11f));
@@ -760,6 +764,9 @@ public class PlayerController : MonoBehaviour
     private const float SWIM_WATER_Y   = -0.28f; // výška středu těla plavce (hladina je kolem -0,22 → vyčnívá záda a hlava)
     private const float SWIM_BODY_HALF = 0.5f;   // asi polovina délky těla — o tolik se model posune, aby střed těla ležel ve vodě
     private const float ARM_LENGTH     = 0.30f;  // délka natažené ruky (kde je dlaň od ramene)
+    private const float HELD_SIDE_WEAPON = 0.22f; // o kolik je zbraň v ruce posunutá do strany (doprava od hráče)
+    private const float HELD_SIDE_OTHER  = 0.14f; // totéž pro náboje a poklad
+    private const float HELD_DROP        = 0.04f; // a kousek dolů, ať nevisí ve výšce očí
 
     /// <summary>Plave pěší hráč (vešel z ostrova do vody)? Pro příšeru a další.</summary>
     public bool IsFootSwimming => footSwimming;
@@ -788,17 +795,81 @@ public class PlayerController : MonoBehaviour
         return null;
     }
 
-    // Stojí pěšák na vodním políčku? (=> plave)
-    bool IsWaterUnderFoot()
+    // ── Brodění a plavání pěšáka ────────────────────────────────────────────
+    // Vodní políčko začíná dřív, než je vidět voda: pláž (písek) se z ostrova
+    // svažuje pod hladinu ještě o kus dál (IslandTerrain.BEACH) a mřížka políček
+    // je vůči meshi posunutá o půl políčka. Podle samotné dlaždice by panáček
+    // plaval už na písku. Proto se rozhoduje podle vzdálenosti od pevniny
+    // (stejně jako terén): hladina je asi 0,4 od břehu, do 2 se brodí (chůze,
+    // čím dál hlouběji ve vodě), a teprve dál se plave.
+    private bool footWading;     // pěšky v mělké vodě → chůze, ne plavání
+    private float wadeSink;      // o kolik je model kvůli brodění níž (j)
+    private bool  wadeSinkApplied;
+    private const float WADE_START_DIST = 0.40f; // od téhle vzdálenosti od pevniny je písek pod hladinou
+    private const float WADE_SWIM_DIST  = 2.00f; // dál už je voda hluboká → plave
+    private const float WADE_SPEED_MULT = 0.8f;
+    private const float WADE_SINK_MAX   = 0.30f;
+    private const float WADE_SLOPE_END  = 1.25f; // tam končí svah pláže (IslandTerrain.BEACH), dál je dno rovné
+
+    void UpdateWaterState()
     {
-        if (!isOnFoot) return false;
-        TileType t = gridManager.GetTileType(Mathf.RoundToInt(transform.position.x), Mathf.RoundToInt(transform.position.z));
-        return IsBoatWater(t);
+        footSwimming = false;
+        footWading   = false;
+        wadeSink     = 0f;
+        if (!isOnFoot) return;
+
+        Vector3 pos = transform.position;
+        TileType under = gridManager.GetTileType(Mathf.RoundToInt(pos.x), Mathf.RoundToInt(pos.z));
+        float dist = NearestLandDistance(pos.x, pos.z);
+
+        footSwimming = IsBoatWater(under) && dist > WADE_SWIM_DIST;
+        footWading   = !footSwimming && dist > WADE_START_DIST;
+        if (footWading)
+            wadeSink = Mathf.Clamp01((dist - WADE_START_DIST) / (WADE_SLOPE_END - WADE_START_DIST)) * WADE_SINK_MAX;
+    }
+
+    // Vzdálenost (světové jednotky) od bodu k nejbližšímu kousku pevniny. Políčko
+    // [x,y] vizuálně pokrývá čtverec [x,x+1) × [y,y+1) (viz IslandTerrain). Hledá se
+    // jen v okolí ±3 políčka (WADE_SWIM_DIST je 2) — dál už je to "daleko" (vrací 99).
+    float NearestLandDistance(float wx, float wz)
+    {
+        int cx = Mathf.FloorToInt(wx);
+        int cz = Mathf.FloorToInt(wz);
+        float best = 99f * 99f;
+        for (int x = cx - 3; x <= cx + 3; x++)
+            for (int z = cz - 3; z <= cz + 3; z++)
+            {
+                TileType t = gridManager.GetTileType(x, z);
+                if (!IsLand(t) && t != TileType.Lighthouse && t != TileType.Chest) continue;
+
+                float dx = Mathf.Max(x - wx, 0f, wx - (x + 1f));
+                float dz = Mathf.Max(z - wz, 0f, wz - (z + 1f));
+                float sq = dx * dx + dz * dz;
+                if (sq < best) best = sq;
+            }
+        return Mathf.Sqrt(best);
+    }
+
+    // Při brodění model o kousek klesne (voda mu sahá výš po nohou); jinak zpět.
+    void ApplyWadeSink()
+    {
+        if (footWading)
+        {
+            figureModelTf.localPosition = figureHomePos + Vector3.down * wadeSink;
+            wadeSinkApplied = true;
+        }
+        else if (wadeSinkApplied)
+        {
+            figureModelTf.localPosition = figureHomePos;
+            wadeSinkApplied = false;
+        }
     }
 
     // Volá se každý snímek PO animátoru: buď plavecká póza, nebo natažená ruka s věcí.
     void LateUpdate()
     {
+        UpdateFirstPersonWeapon();
+
         if (headDot == null || figureModelTf == null || !headDot.activeInHierarchy) return;
 
         if (IsSwimming || footSwimming)
@@ -810,6 +881,7 @@ public class PlayerController : MonoBehaviour
         if (swimPoseActive) EndSwimPose();
         TryCalibrateArm();
         PoseHeldItem();
+        ApplyWadeSink();
     }
 
     // Plavání: tělo vodorovně u hladiny (hlava vpřed), ruce a nohy střídavě kývají.
@@ -902,6 +974,8 @@ public class PlayerController : MonoBehaviour
             Vector3 down = armRight.rotation * armRightLocalDown;                          // kam ruka míří teď (animovaná)
             armRight.rotation = Quaternion.FromToRotation(down, aim) * armRight.rotation; // natáhnout ji ve směru míření
             hand = armRight.position + aim * ARM_LENGTH;                                    // dlaň = konec natažené ruky
+            // Věc nemá viset uprostřed před tělem, ale v ruce po straně (zbraň víc do strany).
+            hand += right * (PHotbarSlot == 0 ? HELD_SIDE_WEAPON : HELD_SIDE_OTHER) + Vector3.down * HELD_DROP;
         }
         else
         {
@@ -911,6 +985,84 @@ public class PlayerController : MonoBehaviour
 
         heldAnchor.position = hand;
         heldAnchor.rotation = Quaternion.LookRotation(aim, Vector3.up);
+    }
+
+    // ── Pohled z první osoby: zbraň v pravé ruce na obrazovce ──────────────────
+    // V první osobě se vlastní model hráče schová (CameraOrbit.HideOwnRenderers),
+    // takže by zbraň nebyla vidět. Proto má pušku ještě jednou jako "viewmodel"
+    // připojený ke kameře: vpravo dole, míří dopředu. Při výstřelu cukne a na hlavni
+    // krátce zazáří záblesk. Jen pro sólo hru (ve split-screenu by ji viděl i druhý hráč).
+    private GameObject fpWeapon;      // puška připojená ke kameře
+    private Transform  fpMuzzle;      // konec hlavně (odtud vylétá střela)
+    private GameObject fpFlash;       // záblesk výstřelu
+    private CameraOrbit fpOrbit;
+    private float      fpRecoil;      // 1 = právě vystřeleno, doznívá k 0
+    private float      fpFlashUntil;
+    private static readonly Vector3 FP_WEAPON_POS = new Vector3(0.32f, -0.27f, 0.95f);
+    private const float FP_WEAPON_SCALE = 0.8f;   // puška na obrazovce je menší než ta v ruce panáčka
+    private const float FP_RECOIL_BACK = 0.10f;   // o kolik puška při výstřelu ucukne dozadu
+    private const float FP_RECOIL_PITCH = 7f;     // a o kolik stupňů se zvedne hlaveň
+
+    void UpdateFirstPersonWeapon()
+    {
+        Transform cam = AimCamera;   // solo: Camera.main (viewCamera dostane jen druhý hráč)
+        if (MultiplayerManager.IsMultiplayer || cam == null) return;
+
+        if (fpOrbit == null) fpOrbit = cam.GetComponent<CameraOrbit>();
+        bool show = fpOrbit != null && fpOrbit.IsFirstPerson && WeaponDrawn;
+
+        if (show && fpWeapon == null) BuildFirstPersonWeapon(cam);
+        if (fpWeapon == null) return;
+
+        if (fpWeapon.activeSelf != show) fpWeapon.SetActive(show);
+        if (!show) return;
+
+        fpRecoil = Mathf.MoveTowards(fpRecoil, 0f, 7f * Time.deltaTime);
+        fpWeapon.transform.localPosition = FP_WEAPON_POS + Vector3.back * (FP_RECOIL_BACK * fpRecoil);
+        fpWeapon.transform.localRotation = Quaternion.Euler(-FP_RECOIL_PITCH * fpRecoil, -3f, 0f);
+        if (fpFlash != null) fpFlash.SetActive(Time.time < fpFlashUntil);
+    }
+
+    void BuildFirstPersonWeapon(Transform cam)
+    {
+        fpWeapon = BuildRifleModel(cam, "FirstPersonWeapon");
+        fpWeapon.transform.localPosition = FP_WEAPON_POS;
+        fpWeapon.transform.localScale = Vector3.one * FP_WEAPON_SCALE;
+        if (fpOrbit != null) fpOrbit.keepVisibleRoot = fpWeapon.transform; // první osoba ji nesmí schovat
+
+        // Ať puška nehází stín.
+        foreach (var r in fpWeapon.GetComponentsInChildren<Renderer>())
+            r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+
+        var muzzleGO = new GameObject("Muzzle");
+        muzzleGO.transform.SetParent(fpWeapon.transform, false);
+        muzzleGO.transform.localPosition = new Vector3(0f, 0.03f, 0.46f);
+        fpMuzzle = muzzleGO.transform;
+
+        // Záblesk: malá zářivá koule na hlavni (svítí sama, bez světla ve scéně).
+        fpFlash = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+        fpFlash.name = "MuzzleFlash";
+        var col = fpFlash.GetComponent<Collider>();
+        if (col != null) Destroy(col);
+        fpFlash.transform.SetParent(fpMuzzle, false);
+        fpFlash.transform.localScale = new Vector3(0.09f, 0.09f, 0.14f);
+        var fr = fpFlash.GetComponent<MeshRenderer>();
+        fr.sharedMaterial = MakeHeldMat(new Color(1f, 0.85f, 0.35f));
+        if (fr.sharedMaterial.HasProperty("_EmissionColor"))
+        {
+            fr.sharedMaterial.EnableKeyword("_EMISSION");
+            fr.sharedMaterial.SetColor("_EmissionColor", new Color(3f, 2.2f, 0.7f));
+        }
+        fr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+        fpFlash.SetActive(false);
+        fpWeapon.SetActive(false);
+    }
+
+    // Volá se při výstřelu z pěší zbraně: cuknutí pušky a záblesk (jen v první osobě).
+    void FirstPersonShotEffect()
+    {
+        fpRecoil = 1f;
+        fpFlashUntil = Time.time + 0.06f;
     }
 
     private Animator   figureAnimator;   // animátor pěší postavičky (idle/walk/sprint)
@@ -1038,6 +1190,10 @@ public class PlayerController : MonoBehaviour
         if ((PBoatWrecked && !isOnFoot) || footSwimming)
         {
             speed *= BoatStats.SwimSpeedMultiplier;
+        }
+        else if (footWading)
+        {
+            speed *= WADE_SPEED_MULT; // v mělčině se jde o něco pomaleji
         }
         else if (!isOnFoot)
         {

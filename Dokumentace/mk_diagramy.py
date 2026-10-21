@@ -35,7 +35,7 @@ def architektura():
     ax.set_xlim(0, 10)
     ax.set_ylim(0, 7.2)
     ax.axis("off")
-    ax.text(5, 7.0, "Architektura hry Poslední maják", ha="center", fontsize=14,
+    ax.text(5, 7.0, "Architektura hry The Last Beacon", ha="center", fontsize=14,
             fontweight="bold", color=NAVY)
     box(ax, 0.3, 5.3, 9.4, 1.35, "PREZENTACE (UI)",
         ["HUDCounter · MinimapUIRenderer · MainMenuManager · PauseMenu · ShopUI",
@@ -71,7 +71,7 @@ def usecase():
     ax.set_xlim(0, 10)
     ax.set_ylim(0, 7)
     ax.axis("off")
-    ax.text(5, 6.8, "Use Case diagram – Poslední maják", ha="center", fontsize=14,
+    ax.text(5, 6.8, "Use Case diagram – The Last Beacon", ha="center", fontsize=14,
             fontweight="bold", color=NAVY)
     ax.add_patch(Rectangle((2.2, 0.3), 5.6, 6.15, fc="#FAFAFA", ec=NAVY, lw=1.5))
     ax.text(5, 6.25, "Systém: hra", ha="center", fontsize=9, color=NAVY, fontweight="bold")

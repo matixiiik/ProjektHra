@@ -32,10 +32,10 @@ const pageProps = (m) => ({ page: { size: { width: 11906, height: 16838 }, margi
 const s = 20;
 const u1 = new Document({ styles: stylesDef, numbering, sections: [{ properties: pageProps(850), children: [
   new Paragraph({ spacing: { after: 20 }, children: [run('IT projekt – Úkol 1: Ukotvení tématu, vize, hodnoty a cílové skupiny', { size: 18, color: '666666' })] }),
-  new Paragraph({ spacing: { after: 40 }, children: [run('Poslední maják', { bold: true, size: 40, color: '1F4E79' })] }),
+  new Paragraph({ spacing: { after: 40 }, children: [run('The Last Beacon', { bold: true, size: 40, color: '1F4E79' })] }),
   P([run('3D hra o plavbě po nekonečném oceánu (Unity)  |  Autor: Martin Štěpánek  |  4. ročník, IT projekt  |  Stav projektu ke dni 30. 6. 2026', { size: 18, color: '444444' })], { spacing: { after: 60 }, border: { bottom: { style: BorderStyle.SINGLE, size: 6, color: '1F4E79', space: 2 } } }),
   H('1. Téma – co projekt řeší'),
-  P([run('Poslední maják je 3D hra v enginu Unity, ve které hráč pluje po prakticky nekonečném oceánu, rybaří, těží poklady z vraků a za získané mince kupuje vylepšení lodi. Svět se generuje průběžně podle polohy hráče a ukládá se do tří slotů. Hru lze hrát i ve dvou na jednom počítači (split-screen).', { size: s })]),
+  P([run('The Last Beacon je 3D hra v enginu Unity, ve které hráč pluje po prakticky nekonečném oceánu, rybaří, těží poklady z vraků a za získané mince kupuje vylepšení lodi. Svět se generuje průběžně podle polohy hráče a ukládá se do tří slotů. Hru lze hrát i ve dvou na jednom počítači (split-screen).', { size: s })]),
   P([bold('Problém, který řeší: ', s), run('nabízí klidnou hru na volnou chvíli, která nenutí ke stresu ani k dlouhému učení ovládání – plavba, sbírání a postupné zlepšování lodi. Zároveň jde o ucelený softwarový celek, na kterém lze ukázat návrh architektury, práci s daty (ukládání) a generování obsahu.', { size: s })]),
   H('2. Cílová skupina a přínos'),
   B([bold('Kdo: ', s), run('hráči cca 12–25 let, kteří mají rádi klidné hry s postupným zlepšováním (typu Stardew Valley nebo sbíratelské hry); spolužáci a kamarádi, kteří si chtějí zahrát ve dvou na jednom počítači.', { size: s })]),
@@ -58,7 +58,7 @@ const u1 = new Document({ styles: stylesDef, numbering, sections: [{ properties:
 
 // ───────── PLÁN ─────────
 const plan = new Document({ styles: stylesDef, numbering, sections: [{ properties: pageProps(1000), children: [
-  new Paragraph({ spacing: { after: 40 }, children: [run('Plán ročníkové (maturitní) práce – Poslední maják', { bold: true, size: 36, color: '1F4E79' })] }),
+  new Paragraph({ spacing: { after: 40 }, children: [run('Plán ročníkové (maturitní) práce – The Last Beacon', { bold: true, size: 36, color: '1F4E79' })] }),
   P([run('Pracovní dokument: harmonogram, checklist milníků, kostra dokumentace a prezentace. Vychází ze sylabu IT projektu (konzultace 16. 9. – 28. 4.). Stav k 30. 9. 2026.', { size: 19, color: '555555' })]),
   H('1. Přehled: co už máme a co zbývá'),
   B('Hotovo (kód): nekonečný svět, plavba, rybaření a těžba, obchody v majáku, questy, souboje s piráty, nepřátelské ostrovy, příběh a tři mega ostrovy, split-screen, ukládání do 3 slotů, lokalizace CZ/EN, optimalizace ukládání i generování.'),

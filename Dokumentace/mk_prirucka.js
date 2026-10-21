@@ -1,4 +1,4 @@
-// Generuje Uzivatelska_prirucka_Posledni_majak.docx
+// Generuje Uzivatelska_prirucka_The_Last_Beacon.docx
 // Sdílí pomocné funkce (styly, tabulky, obrázky) s mk_prace.js — bere z něj úvod souboru.
 const fs = require('fs');
 const src = fs.readFileSync(require('path').join(__dirname, 'mk_prace.js'), 'utf8');
@@ -10,13 +10,13 @@ const { Document, Packer, Paragraph, TextRun, AlignmentType, Footer, PageNumber 
 
 const c = [
   new Paragraph({ alignment: AlignmentType.CENTER, spacing: { before: 300, after: 120 },
-    children: [new TextRun({ text: 'Poslední maják', font: FONT, bold: true, size: 56, color: '1F4E79' })] }),
+    children: [new TextRun({ text: 'The Last Beacon', font: FONT, bold: true, size: 56, color: '1F4E79' })] }),
   new Paragraph({ alignment: AlignmentType.CENTER, spacing: { after: 300 },
     children: [new TextRun({ text: 'Uživatelská příručka', font: FONT, size: 32, color: '555555' })] }),
   P('Verze hry 0.1.0 · autor: Martin Štěpánek · příloha B ročníkové práce'),
 
   H2('1 O hře'),
-  P('Poslední maják je 3D hra, ve které plujete lodí po nekonečném moři. Rybaříte, vytahujete poklady z vraků, prodáváte je v majácích na ostrovech a za peníze si vylepšujete loď. Cestou potkáte piráty a nepřátelské ostrovy s děly a postupně odemknete příběh o starém námořníkovi a jeho ztraceném bratrovi. Hru můžete hrát sami, nebo ve dvou na jednom počítači (rozdělená obrazovka).'),
+  P('The Last Beacon je 3D hra, ve které plujete lodí po nekonečném moři. Rybaříte, vytahujete poklady z vraků, prodáváte je v majácích na ostrovech a za peníze si vylepšujete loď. Cestou potkáte piráty a nepřátelské ostrovy s děly a postupně odemknete příběh o starém námořníkovi a jeho ztraceném bratrovi. Hru můžete hrát sami, nebo ve dvou na jednom počítači (rozdělená obrazovka).'),
   P('Hra běží úplně offline: nevyžaduje internet, registraci ani instalaci a neshromažďuje žádné osobní údaje.'),
 
   H2('2 Požadavky a spuštění'),
@@ -24,7 +24,7 @@ const c = [
   B('Asi 100 MB volného místa na disku (uložené hry zabírají několik MB navíc).'),
   B('Klávesnice a myš; pro druhého hráče stačí stejná klávesnice (šipky a numerická část).'),
   B('Testováno na notebooku s integrovanou grafikou Intel Iris Xe.'),
-  P('Spuštění: rozbalte ZIP do libovolné složky a spusťte soubor PosledniMajak.exe. Instalace není potřeba.'),
+  P('Spuštění: rozbalte ZIP do libovolné složky a spusťte soubor The Last Beacon.exe. Instalace není potřeba.'),
 
   H2('3 Hlavní menu'),
   ...IMG('menu.png', 380, 'Hlavní menu'),
@@ -73,7 +73,7 @@ const c = [
 
   H2('7 Uložené hry'),
   P('Hra se ukládá automaticky do tří slotů. Soubory najdete ve složce:'),
-  P('C:\\Users\\<vaše jméno>\\AppData\\LocalLow\\matixiiik\\Poslední maják\\save_0.json až save_2.json', { alignment: AlignmentType.LEFT }),
+  P('C:\\Users\\<vaše jméno>\\AppData\\LocalLow\\matixiiik\\The Last Beacon\\save_0.json až save_2.json', { alignment: AlignmentType.LEFT }),
   B('Zálohu uděláte zkopírováním těchto souborů.'),
   B('Když je uložení poškozené, hra to pozná a začne novou hru; proto si postup, na kterém vám záleží, zálohujte.'),
   B('Starší uložené hry se při načtení automaticky převedou na aktuální formát.'),
@@ -81,7 +81,7 @@ const c = [
   H2('8 Řešení problémů'),
   table([3000, 6600], [
     ['Problém', 'Řešení'],
-    ['Hra se nespustí nebo hned skončí', 'Aktualizujte ovladače grafické karty a ověřte podporu DirectX 11. Soubor PosledniMajak.exe spouštějte z rozbalené složky (ne přímo ze ZIPu).'],
+    ['Hra se nespustí nebo hned skončí', 'Aktualizujte ovladače grafické karty a ověřte podporu DirectX 11. Soubor The Last Beacon.exe spouštějte z rozbalené složky (ne přímo ze ZIPu).'],
     ['Hra se seká', 'Zavřete ostatní náročné aplikace. Hra ukládá průběžně na pozadí; dlouhé záseky prosím nahlaste s popisem počítače.'],
     ['Zmizel postup', 'Zkontrolujte, zda pokračujete ze správného slotu (menu Pokračovat). Zálohy uložených her viz kapitola 7.'],
     ['Nevím, kam plout', 'Klávesa M otevře mapu (po koupi mapy); klikem nastavíte cíl, na minimapě ho ukáže šipka. Nápověda k aktuálnímu úkolu je nahoře na obrazovce.'],
@@ -93,7 +93,7 @@ const c = [
 ];
 
 const doc = new Document({
-  creator: 'Martin Štěpánek', title: 'Poslední maják – uživatelská příručka',
+  creator: 'Martin Štěpánek', title: 'The Last Beacon – uživatelská příručka',
   styles: { default: { document: { run: { font: FONT, size: 22 } } } },
   numbering,
   sections: [{
@@ -102,4 +102,4 @@ const doc = new Document({
     children: c,
   }],
 });
-d.Packer.toBuffer(doc).then(b => { fs.writeFileSync('Uzivatelska_prirucka_Posledni_majak.docx', b); console.log('OK'); });
+d.Packer.toBuffer(doc).then(b => { fs.writeFileSync('Uzivatelska_prirucka_The_Last_Beacon.docx', b); console.log('OK'); });

@@ -2,12 +2,12 @@
 
 Tohle jsou **návrhy**, které si přepiš vlastními slovy. Části, kde se píše
 „já“, mají být tvoje — u obhajoby musíš umět vysvětlit každou větu. Nic z toho
-zatím není v `Rocnikova_prace_Posledni_majak.docx` (jsou tam žlutá pole).
+zatím není v `Rocnikova_prace_The_Last_Beacon.docx` (jsou tam žlutá pole).
 
 ## 1. Anglická anotace (návrh, překlad české anotace)
 
 > The thesis describes the design and implementation of *The Last Lighthouse*
-> (Czech title: *Poslední maják*), a 3D game made in Unity 6 using C#. The
+> (Czech working title: *Poslední maják*), a 3D game made in Unity 6 using C#. The
 > player sails across a practically endless, procedurally generated ocean,
 > fishes, salvages treasure from wrecks, fights pirates and hostile islands,
 > buys ship upgrades in lighthouses and completes quests. A short story about
@@ -24,7 +24,7 @@ zatím není v `Rocnikova_prace_Posledni_majak.docx` (jsou tam žlutá pole).
 > persistence, split-screen, JSON.
 
 („The Last Lighthouse“ je můj překlad názvu — pokud chceš, nech i v angličtině
-„Poslední maják“.)
+„The Last Beacon“.)
 
 ## 2. Osobní přínos (kap. 7.3) — osnova, doplň svými slovy
 

@@ -1,4 +1,4 @@
-// Generuje Rocnikova_prace_Posledni_majak.docx
+// Generuje Rocnikova_prace_The_Last_Beacon.docx
 const fs = require('fs');
 const d = require('docx');
 const { Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell, WidthType, ShadingType, BorderStyle, AlignmentType, LevelFormat, HeadingLevel, TableOfContents, Footer, PageNumber, PageBreak } = d;
@@ -56,7 +56,7 @@ const title = [
   new Paragraph({ alignment: AlignmentType.CENTER, spacing: { before: 600, after: 200 }, children: runs('[[NÁZEV ŠKOLY]]', { size: 26 }) }),
   new Paragraph({ alignment: AlignmentType.CENTER, spacing: { after: 1800 }, children: runs('Obor: [[OBOR]]', { size: 22, color: '555555' }) }),
   new Paragraph({ alignment: AlignmentType.CENTER, spacing: { after: 100 }, children: [new TextRun({ text: 'ROČNÍKOVÁ PRÁCE – IT PROJEKT', font: FONT, size: 26, color: '555555' })] }),
-  new Paragraph({ alignment: AlignmentType.CENTER, spacing: { after: 120 }, children: [new TextRun({ text: 'Poslední maják', font: FONT, bold: true, size: 72, color: '1F4E79' })] }),
+  new Paragraph({ alignment: AlignmentType.CENTER, spacing: { after: 120 }, children: [new TextRun({ text: 'The Last Beacon', font: FONT, bold: true, size: 60, color: '1F4E79' })] }),
   new Paragraph({ alignment: AlignmentType.CENTER, spacing: { after: 2200 }, children: [new TextRun({ text: '3D hra o plavbě po nekonečném oceánu (Unity, C#)', font: FONT, size: 28 })] }),
   new Paragraph({ spacing: { after: 60 }, children: runs('Autor: Martin Štěpánek', { size: 24 }) }),
   new Paragraph({ spacing: { after: 60 }, children: runs('Třída: [[TŘÍDA]]', { size: 24 }) }),
@@ -68,7 +68,7 @@ const title = [
 // ───────── Anotace ─────────
 const anot = [
   H1('Anotace'),
-  P('Práce popisuje návrh a realizaci 3D hry Poslední maják vytvořené v enginu Unity 6 v jazyce C#. Hráč pluje po prakticky nekonečném procedurálně generovaném oceánu, rybaří, těží poklady z vraků, bojuje s piráty a nepřátelskými ostrovy, v majácích nakupuje vylepšení lodi a plní úkoly. Postupně odemyká krátký příběh o ztraceném bratrovi starého námořníka, který vrcholí volbou se dvěma konci. Hra podporuje lokální split-screen pro dva hráče, uložení do tří slotů a česko-anglickou lokalizaci.'),
+  P('Práce popisuje návrh a realizaci 3D hry The Last Beacon vytvořené v enginu Unity 6 v jazyce C#. Hráč pluje po prakticky nekonečném procedurálně generovaném oceánu, rybaří, těží poklady z vraků, bojuje s piráty a nepřátelskými ostrovy, v majácích nakupuje vylepšení lodi a plní úkoly. Postupně odemyká krátký příběh o ztraceném bratrovi starého námořníka, který vrcholí volbou se dvěma konci. Hra podporuje lokální split-screen pro dva hráče, uložení do tří slotů a česko-anglickou lokalizaci.'),
   P('Dokumentace shrnuje motivaci a cíle, použité technologie, návrh architektury a datového modelu, popis nejdůležitějších částí implementace (generování světa, ukládání, ekonomika, souboje, příběh), způsob testování, licenční a právní stránku a vlastní hodnocení výsledku.'),
   P('Klíčová slova: Unity, C#, procedurální generování, herní architektura, ukládání dat, split-screen, JSON.'),
   new Paragraph({ spacing: { before: 300, after: 120 }, children: [new TextRun({ text: 'Annotation', font: FONT, bold: true, size: 26, color: '1F4E79' })] }),
@@ -219,7 +219,7 @@ const k3 = [
   B('Distribuce: bezplatně na itch.io jako portfolio; případně nízká jednorázová cena (cca 3–5 €) na Steamu po dopracování.'),
   B('Komunita: krátká videa (YouTube/TikTok), sdílení sběratelských „map“ a náhodně generovaných ostrovů, možnost modifikací přes vývojářskou konzoli.'),
   B('Open-source: zdrojový kód pod licencí MIT, grafika CC0 – hra může sloužit jako výukový příklad.'),
-  B('Konkurence: klidné exploration/collector hry; odlišením je nekonečný generovaný svět, split-screen na jednom PC a příběhová linka. Nejblíž mají hry Raft [12] (přežití na voru; na rozdíl od něj je Poslední maják bez hladu a žízně, klidnější a s krátkým příběhem), Dredge [13] (rybaření s příběhem a hrůzou; má pevnou mapu, nikoli nekonečný generovaný svět a nemá souboje ani lokální multiplayer) a Sea of Thieves [14] (plavba a poklady; vyžaduje online hru a je mnohem větší). Poslední maják se liší tím, že je celý offline, dá se hrát ve dvou na jednom počítači a je záměrně krátký a přehledný.'),
+  B('Konkurence: klidné exploration/collector hry; odlišením je nekonečný generovaný svět, split-screen na jednom PC a příběhová linka. Nejblíž mají hry Raft [12] (přežití na voru; na rozdíl od něj je The Last Beacon bez hladu a žízně, klidnější a s krátkým příběhem), Dredge [13] (rybaření s příběhem a hrůzou; má pevnou mapu, nikoli nekonečný generovaný svět a nemá souboje ani lokální multiplayer) a Sea of Thieves [14] (plavba a poklady; vyžaduje online hru a je mnohem větší). The Last Beacon se liší tím, že je celý offline, dá se hrát ve dvou na jednom počítači a je záměrně krátký a přehledný.'),
   H2('3.7 Produkční postup (pipeline)'),
   P('Vývoj probíhal iterativně: nápad → prototyp funkce → integrace → ruční ověření v editoru → úklid kódu a komentářů → commit. Verzování zajišťuje Git a GitHub, každá větší změna prochází větví a pull requestem do větve main. Složková struktura repozitáře odpovídá fázím: Assets/Scripts (kód), Assets/Scenes, Assets/Resources (modely načítané za běhu), Assets/Materials, složka .claude (pracovní poznámky a plány) a složka Dokumentace (tato práce).'),
 ];
@@ -313,9 +313,9 @@ const k5 = [
   ]),
   spacer(),
   H2('5.4 Build a distribuce'),
-  P('Windows build (64 bit, Mono) vzniká z obou scén v Build Settings (SampleScene, LighthouseInterior). Poslední build z 30. 9. 2026 (verze 0.1.0, produkt „Poslední maják“) proběhl bez chyb a varování, trval asi 2 minuty a má přibližně 97 MB. Po sestavení proběhl smoke test: spuštění .exe, kontrola logu a ověření, že se načte uložená hra a migruje starý save. Test odhalil chybu, která se v editoru neprojevila (shadery vyhledávané přes Shader.Find nebyly v buildu, viz kapitola 5.3), a po její opravě proběhl znovu čistě. Build se distribuuje jako ZIP; na GitHubu bude jako Release Candidate a poté finální verze spolu s uživatelskou příručkou. Složka Builds/ je v .gitignore, protože binární build do repozitáře nepatří.'),
+  P('Windows build (64 bit, Mono) vzniká z obou scén v Build Settings (SampleScene, LighthouseInterior). Poslední build z 30. 9. 2026 (verze 0.1.0, produkt „The Last Beacon“) proběhl bez chyb a varování, trval asi 2 minuty a má přibližně 97 MB. Po sestavení proběhl smoke test: spuštění .exe, kontrola logu a ověření, že se načte uložená hra a migruje starý save. Test odhalil chybu, která se v editoru neprojevila (shadery vyhledávané přes Shader.Find nebyly v buildu, viz kapitola 5.3), a po její opravě proběhl znovu čistě. Build se distribuuje jako ZIP; na GitHubu bude jako Release Candidate a poté finální verze spolu s uživatelskou příručkou. Složka Builds/ je v .gitignore, protože binární build do repozitáře nepatří.'),
   H2('5.5 Uživatelská příručka'),
-  P('Uživatelská příručka je samostatný dokument (Uzivatelska_prirucka_Posledni_majak.docx, příloha B). Obsahuje požadavky na počítač, spuštění, ovládání obou hráčů, popis herní smyčky, obchodů a příběhu, umístění uložených her a řešení častých problémů.'),
+  P('Uživatelská příručka je samostatný dokument (Uzivatelska_prirucka_The_Last_Beacon.docx, příloha B). Obsahuje požadavky na počítač, spuštění, ovládání obou hráčů, popis herní smyčky, obchodů a příběhu, umístění uložených her a řešení častých problémů.'),
 ];
 
 // ───────── 6 Právní rámec ─────────
@@ -343,7 +343,7 @@ const k6 = [
 // ───────── 7 Závěr ─────────
 const k7 = [
   H1('7 Závěr'),
-  P('Cílem práce bylo vytvořit hratelnou 3D hru v Unity s nekonečným světem, ekonomikou, souboji, příběhem a dokumentací. Výsledkem je hra Poslední maják, která obsahuje všechny plánované funkce z kapitoly 1.4 a je hratelná od nové hry po oba konce příběhu i ve dvou hráčích na jednom počítači. Byla splněna i technická kritéria: svět je nekonečný a ukládaný, ukládání nezpůsobuje záseky, kód je okomentovaný a členěný.'),
+  P('Cílem práce bylo vytvořit hratelnou 3D hru v Unity s nekonečným světem, ekonomikou, souboji, příběhem a dokumentací. Výsledkem je hra The Last Beacon, která obsahuje všechny plánované funkce z kapitoly 1.4 a je hratelná od nové hry po oba konce příběhu i ve dvou hráčích na jednom počítači. Byla splněna i technická kritéria: svět je nekonečný a ukládaný, ukládání nezpůsobuje záseky, kód je okomentovaný a členěný.'),
   H2('7.1 Omezení'),
   B('Není hotový síťový multiplayer (naplánován v souboru .claude/network-multiplayer-plan.md).'),
   B('Automatické testy pokrývají jen datové třídy, ekonomiku a migraci savů; herní logika závislá na scéně a vstupu se testuje ručně.'),
@@ -380,14 +380,14 @@ const src = [
   ].map(t => new Paragraph({ spacing: { after: 80 }, indent: { left: 540, hanging: 540 }, children: runs(t) })),
   H2('Přílohy'),
   B('Příloha A – Zdrojový kód (odkaz na GitHub a tag vydání).'),
-  B('Příloha B – Uživatelská příručka (soubor Uzivatelska_prirucka_Posledni_majak.docx, před odevzdáním exportovat do PDF).'),
+  B('Příloha B – Uživatelská příručka (soubor Uzivatelska_prirucka_The_Last_Beacon.docx, před odevzdáním exportovat do PDF).'),
   B('Příloha C – Testovací protokol: tabulka v kapitole 5.2; řádky označené žlutě se doplní po ručním testu (kontrolní seznam .claude/playtest-checklist.md).'),
   B('Příloha D – Snímky obrazovky hry (složka Dokumentace/obrazky).'),
   B('Příloha E – Project Charter a prezentace (odevzdané 11. 11.). [[doplnit]]'),
 ];
 
 const doc = new Document({
-  creator: 'Martin Štěpánek', title: 'Poslední maják – ročníková práce',
+  creator: 'Martin Štěpánek', title: 'The Last Beacon – ročníková práce',
   styles: { default: { document: { run: { font: FONT, size: 22 } } } },
   numbering,
   features: { updateFields: true },
@@ -398,4 +398,4 @@ const doc = new Document({
       children: [...anot, ...toc, ...k1, ...k2, ...k3, ...k4, ...k5, ...k6, ...k7, ...src] },
   ],
 });
-Packer.toBuffer(doc).then(b => { fs.writeFileSync('Rocnikova_prace_Posledni_majak.docx', b); console.log('OK'); });
+Packer.toBuffer(doc).then(b => { fs.writeFileSync('Rocnikova_prace_The_Last_Beacon.docx', b); console.log('OK'); });

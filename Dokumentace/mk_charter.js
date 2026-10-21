@@ -17,11 +17,11 @@ const doc = new Document({
   sections: [{
     properties: { page: { size: { width: 11906, height: 16838 }, margin: { top: 1000, bottom: 900, left: 1200, right: 1200 } } },
     children: [
-      new Paragraph({ spacing: { after: 40 }, children: [new TextRun({ text: 'Project Charter – Poslední maják', font: F, bold: true, size: 44, color: '1F4E79' })] }),
+      new Paragraph({ spacing: { after: 40 }, children: [new TextRun({ text: 'Project Charter – The Last Beacon', font: F, bold: true, size: 44, color: '1F4E79' })] }),
       new Paragraph({ spacing: { after: 120 }, border: { bottom: { style: BorderStyle.SINGLE, size: 6, color: '1F4E79', space: 2 } }, children: runs('Autor: Martin Štěpánek  |  Vedoucí: Kristina Sedeke  |  IT projekt, 4. ročník  |  Verze 1.0, [[DATUM]]', { size: 20, color: '555555' }) }),
 
       H('1. Vize a cíl'),
-      P('Dokončit a obhájit hru Poslední maják: klidnou 3D hru o plavbě po nekonečném moři, ve které hráč rybaří, těží poklady, bojuje s piráty a odemyká příběh. Výsledkem je hratelný build, veřejný repozitář a kompletní dokumentace do 14. 4. 2027.'),
+      P('Dokončit a obhájit hru The Last Beacon: klidnou 3D hru o plavbě po nekonečném moři, ve které hráč rybaří, těží poklady, bojuje s piráty a odemyká příběh. Výsledkem je hratelný build, veřejný repozitář a kompletní dokumentace do 14. 4. 2027.'),
 
       H('2. Cílová skupina a přínos'),
       P('Hráči přibližně 12–25 let, kteří chtějí klidnou hru bez stresu a bez učení složitého ovládání, a dvojice kamarádů, které baví hrát na jednom počítači. Získají uvolnění, jasný cíl a příběh. Přínos pro mě: celý postup tvorby většího softwaru od návrhu po release, dokumentaci a licence.'),

@@ -1,4 +1,4 @@
-# ProjektHra — Poslední maják
+# ProjektHra — The Last Beacon
 
 3D Unity hra: hráč pluje po nekonečném oceánu, rybaří, těží poklady z vraků,
 bojuje s piráty a nepřátelskými ostrovy, kupuje vylepšení v majáku, plní questy
@@ -32,9 +32,9 @@ ostrově). Podporuje lokální split-screen pro dva hráče.
   kompilovat, editovat scénu.
 - Kompilace bez Unity: `bash .claude/skills/unity-hra/scripts/compile-check.sh`
   (Unity Roslyn + Bee response file). Skill **`unity-hra`** drží celý pracovní postup.
-- **Build (Windows):** funguje (30. 9., ~97 MB, přes MCP `manage_build` do `Builds/PosledniMajak/`,
-  složka je v `.gitignore`). Company = `matixiiik`, produkt = `Poslední maják` → **saves leží v
-  `%USERPROFILE%\AppData\LocalLow\matixiiik\Poslední maják\save_N.json`** (změna company/produktu
+- **Build (Windows):** funguje (30. 9., ~97 MB, přes MCP `manage_build` do `Builds/TheLastBeacon/`,
+  složka je v `.gitignore`). Company = `matixiiik`, produkt = `The Last Beacon` → **saves leží v
+  `%USERPROFILE%\AppData\LocalLow\matixiiik\The Last Beacon\save_N.json`** (změna company/produktu
   přesune `persistentDataPath`!). Shadery hledané přes `Shader.Find` musí být v *Project Settings →
   Graphics → Always Included Shaders* (jinak v buildu `null`; přidáno URP Lit/Unlit, Unlit/Color,
   Unlit/Transparent, Standard). CI není.

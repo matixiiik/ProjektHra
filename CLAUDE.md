@@ -38,7 +38,8 @@ ostrově). Podporuje lokální split-screen pro dva hráče.
   přesune `persistentDataPath`!). Shadery hledané přes `Shader.Find` musí být v *Project Settings →
   Graphics → Always Included Shaders* (jinak v buildu `null`; přidáno URP Lit/Unlit, Unlit/Color,
   Unlit/Transparent, Standard). CI není.
-- Dokumentace k ročníkové práci: `Dokumentace/` (generátory `mk_*.js` + `mk_diagramy.py`), licence
+- Dokumentace k ročníkové práci: `docs/` (generátory `mk_*.js` + `mk_diagramy.py`; prezentace se
+  generuje `NODE_PATH=<node_modules s pptxgenjs> node docs/mk_prezentace.js`), licence
   `LICENSE` (MIT) a `THIRD_PARTY_LICENSES.md`.
 
 ## Architektura

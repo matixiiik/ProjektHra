@@ -221,7 +221,7 @@ const k3 = [
   B('Open-source: zdrojový kód pod licencí MIT, grafika CC0 – hra může sloužit jako výukový příklad.'),
   B('Konkurence: klidné exploration/collector hry; odlišením je nekonečný generovaný svět, split-screen na jednom PC a příběhová linka. Nejblíž mají hry Raft [12] (přežití na voru; na rozdíl od něj je The Last Beacon bez hladu a žízně, klidnější a s krátkým příběhem), Dredge [13] (rybaření s příběhem a hrůzou; má pevnou mapu, nikoli nekonečný generovaný svět a nemá souboje ani lokální multiplayer) a Sea of Thieves [14] (plavba a poklady; vyžaduje online hru a je mnohem větší). The Last Beacon se liší tím, že je celý offline, dá se hrát ve dvou na jednom počítači a je záměrně krátký a přehledný.'),
   H2('3.7 Produkční postup (pipeline)'),
-  P('Vývoj probíhal iterativně: nápad → prototyp funkce → integrace → ruční ověření v editoru → úklid kódu a komentářů → commit. Verzování zajišťuje Git a GitHub, každá větší změna prochází větví a pull requestem do větve main. Složková struktura repozitáře odpovídá fázím: Assets/Scripts (kód), Assets/Scenes, Assets/Resources (modely načítané za běhu), Assets/Materials, složka .claude (pracovní poznámky a plány) a složka Dokumentace (tato práce).'),
+  P('Vývoj probíhal iterativně: nápad → prototyp funkce → integrace → ruční ověření v editoru → úklid kódu a komentářů → commit. Verzování zajišťuje Git a GitHub, každá větší změna prochází větví a pull requestem do větve main. Složková struktura repozitáře odpovídá fázím: Assets/Scripts (kód), Assets/Scenes, Assets/Resources (modely načítané za běhu), Assets/Materials, složka .claude (pracovní poznámky a plány) a složka docs (tato práce).'),
 ];
 
 // ───────── 4 Realizace ─────────
@@ -382,7 +382,7 @@ const src = [
   B('Příloha A – Zdrojový kód (odkaz na GitHub a tag vydání).'),
   B('Příloha B – Uživatelská příručka (soubor Uzivatelska_prirucka_The_Last_Beacon.docx, před odevzdáním exportovat do PDF).'),
   B('Příloha C – Testovací protokol: tabulka v kapitole 5.2; řádky označené žlutě se doplní po ručním testu (kontrolní seznam .claude/playtest-checklist.md).'),
-  B('Příloha D – Snímky obrazovky hry (složka Dokumentace/obrazky).'),
+  B('Příloha D – Snímky obrazovky hry (složka docs/obrazky).'),
   B('Příloha E – Project Charter a prezentace (odevzdané 11. 11.). [[doplnit]]'),
 ];
 

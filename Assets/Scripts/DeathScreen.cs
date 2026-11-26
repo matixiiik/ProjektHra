@@ -80,11 +80,18 @@ public class DeathScreen : MonoBehaviour
         GUILayout.Label(Loc.T("POTOPIL SES", "YOU SANK"), titleStyle);
         GUILayout.Space(6);
         // Zalomení řádků obstará wordWrap stylu (v angličtině je text delší).
-        GUILayout.Label(Loc.T("Moře si tě vzalo. Mince ti zůstaly, ale loď, náklad i vylepšení jsou pryč.",
-                              "The sea has claimed you. You keep your coins, but your boat, cargo and upgrades are gone."), subStyle);
+        // Během příběhu si hráč nechá loď a mapu (GridManager.KeepsStoryGearOnDeath) — text to musí říct.
+        bool keepsGear = GameSession.Instance != null && GridManager.KeepsStoryGearOnDeath(GameSession.Instance.Data);
+        GUILayout.Label(keepsGear
+            ? Loc.T("Moře si tě vzalo. Mince, loď a mapa ti zůstaly, ale náklad, munice a vylepšení jsou pryč.",
+                    "The sea has claimed you. You keep your coins, boat and map, but your cargo, ammo and upgrades are gone.")
+            : Loc.T("Moře si tě vzalo. Mince ti zůstaly, ale loď, náklad i vylepšení jsou pryč.",
+                    "The sea has claimed you. You keep your coins, but your boat, cargo and upgrades are gone."), subStyle);
         GUILayout.Space(26);
 
-        if (SoundManager.Click(GUILayout.Button(Loc.T("Respawn  —  veslice na nejbližším ostrově", "Respawn  —  a rowboat at the nearest island"), buttonStyle, GUILayout.Height(56))))
+        string respawnLabel = keepsGear ? Loc.T("Respawn  —  na nejbližším ostrově", "Respawn  —  at the nearest island")
+                                        : Loc.T("Respawn  —  veslice na nejbližším ostrově", "Respawn  —  a rowboat at the nearest island");
+        if (SoundManager.Click(GUILayout.Button(respawnLabel, buttonStyle, GUILayout.Height(56))))
             Respawn(playerIndex);
 
         GUILayout.Space(12);

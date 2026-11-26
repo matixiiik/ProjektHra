@@ -8,6 +8,14 @@ sem Claude píše, kde se přestalo, aby se dalo pokračovat i z notebooku.
 
 ---
 
+## STAV 2026-11-26 (večer) — PR #23 sloučen, další krok = PŘEPRACOVÁNÍ PŘÍBĚHU
+Uživatel teď sám hraje příběh od 1. mega ostrova (`story 4`) do konce a pošle seznam změn
+(„ať hra vypadá co nejlíp a je logicky co nejpropracovanější“). Moje návrhy jsou v
+`.claude/story-overhaul-ideas.md` (A logika, B vzhled, C novinky) — spojit s jeho seznamem.
+Pravidlo: při ~98 % limitu vše uložit (commit na větev + sem) a pokračovat po obnovení.
+
+---
+
 ## STAV 2026-11-26 — maturitní dokončení (větev `maturita-dokonceni`)
 Uživatel: „projeď všechno, oprav, dodělej, udělej podle osnov školy“. Požadavky školy
 (1. IT Gymnázium) přečteny ze školního Drive → `docs/Pozadavky_ITG_2026_2027.md`.

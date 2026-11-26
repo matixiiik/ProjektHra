@@ -19,7 +19,7 @@ ostrově). Podporuje lokální split-screen pro dva hráče.
 - Veškerý herní kód: `Assets/Scripts/*.cs`. Materiály `Assets/Materials/`,
   runtime-loadované modely `Assets/Resources/{IslandDecor,PirateShips}/`.
 - **Žádný namespace** — všechny třídy jsou globální.
-- **Testy:** `Assets/Tests/EditMode` (33 testů: BoatStats, EconomyConfig, GameData, SaveMigration, LootAndQuest) a
+- **Testy:** `Assets/Tests/EditMode` (36 testů: BoatStats, EconomyConfig, GameData, SaveMigration, LootAndQuest, StoryLogic) a
   `Assets/Tests/PlayMode` (kamera, vlny). Spuštění: Unity *Window → General → Test Runner* nebo MCP
   `run_tests` + `get_test_job`.
 - Komentáře a herní texty jsou **česky**. Hlavičky souborů/sekcí komentář s čárou `─────`.
@@ -99,6 +99,8 @@ ostrově). Podporuje lokální split-screen pro dva hráče.
   2 = Konfrontace (bratrova loď, `RivalNpc`, volba ušetřit/zabít → 2 koncovky).
   `megaTask` (0-3) sleduje postup na aktuálním ostrově; `GridManager.
   GiveNextMegaIsland()` zničí starý marker a postaví další.
+  **„Hráč je na ostrově“ = `GameData.IsOnCurrentMegaIsland` (storyStep 3, nastaví se doplutím).**
+  Nikdy to neodvozovat z `megaTask` — u Hřbitova lodí je 1 už při postavení ostrova.
 
 ### Hráč (`PlayerController`, ~850 řádků)
 - **Volný pohyb podle kamery** (ne skákání po políčkách): `Move(h,v)` jede ve
@@ -112,8 +114,9 @@ ostrově). Podporuje lokální split-screen pro dva hráče.
 - **Zdraví**: `boatHealth` + `playerHealth` (0–100, HUD nad minimapou). Když
   `boatHealth` klesne na 0 → `boatWrecked` = hráč **plave** ve vodě (pomalý,
   zranitelný), dokud loď neopraví v obchodě. `playerHealth` na 0 → **smrt**
-  (`DeathScreen`: Respawn s veslicí na nejbližším ostrově — mince zůstanou,
-  kořist + náboje + upgrady zmizí — nebo Hlavní menu).
+  (`DeathScreen`: Respawn na nejbližším KLIDNÉM ostrově (`NearestSafeHarborTile`, nepřátelské
+  s děly přeskočí) — mince zůstanou, kořist + náboje + upgrady zmizí; loď a mapa zmizí jen mimo
+  příběh: během něj (`GridManager.KeepsStoryGearOnDeath`, storyStep ≥ 2) zůstanou — nebo Hlavní menu).
 - **Souboj**: střelba **levým tlačítkem myši** (P1) / `Numpad *` (P2), spotřebuje
   `ammo` (kupuje se v obchodě). Náměr podle sklonu kamery (`AimElevationDeg`,
   ±30° ve 3. osobě / ±60° v 1. osobě) — jde trefit i dělo na věži hradby.

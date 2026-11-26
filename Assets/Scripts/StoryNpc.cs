@@ -167,19 +167,9 @@ public class StoryNpc : MonoBehaviour
                 break;
 
             case 2:
-                activeLines = Loc.Pick(
-                    new[]
-                    {
-                        $"Ostrov leží na souřadnicích [{Data.storyIslandX}, {Data.storyIslandY}].",
-                        "Najdeš je nahoře na obrazovce a na minimapě uvidíš šipku. Drž se jí.",
-                        "Je to daleko. Až tam dorazíš, poznáš to.",
-                    },
-                    new[]
-                    {
-                        $"The island lies at [{Data.storyIslandX}, {Data.storyIslandY}].",
-                        "You'll see the coordinates at the top of the screen, and an arrow on the minimap. Follow it.",
-                        "It's far. When you get there, you'll know.",
-                    });
+                // Hráč pluje k dalšímu mega ostrovu — děda reaguje na to, co se stalo
+                // na tom PŘEDCHOZÍM (megaIndex = kolikátý ostrov je na řadě).
+                BuildTravelDialog();
                 break;
 
             case 3:
@@ -217,6 +207,73 @@ public class StoryNpc : MonoBehaviour
                     new[] { "Ta stopa nás dovede dál. Buď trpělivý, chlapče." },
                     new[] { "That trail will lead us further. Be patient, lad." });
                 break;
+        }
+    }
+
+    // Děda mezi ostrovy (storyStep 2). Souřadnice prozradí JEN u prvního ostrova —
+    // druhý se hledá podle hádanky v dopise (kdyby je děda řekl, hádanka by neměla smysl)
+    // a ke třetímu vede šipka ze vzkazu na Hřbitově lodí.
+    private void BuildTravelDialog()
+    {
+        if (Data.megaIndex <= 0)
+        {
+            activeLines = Loc.Pick(
+                new[]
+                {
+                    $"Ostrov leží na souřadnicích [{Data.storyIslandX}, {Data.storyIslandY}].",
+                    "Najdeš je nahoře na obrazovce a na minimapě uvidíš šipku. Drž se jí.",
+                    "Je to daleko. Až tam dorazíš, poznáš to.",
+                },
+                new[]
+                {
+                    $"The island lies at [{Data.storyIslandX}, {Data.storyIslandY}].",
+                    "You'll see the coordinates at the top of the screen, and an arrow on the minimap. Follow it.",
+                    "It's far. When you get there, you'll know.",
+                });
+        }
+        else if (Data.megaIndex == 1)
+        {
+            // Po Pirátském ostrově: hráč nese dopis, který začíná slovem "Bratře".
+            activeLines = Loc.Pick(
+                new[]
+                {
+                    "Dopis z trezoru? Ukaž mi ho…",
+                    "To písmo. Takhle psal jen jeden člověk, kterého jsem znal.",
+                    "Ale to není možné. Můj bratr utonul, když jsem byl ještě kluk. Pohřbili jsme prázdnou rakev.",
+                    "Kdo jiný by mi ale napsal „bratře“?",
+                    "Kam tě posílá, ti neřeknu — nevím to. Je to schované v té hádance. Dopis máš v Deníku.",
+                    "Spočítej to a najdi to místo na mapě. A dávej pozor na moři, prý se tam něco velkého prohání.",
+                },
+                new[]
+                {
+                    "A letter from the vault? Show it to me…",
+                    "That handwriting. Only one person I ever knew wrote like that.",
+                    "But it's impossible. My brother drowned when I was still a boy. We buried an empty coffin.",
+                    "Yet who else would ever call me “brother”?",
+                    "Where it sends you, I can't tell you — I don't know. It's hidden in that riddle. The letter is in your Journal.",
+                    "Work it out and find the place on the map. And mind the sea — they say something big is roaming out there.",
+                });
+        }
+        else
+        {
+            // Po Hřbitově lodí: vzkaz "Vylezl jsem z vody a loď s vámi byla pryč…".
+            activeLines = Loc.Pick(
+                new[]
+                {
+                    "Hřbitov lodí… Tam jsme tehdy ztroskotali. Táta mě vytáhl z vody a veslovali jsme pryč.",
+                    "Říkal, že bratra už nenajdeme. Že ho moře vzalo.",
+                    "A on celou tu dobu čekal. Čekal na nás. A my se nevrátili.",
+                    "Pluj za ním, chlapče. Šipka na minimapě tě dovede.",
+                    "Ať je to s ním jakkoli — nenechávej ho tam podruhé.",
+                },
+                new[]
+                {
+                    "The Ship Graveyard… That's where we were wrecked back then. Father pulled me out of the water and we rowed away.",
+                    "He said we would never find my brother. That the sea had taken him.",
+                    "And all that time he was waiting. Waiting for us. And we never came back.",
+                    "Go after him, lad. The arrow on the minimap will lead you.",
+                    "Whatever has become of him — don't leave him out there a second time.",
+                });
         }
     }
 
@@ -325,15 +382,25 @@ public class StoryNpc : MonoBehaviour
         if (d == null || d.storyStep != 2) return;
 
         d.storyStep   = 3;
-        d.players[0].hasWaypoint = false; // cíl splněn
+        // Cíl splněn — waypoint na ostrov zruš oběma hráčům (ve split screenu si ho mohl dát i P2).
+        foreach (var ps in d.players)
+            if (ps.hasWaypoint && Mathf.Abs(ps.waypointX - d.storyIslandX) <= 20 && Mathf.Abs(ps.waypointY - d.storyIslandY) <= 20)
+                ps.hasWaypoint = false;
         GameSession.Instance.Save();
 
         var grid = FindFirstObjectByType<GridManager>();
         if (grid != null) grid.NotifyWorldChanged();
 
-        if (CombatDirector.Instance != null)
-            CombatDirector.Instance.Toast(Loc.T("Ostrov není prázdný — něco ho hlídá. Budeš se muset probojovat dál.",
-                                                "The island isn't empty — something is guarding it. You'll have to fight your way through."));
+        // Uvítání podle ostrova (dřív jedna věta pro všechny tři — u Hřbitova lodí nesedělo).
+        string msg = d.megaIndex == 0
+            ? Loc.T("Pirátský ostrov. Hradby, děla na věžích a ozbrojená posádka — budeš se muset probojovat dovnitř.",
+                    "Pirate Island. Walls, cannons on the towers and an armed crew — you'll have to fight your way in.")
+            : d.megaIndex == 1
+            ? Loc.T("Hřbitov lodí. Z mělčiny trčí trosky — někde mezi nimi jsou kousky roztržené mapy.",
+                    "The Ship Graveyard. Wrecks jut out of the shallows — somewhere among them lie pieces of a torn map.")
+            : Loc.T("Poslední ostrov. Příjezd hlídá velká loď — a na palubě někdo, kdo tě čeká.",
+                    "The Final Island. A large ship guards the approach — and someone aboard is waiting for you.");
+        if (CombatDirector.Instance != null) CombatDirector.Instance.Toast(msg, 5f);
     }
 
     // ───────────────────────────────────────────────────────────────────────

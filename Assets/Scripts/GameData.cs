@@ -251,6 +251,15 @@ public class GameData
     public int  letterX;        // souřadnice ostrova, ze kterých se skládá hádanka v dopise
     public int  letterY;
 
+    /// <summary>
+    /// Je hráč (podle příběhu) právě NA aktuálním mega ostrově? Jediné pravidlo pro celý
+    /// kód: storyStep 3 se nastaví při doplutí k ostrovu (StoryNpc.OnReachedStoryIsland).
+    /// POZOR — podle megaTask se to poznat nedá: u Hřbitova lodí je megaTask 1 už ve chvíli,
+    /// kdy se ostrov postaví, i když je hráč stovky políček daleko.
+    /// (Vlastnost, ne pole → JsonUtility ji neukládá.)
+    /// </summary>
+    public bool IsOnCurrentMegaIsland => !storyDone && storyIslandActive && storyStep >= 3;
+
     // ── LEGACY (zbraň panáčka + hotbar) — zdroj pro migraci, viz výš. Bývala tu
     // samostatná sekce, protože se přidala později (staré savy ji dřív neměly).
     public bool hasHandWeapon;

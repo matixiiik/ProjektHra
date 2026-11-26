@@ -134,9 +134,7 @@ public class JournalScreen : MonoBehaviour
         if (d.storyStep <= 0) return 1;
         if (d.storyStep == 1) return 2;
         int island = Mathf.Clamp(d.megaIndex, 0, 2);
-        // Na ostrově = storyStep 3 (nastaví se při doplutí). Pozor: megaTask to neurčuje —
-        // u Hřbitova lodí je 1 hned, jak se ostrov postaví, i když je hráč ještě daleko.
-        bool onIsland = d.storyStep >= 3;
+        bool onIsland = d.IsOnCurrentMegaIsland; // jediné pravidlo, viz GameData
         return 3 + island * 2 + (onIsland ? 1 : 0); // 3–8: cesta / ostrov, třikrát
     }
 
@@ -262,5 +260,6 @@ public class JournalScreen : MonoBehaviour
     // U AKTUÁLNÍHO ostrova se navíc musí hráč na ostrov opravdu dostat (storyStep 3) —
     // megaTask se u Hřbitova lodí nastaví na 1 už při postavení ostrova, ne při příjezdu.
     private static bool Reached(GameData d, int idx, int minTask)
-        => d.megaIndex > idx || (d.megaIndex == idx && d.storyStep >= 3 && d.megaTask >= minTask);
+        => d.megaIndex > idx
+        || (d.megaIndex == idx && (d.IsOnCurrentMegaIsland || d.storyDone) && d.megaTask >= minTask);
 }

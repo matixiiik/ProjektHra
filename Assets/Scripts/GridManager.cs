@@ -1630,8 +1630,35 @@ public class GridManager : MonoBehaviour
                 {
                     if (Mathf.Max(Mathf.Abs(dx), Mathf.Abs(dy)) != ring) continue;
                     int gx = bx + dx * 40, gy = by + dy * 40;
-                    if (CanPlaceIsland(gx, gy)) { GenerateIsland(gx, gy); return; }
+                    if (CanPlaceIsland(gx, gy))
+                    {
+                        GenerateIsland(gx, gy);
+                        // Ostrov pro respawn musí být klidný — 40% náhoda by z něj jinak
+                        // mohla udělat nepřátelský s děly a hráč by hned znovu umřel.
+                        gameData.hostileIslands.Remove(GridKey(gx, gy));
+                        return;
+                    }
                 }
+    }
+
+    /// <summary>Nejbližší pevnina (Harbor) na KLIDNÉM ostrově — přeskočí nepřátelské
+    /// ostrovy, kterým hráč ještě nezničil děla. Pro respawn po smrti.</summary>
+    public Vector2Int? NearestSafeHarborTile(int fromX, int fromY)
+    {
+        Vector2Int best = default;
+        bool found = false;
+        long bestSq = long.MaxValue;
+
+        foreach (var kv in gameData.tileData)
+        {
+            if (kv.Value.type != (int)TileType.Harbor) continue;
+            var (x, y) = ParseGridKey(kv.Key);
+            long sq = (long)(x - fromX) * (x - fromX) + (long)(y - fromY) * (y - fromY);
+            if (sq >= bestSq) continue;
+            if (IsHostileIslandNear(x, y)) continue; // nepřátelský ostrov s děly — tam ne
+            bestSq = sq; best = new Vector2Int(x, y); found = true;
+        }
+        return found ? best : (Vector2Int?)null;
     }
 
     /// <summary>
@@ -1923,10 +1950,16 @@ public class GridManager : MonoBehaviour
         NotifyWorldChanged();
     }
 
+    /// <summary>Nechá si hráč po smrti loď a mapu? Ano, když už pluje k mega ostrovům
+    /// (storyStep ≥ 2) a příběh ještě není dohraný. Čte i DeathScreen (jiný text).</summary>
+    public static bool KeepsStoryGearOnDeath(GameData d)
+        => d != null && d.storyStep >= 2 && !d.storyDone;
+
     /// <summary>
     /// Respawn po smrti: přesune hráče PĚŠKY na nejbližší ostrov (loď = veslice
     /// zaparkovaná ve vodě u mola), obnoví zdraví. Kořist (ryby, poklady, náboje,
     /// vylepšení, mapa) se ZTRATÍ, mince a rozdělaný mega quest zůstanou.
+    /// Výjimka: během rozehraného příběhu zůstane i loď a mapa (KeepsStoryGearOnDeath).
     /// </summary>
     public void RespawnPlayerAtNearestIsland(int playerIndex)
     {
@@ -1938,11 +1971,12 @@ public class GridManager : MonoBehaviour
         // Nejbližší už vygenerovaný ostrov. Když je moc daleko (třeba jen startovní
         // ostrov zůstal v paměti), vygeneruj nový poblíž místa smrti — a pak vezmi
         // z obou ten bližší.
-        Vector2Int? harbor = NearestHarborTile(fromX, fromY);
+        // Jen KLIDNÝ ostrov — na nepřátelském s děly by hráč hned znovu umřel.
+        Vector2Int? harbor = NearestSafeHarborTile(fromX, fromY);
         if (harbor == null || TileDistance(harbor.Value.x, harbor.Value.y, fromX, fromY) > RESPAWN_MAX_ISLAND_DIST)
         {
-            ForceIslandNear(fromX, fromY);
-            harbor = NearestHarborTile(fromX, fromY);
+            ForceIslandNear(fromX, fromY); // vytvořený ostrov je vždy klidný
+            harbor = NearestSafeHarborTile(fromX, fromY) ?? NearestHarborTile(fromX, fromY);
         }
 
         Vector2Int spot   = harbor ?? new Vector2Int(fromX, fromY);
@@ -1950,12 +1984,17 @@ public class GridManager : MonoBehaviour
         Vector2Int boatAt = water != null ? new Vector2Int(water.Value.x, water.Value.y) : spot;
 
         // ── Vynuluj kořist + vylepšení (mince a mega quest zůstávají) ──────
+        // Během rozehraného příběhu (hráč už pluje k mega ostrovům) si nechá
+        // koupenou LOĎ a MAPU — bez děla by nešel porazit obránce a bez mapy
+        // vyřešit hádanku z dopisu, takže by se do příběhu nemohl vrátit.
+        bool keepStoryGear = KeepsStoryGearOnDeath(d);
         ps.fishCount = 0; ps.treasureCount = 0; ps.ammo = 0;
         LootItems.Clear(ps); // pirátská kořist propadne stejně jako ryby a poklady
         ps.hasSpeedUpgrade = ps.hasRodUpgrade = ps.hasMiningUpgrade = false;
-        ps.hasMap = false; ps.sellBonus = false;
+        if (!keepStoryGear) ps.hasMap = false;
+        ps.sellBonus = false;
         ps.hasHandWeapon = false; ps.handAmmo = 0; ps.activeHotbarSlot = -1;
-        ps.shipLevel = 0;
+        if (!keepStoryGear) ps.shipLevel = 0;
         ps.activeQuest.Reset();
         ps.boatHealth = 100; ps.playerHealth = 100; ps.boatWrecked = false; ps.boatNeedsRehome = false;
         ps.isOnFoot   = true;

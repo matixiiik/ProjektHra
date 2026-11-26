@@ -104,7 +104,7 @@ public static class StoryPresets
                 PlaceIslands(grid, 1);
                 MarkLetter(d, i1);
                 d.ambush1Done = true;
-                d.storyStep = 3;
+                d.storyStep = 2;   // 3 se nastaví až doplutím (StoryNpc.OnReachedStoryIsland)
                 PutInBoat(grid, player, i1 - Direction(i0, i1) * NEAR);
                 desc = "30 políček od Hřbitova lodí — v mělčině hledej kousky mapy (Space na vraku).";
                 break;
@@ -114,7 +114,7 @@ public static class StoryPresets
                 PlaceIslands(grid, 1);
                 MarkLetter(d, i1);
                 d.ambush1Done = true;
-                d.storyStep = 3;
+                d.storyStep = 2;   // 3 se nastaví až doplutím (StoryNpc.OnReachedStoryIsland)
                 d.megaTask = 2;          // všechny kousky mapy sebrané
                 d.megaCluesMask = 7;
                 PutInBoat(grid, player, i1 - Direction(i0, i1) * NEAR);
@@ -138,7 +138,7 @@ public static class StoryPresets
                 MarkLetter(d, i1);
                 d.ambush1Done = true;
                 d.ambush2Done = true;
-                d.storyStep = 3;
+                d.storyStep = 2;   // 3 se nastaví až doplutím (StoryNpc.OnReachedStoryIsland)
                 PutInBoat(grid, player, i2 - Direction(i1, i2) * NEAR);
                 desc = $"30 políček od posledního ostrova [{i2.x}, {i2.y}] — konfrontace s bratrem (potop jeho loď).";
                 break;

@@ -4,7 +4,12 @@ Uživatel příběh za megalodonem a Holanďanem ještě nikdy nedohrál — te�
 a pošle seznam změn. Tohle jsou moje návrhy, které se k jeho seznamu přidají.
 **Nic z toho ještě není implementované.** Pořadí = priorita (A logika → B vzhled levně → C větší věci).
 
-## A. Logické díry a nekonzistence (opravit vždy)
+## A. Logické díry a nekonzistence — HOTOVO 26. 11. 2026 (větev `pribeh-vylepseni`)
+Stav: A1 ✅ `GameData.IsOnCurrentMegaIsland`; A2 ✅ děda mezi ostrovy reaguje (dopis / Hřbitov) a
+NEPROZRADÍ souřadnice hádanky (dřív je řekl!), uvítání při připlutí podle ostrova; A3 ✅ ověřeno v Play
+(megalodon i Holanďan jen 1×); A4 ✅ během příběhu zůstane po smrti loď + mapa, respawn jen na klidný
+ostrov (dřív i na nepřátelský s děly); A5 → přesunuto do C5 (závěrečná obrazovka); A6 ✅ presety 5, 9, 10
+ověřeny, 7/8/10 teď doplouvají přirozeně (storyStep 2 → 3). Testy StoryLogicTests (3).
 
 1. **„Hráč dorazil na ostrov“ není jednoznačné.** U Hřbitova lodí se `megaTask` nastaví na 1 už při
    postavení ostrova (hráč může být 400 políček daleko). Deník jsem 26. 11. opravil (`storyStep >= 3`),

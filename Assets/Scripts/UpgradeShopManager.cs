@@ -11,7 +11,7 @@ using System.Collections.Generic;
 //  jsou tu "per-buyer" pomocné metody, které čtou/zapisují buď do polí P1,
 //  nebo P2 podle toho, kdo obchod otevřel (buyerIndex).
 //
-//  Kreslí se přes IMGUI (OnGUI).
+//  Kreslí se přes IMGUI (OnGUI), vzhled (pergamen, styly) je sdílený v ShopUI.
 // ─────────────────────────────────────────────────────────────────────────────
 
 [DefaultExecutionOrder(100)]
@@ -71,9 +71,6 @@ public class UpgradeShopManager : MonoBehaviour
             return false;
         }
     }
-
-    private GUIStyle titleStyle, rowStyle, ownedStyle, buyStyle, coinsStyle;
-    private bool     stylesReady;
 
     void Start() { gridManager = FindFirstObjectByType<GridManager>(); }
 
@@ -155,7 +152,6 @@ public class UpgradeShopManager : MonoBehaviour
     void OnGUI()
     {
         if (!IsOpen) return;
-        InitStyles();
 
         // Kresli panel pro každého hráče, co má obchod otevřený (klidně oba naráz,
         // každý na své půlce). buyerIndex řídí, čí data pomocné metody čtou.
@@ -169,58 +165,32 @@ public class UpgradeShopManager : MonoBehaviour
 
     private void DrawShopPanel(int who)
     {
-        // V coopu kresli obchod jen na půlku obrazovky toho hráče (ať druhému nezakryje hru).
-        float sx = 0f, sw = Screen.width;
-        if (MultiplayerManager.IsMultiplayer)
-        {
-            sw = Screen.width * 0.5f;
-            sx = who == 1 ? Screen.width * 0.5f : 0f;
-        }
-
-        // Tmavý overlay.
-        GUI.color = new Color(0, 0, 0, 0.75f);
-        GUI.DrawTexture(new Rect(sx, 0, sw, Screen.height), Texture2D.whiteTexture);
-        GUI.color = Color.white;
-
-        // Panel se vejde na obrazovku i ve split screenu — jinak by spodek nešel
-        // vidět. Zbytek sortimentu se doscrolluje kolečkem / tažením myši.
-        float w = 560;
-        float h = Mathf.Min(624f, Screen.height - 24f);
-        float px = sx + (sw - w) / 2f;
-        float py = (Screen.height - h) / 2f;
-
-        // Panel + modrý proužek.
-        GUI.color = new Color(0.12f, 0.14f, 0.18f, 1f);
-        GUI.DrawTexture(new Rect(px, py, w, h), Texture2D.whiteTexture);
-        GUI.color = new Color(0.4f, 0.6f, 1f, 1f);
-        GUI.DrawTexture(new Rect(px, py, w, 3), Texture2D.whiteTexture);
-        GUI.color = Color.white;
-
-        // Zavírací křížek vpravo nahoře.
-        if (ShopUI.CloseButton(px, py, w)) { openFor[who] = false; return; }
+        // Pergamen jako dopis (ShopUI) — ve split screenu jen na půlce toho hráče.
+        Rect inner = ShopUI.BeginSheet(who, 600f, 660f, out bool close);
+        if (close) { openFor[who] = false; return; }
 
         // Tažení myší = scroll (kolečko řeší ScrollView samo).
         ShopUI.HandleDragScroll(ref scroll[who]);
 
-        GUILayout.BeginArea(new Rect(px + 25, py + 20, w - 50, h - 40));
+        GUILayout.BeginArea(inner);
 
         // V multiplayeru napiš do nadpisu, kdo nakupuje.
         string playerLabel = MultiplayerManager.IsMultiplayer
             ? Loc.T(buyerIndex == 0 ? "  —  HRÁČ 1" : "  —  HRÁČ 2",
                     buyerIndex == 0 ? "  —  PLAYER 1" : "  —  PLAYER 2")
             : "";
-        GUILayout.Label(Loc.T("OBCHOD S VYLEPŠENÍMI", "UPGRADE SHOP") + playerLabel, titleStyle);
+        GUILayout.Label(Loc.T("OBCHOD S VYLEPŠENÍMI", "UPGRADE SHOP") + playerLabel, ShopUI.Title);
 
         // Cenová hladina tohoto ostrova (jen pro nákup).
         int pct = Mathf.RoundToInt((EconomyConfig.PriceMultiplier(GameSession.ShopPriceLevel) - 1f) * 100f);
         string priceTag = pct == 0 ? Loc.T("ceny jako jinde", "standard prices")
                         : pct > 0  ? Loc.T($"ceny +{pct} %", $"prices +{pct}%")
                                    : Loc.T($"ceny {pct} %",  $"prices {pct}%");
-        GUILayout.Label(Loc.T($"( {priceTag} na tomhle ostrově )", $"( {priceTag} on this island )"), rowStyle);
+        GUILayout.Label(Loc.T($"( {priceTag} na tomhle ostrově )", $"( {priceTag} on this island )"), ShopUI.Subtitle);
         GUILayout.Space(10);
 
         // Sortiment ve scrollovatelném okně (kolečko / tažení myší).
-        scroll[who] = GUILayout.BeginScrollView(scroll[who], GUILayout.Height(h - 40f - 110f));
+        scroll[who] = GUILayout.BeginScrollView(scroll[who], GUILayout.Height(inner.height - ShopUI.Px(120f)));
 
         DrawRow(Loc.T("Rychlost lodi  —  pohyb 2× rychleji",       "Boat speed  —  sail 2× faster"),
                 PriceOf(EconomyConfig.SpeedUpgrade),  GetUpgrade(0), () => TryBuyUpgrade(0, PriceOf(EconomyConfig.SpeedUpgrade)));
@@ -250,7 +220,7 @@ public class UpgradeShopManager : MonoBehaviour
         GUILayout.EndScrollView();
 
         GUILayout.Space(10);
-        GUILayout.Label(Loc.T("Mince: ", "Coins: ") + Coins(), coinsStyle);
+        GUILayout.Label(Loc.T("Mince: ", "Coins: ") + Coins(), ShopUI.Coins);
         GUILayout.EndArea();
     }
 
@@ -270,10 +240,10 @@ public class UpgradeShopManager : MonoBehaviour
             : Loc.T($"Opravit loď  ( {hp}/100 )",                $"Repair the boat  ( {hp}/100 )");
 
         GUILayout.BeginHorizontal();
-        GUILayout.Label(label, rowStyle, GUILayout.ExpandWidth(true));
-        GUILayout.Label($"{cost} {Loc.CoinsWord(cost)}", rowStyle, GUILayout.Width(90));
+        GUILayout.Label(label, ShopUI.Row, GUILayout.ExpandWidth(true));
+        GUILayout.Label($"{cost} {Loc.CoinsWord(cost)}", ShopUI.Row, GUILayout.Width(ShopUI.Px(90)));
         GUI.enabled = Coins() >= cost;
-        if (SoundManager.Click(GUILayout.Button(Loc.T("Opravit", "Repair"), buyStyle, GUILayout.Width(90), GUILayout.Height(28))))
+        if (SoundManager.Click(GUILayout.Button(Loc.T("Opravit", "Repair"), ShopUI.Button, GUILayout.Width(ShopUI.Px(90)), GUILayout.Height(ShopUI.Px(28)))))
         {
             if (Coins() >= cost)
             {
@@ -294,11 +264,11 @@ public class UpgradeShopManager : MonoBehaviour
         int pack = EconomyConfig.AmmoPackSize;
         GUILayout.Label(Loc.T($"Munice do děla  —  balíček {pack} {RoundsWord(pack)}  (máš {Ammo()})",
                               $"Cannon ammo  —  pack of {pack} {RoundsWord(pack)}  (you have {Ammo()})"),
-            rowStyle, GUILayout.ExpandWidth(true));
-        GUILayout.Label($"{cost} {Loc.CoinsWord(cost)}", rowStyle, GUILayout.Width(90));
+            ShopUI.Row, GUILayout.ExpandWidth(true));
+        GUILayout.Label($"{cost} {Loc.CoinsWord(cost)}", ShopUI.Row, GUILayout.Width(ShopUI.Px(90)));
 
         GUI.enabled = Coins() >= cost;
-        if (SoundManager.Click(GUILayout.Button(Loc.T("Koupit", "Buy"), buyStyle, GUILayout.Width(90), GUILayout.Height(28))))
+        if (SoundManager.Click(GUILayout.Button(Loc.T("Koupit", "Buy"), ShopUI.Button, GUILayout.Width(ShopUI.Px(90)), GUILayout.Height(ShopUI.Px(28)))))
         {
             if (Coins() >= cost)
             {
@@ -335,11 +305,11 @@ public class UpgradeShopManager : MonoBehaviour
         int pack = EconomyConfig.HandAmmoPackSize;
         GUILayout.Label(Loc.T($"Náboje do pěší zbraně  —  balíček {pack} {RoundsWord(pack)}  (máš {HandAmmo()})",
                               $"On-foot weapon ammo  —  pack of {pack} {RoundsWord(pack)}  (you have {HandAmmo()})"),
-            rowStyle, GUILayout.ExpandWidth(true));
-        GUILayout.Label($"{cost} {Loc.CoinsWord(cost)}", rowStyle, GUILayout.Width(90));
+            ShopUI.Row, GUILayout.ExpandWidth(true));
+        GUILayout.Label($"{cost} {Loc.CoinsWord(cost)}", ShopUI.Row, GUILayout.Width(ShopUI.Px(90)));
 
         GUI.enabled = Coins() >= cost;
-        if (SoundManager.Click(GUILayout.Button(Loc.T("Koupit", "Buy"), buyStyle, GUILayout.Width(90), GUILayout.Height(28))))
+        if (SoundManager.Click(GUILayout.Button(Loc.T("Koupit", "Buy"), ShopUI.Button, GUILayout.Width(ShopUI.Px(90)), GUILayout.Height(ShopUI.Px(28)))))
         {
             if (Coins() >= cost)
             {
@@ -397,17 +367,17 @@ public class UpgradeShopManager : MonoBehaviour
     private void DrawRow(string label, int cost, bool owned, System.Action onBuy)
     {
         GUILayout.BeginHorizontal();
-        GUILayout.Label(label, rowStyle, GUILayout.ExpandWidth(true));
+        GUILayout.Label(label, ShopUI.Row, GUILayout.ExpandWidth(true));
 
         if (owned)
         {
-            GUILayout.Label(Loc.T("Zakoupeno", "Owned"), ownedStyle, GUILayout.Width(120));
+            GUILayout.Label(Loc.T("Zakoupeno", "Owned"), ShopUI.Owned, GUILayout.Width(ShopUI.Px(120)));
         }
         else
         {
-            GUILayout.Label($"{cost} {Loc.CoinsWord(cost)}", rowStyle, GUILayout.Width(90));
+            GUILayout.Label($"{cost} {Loc.CoinsWord(cost)}", ShopUI.Row, GUILayout.Width(ShopUI.Px(90)));
             GUI.enabled = Coins() >= cost; // tlačítko jde zmáčknout jen s dost mincemi
-            if (SoundManager.Click(GUILayout.Button(Loc.T("Koupit", "Buy"), buyStyle, GUILayout.Width(90), GUILayout.Height(28))))
+            if (SoundManager.Click(GUILayout.Button(Loc.T("Koupit", "Buy"), ShopUI.Button, GUILayout.Width(ShopUI.Px(90)), GUILayout.Height(ShopUI.Px(28)))))
                 onBuy();
             GUI.enabled = true;
         }
@@ -418,43 +388,4 @@ public class UpgradeShopManager : MonoBehaviour
     // Slovo "náboj" ve správném tvaru podle počtu (1 náboj / 3 náboje / 5 nábojů / rounds).
     private static string RoundsWord(int n) => Loc.Plural(n, "náboj", "náboje", "nábojů", "round", "rounds");
 
-    // ── Styly (jen jednou) ──────────────────────────────────────────────────
-    private void InitStyles()
-    {
-        if (stylesReady) return;
-
-        titleStyle = new GUIStyle(GUI.skin.label)
-        {
-            fontSize = 22, fontStyle = FontStyle.Bold,
-            alignment = TextAnchor.MiddleCenter,
-            normal = { textColor = Color.white }
-        };
-        rowStyle = new GUIStyle(GUI.skin.label)
-        {
-            fontSize = 16, alignment = TextAnchor.MiddleLeft,
-            normal = { textColor = new Color(0.9f, 0.9f, 0.9f) }
-        };
-        ownedStyle = new GUIStyle(GUI.skin.label)
-        {
-            fontSize = 15, fontStyle = FontStyle.Bold,
-            alignment = TextAnchor.MiddleCenter,
-            normal = { textColor = new Color(0.4f, 1f, 0.4f) }
-        };
-        buyStyle = new GUIStyle(GUI.skin.button)
-        {
-            fontSize = 15, fontStyle = FontStyle.Bold,
-            normal = { textColor = Color.white, background = MakeTex(new Color(0.2f, 0.5f,  0.2f)) },
-            hover  = { textColor = Color.white, background = MakeTex(new Color(0.3f, 0.65f, 0.3f)) }
-        };
-        coinsStyle = new GUIStyle(GUI.skin.label)
-        {
-            fontSize = 17, fontStyle = FontStyle.Bold,
-            alignment = TextAnchor.MiddleCenter,
-            normal = { textColor = new Color(1f, 0.85f, 0.2f) }
-        };
-
-        stylesReady = true;
-    }
-
-    private Texture2D MakeTex(Color c) { var t = new Texture2D(1, 1); t.SetPixel(0, 0, c); t.Apply(); return t; }
 }

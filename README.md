@@ -11,9 +11,9 @@ dědictví a ztraceném bratrovi. Podporuje lokální split-screen pro dva hrá�
 |---|---|
 | ![Pirátská pevnost s hradbami](docs/obrazky/shot_pevnost.jpg) | ![Split-screen](docs/obrazky/shot_splitscreen.jpg) |
 
-**Stav:** MVP hotové — hru lze dohrát od nové hry po oba konce příběhu, ukládá
-se a načítá a běží z buildu. Do dubna 2027 zbývá dokumentace, testovací
-protokol a release.
+**Stav:** hra je dohratelná od nové hry po oba konce příběhu, ukládá se a
+načítá a běží z buildu. Dokumentace a prezentace k obhajobě jsou v `docs/`;
+do 14. 4. 2027 zbývá doplnit ruční testy, posudky a vydat finální Release.
 
 ## Obsah
 
@@ -31,11 +31,14 @@ protokol a release.
 - **Nekonečný svět** — dlaždice se generují líně kolem hráče, ostrovy vznikají
   organicky s molem, majákem a náhodnou dekorací.
 - **Ekonomika** — rybaření a těžba pokladů z vraků, prodej ve výkupně,
-  questy a mega questy, upgrady lodi (veslice → malá → střední → velká).
+  6 typů úkolů (i bojové, s věcnými odměnami), mega questy, upgrady lodi
+  (veslice → malá → střední → velká).
 - **Souboj** — piráti na moři (tři velikosti lodí), nepřátelské ostrovy s
-  děly, dělo na vlastní lodi, boss health bar.
+  děly, dělo na vlastní lodi i pěší zbraň, boss health bar. Z pirátů padá
+  s 25% šancí kořist, která se prodá ve výkupně.
 - **Maják** — vnitřní scéna se třemi pulty (výkupna, obchod s vylepšeními,
-  obchod s questy), kulatá minimapa se světovými stranami.
+  obchod s questy), kulatá minimapa se světovými stranami, velká mapa a deník
+  s kapitolami a nápovědou (obchody, mapa, deník i dopisy jsou na pergamenu).
 - **Lokální multiplayer** — split-screen pro dva hráče, oddělené ekonomiky,
   možnost převodu mincí mezi hráči.
 - **Vývojářská konzole** — cheaty pro rychlé testování (peníze, teleport,
@@ -72,7 +75,7 @@ Windows build se dělá přes *File → Build Profiles* (obě scény jsou v Buil
   ukládání i UI (IMGUI + runtime uGUI), ať je kód čitelný a obhajitelný.
 - Save systém: JSON (`JsonUtility`) do `Application.persistentDataPath`,
   3 nezávislé sloty, odložený zápis na pozadí a migrace starých savů.
-- Testy: 26 automatických testů (22 EditMode + 4 PlayMode) — v Unity
+- Testy: 37 automatických testů (33 EditMode + 4 PlayMode) — v Unity
   *Window → General → Test Runner*.
 - Vývoj přes větve a pull requesty do `main`.
 
@@ -80,7 +83,7 @@ Windows build se dělá přes *File → Build Profiles* (obě scény jsou v Buil
 
 ```
 Assets/
-  Scripts/     — veškerý herní kód (59 skriptů, žádný namespace, české komentáře)
+  Scripts/     — veškerý herní kód (60 skriptů, žádný namespace, české komentáře)
   Tests/       — automatické testy (EditMode, PlayMode)
   Scenes/      — SampleScene (hlavní hra) + LighthouseInterior (maják)
   Resources/   — modely postav/lodí/obludy načítané za běhu
@@ -97,12 +100,15 @@ Vše je ve složce [`docs/`](docs/):
 | Vymezení tématu (úkol 1) | [`Ukol1_Vymezeni_tematu.docx`](docs/Ukol1_Vymezeni_tematu.docx) |
 | Project Charter | [`Project_Charter.docx`](docs/Project_Charter.docx) |
 | Plán ročníkové práce | [`Plan_rocnikove_prace.docx`](docs/Plan_rocnikove_prace.docx) |
-| Ročníková práce | [`Rocnikova_prace_The_Last_Beacon.docx`](docs/Rocnikova_prace_The_Last_Beacon.docx) |
+| **Dokumentace maturitního projektu** | [`Dokumentace_The_Last_Beacon.docx`](docs/Dokumentace_The_Last_Beacon.docx) |
+| Požadavky školy a jejich splnění | [`Pozadavky_ITG_2026_2027.md`](docs/Pozadavky_ITG_2026_2027.md) |
 | Uživatelská příručka | [`Uzivatelska_prirucka_The_Last_Beacon.docx`](docs/Uzivatelska_prirucka_The_Last_Beacon.docx) |
 | Prezentace (11. 11. 2026) | [`Prezentace_The_Last_Beacon.pptx`](docs/Prezentace_The_Last_Beacon.pptx) |
+| **Prezentace k obhajobě (25 min)** | [`Obhajoba_The_Last_Beacon.pptx`](docs/Obhajoba_The_Last_Beacon.pptx) |
 
-Dokumenty se generují skripty `docs/mk_*.js` (Node.js) a diagramy
-`docs/mk_diagramy.py`.
+Dokumenty se generují skripty `docs/mk_*.js` (Node.js, balíčky `docx` a
+`pptxgenjs`) a diagramy `docs/mk_diagramy.py`. PDF k odevzdání: otevřít
+`.docx` ve Wordu → Aktualizovat obsah → Uložit jako PDF (nebo `docs/export_pdf.ps1`).
 
 Podrobný popis architektury (jak spolu skripty mluví, konvence, na co si dát
 pozor při úpravách) je v [`CLAUDE.md`](CLAUDE.md) — píše se a udržuje průběžně
@@ -126,8 +132,9 @@ Veškerá grafika třetích stran je **CC0** (public domain), licenční soubory
 jsou přiložené vedle modelů v `Assets/Resources/` a evidence je v
 [`THIRD_PARTY_LICENSES.md`](THIRD_PARTY_LICENSES.md):
 
-- **Kenney** — Pirate Kit, Mini Characters ([kenney.nl](https://kenney.nl))
-- **Quaternius** — Shark (mořská obluda), Ghost Ship (Bludný Holanďan)
+- **Kenney** — Pirate Kit (lodě včetně Bludného Holanďana, děla, hradby),
+  Mini Characters ([kenney.nl](https://kenney.nl))
+- **Quaternius** — Animated Fish Pack, žralok (mořská obluda)
   ([quaternius.com](https://quaternius.com))
 
 ---

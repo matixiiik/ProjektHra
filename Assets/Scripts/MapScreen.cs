@@ -11,6 +11,11 @@ using UnityEngine;
 //  • Klik do mapy = položíš si cíl (waypoint). Na minimapě tě k němu pak navádí
 //    azurová šipka. Klik na cíl znovu (nebo na sebe) ho zruší.
 //
+//  Vzhled: stará námořní mapa na pergamenu (stejný papír jako dopis a obchody,
+//  HudSkin.Parchment). Neprozkoumaná místa jsou prázdný papír, prozkoumané moře
+//  a ostrovy jsou "vybarvené". V záhlaví jsou souřadnice hráče, u kurzoru
+//  souřadnice políčka (hádanka z dopisu se hledá právě podle nich).
+//
 //  Objekt se vytváří sám (MapScreen.Toggle). Nic se nezapojuje ve scéně.
 //  Hru NEpauzuje (kvůli split screenu) — jen zmrazí toho hráče, co ji má
 //  otevřenou (PlayerController se dívá na MapScreen.IsOpenFor).
@@ -25,7 +30,7 @@ public class MapScreen : MonoBehaviour
     public static bool IsOpenFor(int playerIndex)
         => IsOpen && instance != null && instance.owner == playerIndex;
 
-    private const int   TEX = 360;          // velikost textury mapy v pixelech
+    private const int   TEX_H = 360;        // výška textury mapy v pixelech (šířka podle poměru stran okna)
     private const float MIN_ZOOM = 0.18f;   // políček na pixel (přiblíženo)
     private const float MAX_ZOOM = 3.0f;    // políček na pixel (oddáleno)
 
@@ -33,6 +38,7 @@ public class MapScreen : MonoBehaviour
     private GridManager grid;
     private Texture2D   tex;
     private Color[]     buf;
+    private int         texW = TEX_H;       // šířka textury — mapa je obdélník jako okno, ne čtverec
     private Vector2     centerTile;         // souřadnice políčka uprostřed mapy
     private float       zoom = 0.45f;       // políček na jeden pixel
     private bool        dirty = true;
@@ -41,17 +47,18 @@ public class MapScreen : MonoBehaviour
     private Vector2 dragLast;
     private bool    draggedFar;             // odlišení "táhnutí" od "kliknutí"
 
-    private GUIStyle titleStyle, hintStyle, compassStyle, coordStyle;
+    private GUIStyle titleStyle, hintStyle, compassStyle, coordStyle, posStyle;
 
-    // Barvy — sladěné s minimapou.
-    private static readonly Color CWater  = new Color(0.16f, 0.55f, 0.72f);
-    private static readonly Color CFish   = new Color(0.12f, 0.40f, 0.85f);
-    private static readonly Color CTreas  = new Color(0.95f, 0.65f, 0.10f);
-    private static readonly Color CLand   = new Color(0.30f, 0.62f, 0.28f);
-    private static readonly Color CPier   = new Color(0.12f, 0.12f, 0.12f);
-    private static readonly Color CLight  = new Color(1f,    0.30f, 0.24f);
-    private static readonly Color CChest  = new Color(1f,    0.78f, 0.18f);
-    private static readonly Color CFog    = new Color(0.24f, 0.26f, 0.30f);
+    // Barvy "staré mapy" — tlumené, ať ladí s pergamenem (význam stejný jako
+    // na minimapě). Mlha je průhledná → neprozkoumané místo = čistý papír.
+    private static readonly Color CWater  = new Color(0.47f, 0.64f, 0.66f);
+    private static readonly Color CFish   = new Color(0.33f, 0.50f, 0.64f);
+    private static readonly Color CTreas  = new Color(0.86f, 0.55f, 0.16f);
+    private static readonly Color CLand   = new Color(0.52f, 0.60f, 0.32f);
+    private static readonly Color CPier   = new Color(0.34f, 0.22f, 0.12f);
+    private static readonly Color CLight  = new Color(0.78f, 0.20f, 0.14f);
+    private static readonly Color CChest  = new Color(0.90f, 0.70f, 0.18f);
+    private static readonly Color CFog    = new Color(0f, 0f, 0f, 0f);
 
     /// <summary>Otevře / zavře mapu pro daného hráče.</summary>
     public static void Toggle(int playerIndex, GridManager g)
@@ -80,6 +87,8 @@ public class MapScreen : MonoBehaviour
     void OnGUI()
     {
         if (!IsOpen || grid == null) return;
+        GUI.depth = -900; // nad HUD a ukazatelem zdraví bosse, pod dopisem
+        HudSkin.UseUiFont();
         EnsureStyles();
 
         // Kde se mapa kreslí: sólo = celá obrazovka, split screen = půlka hráče.
@@ -90,44 +99,75 @@ public class MapScreen : MonoBehaviour
             halfX = owner == 1 ? Screen.width * 0.5f : 0f;
         }
 
-        // Tmavé pozadí.
-        GUI.color = new Color(0.03f, 0.05f, 0.08f, 0.96f);
+        // Ztmavení hry + velký pergamen přes skoro celou plochu hráče.
+        GUI.color = new Color(0f, 0f, 0f, 0.82f);
         GUI.DrawTexture(new Rect(halfX, 0, halfW, Screen.height), Texture2D.whiteTexture);
         GUI.color = Color.white;
 
-        float side = Mathf.Min(halfW - 60f, Screen.height - 150f);
-        var mapRect = new Rect(halfX + (halfW - side) / 2f, 90f, side, side);
+        float s = Mathf.Max(0.75f, Mathf.Min(HudSkin.GuiScale, halfW / 700f));
+        ApplyFontSizes(s);
+
+        var sheet = new Rect(halfX + 20f, 16f, halfW - 40f, Screen.height - 32f);
+        GUI.DrawTexture(sheet, HudSkin.Parchment(), ScaleMode.StretchToFill);
+
+        // Plocha samotné mapy: pod nadpisem, nad nápovědou, s okrajem papíru kolem.
+        float pad    = 34f * s;
+        float header = 64f * s;
+        float footer = 64f * s;
+        var mapRect = new Rect(sheet.x + pad, sheet.y + header, sheet.width - 2f * pad, sheet.height - header - footer);
 
         HandleInput(mapRect);
+        if (!IsOpen) return; // zavřeno klávesou v HandleInput
 
-        if (dirty) Rebuild();
-        GUI.DrawTexture(mapRect, tex, ScaleMode.StretchToFill, false);
+        if (dirty || NeedsResize(mapRect)) Rebuild(mapRect);
+        GUI.DrawTexture(mapRect, tex, ScaleMode.StretchToFill, true); // alfa: mlha = vidět papír
 
-        // Rámeček mapy.
-        DrawFrame(mapRect, 3f, new Color(0.55f, 0.42f, 0.24f));
+        // Dvojitý inkoustový rámeček jako na staré mapě.
+        DrawFrame(mapRect, 2f, HudSkin.InkTitle);
+        DrawFrame(new Rect(mapRect.x - 6f, mapRect.y - 6f, mapRect.width + 12f, mapRect.height + 12f), 1f, HudSkin.InkFaint);
 
         // Světové strany u okrajů mapy (sladěno s minimapou: S nahoře, V vpravo).
         DrawCompass(mapRect);
 
-        // Souřadnice políčka pod kurzorem (levý horní roh mapy) — pomůže při hledání
-        // cíle podle souřadnic (např. z dopisu v trezoru).
+        // Souřadnice políčka pod kurzorem — pomůže při hledání cíle podle
+        // souřadnic (např. z dopisu v trezoru).
         DrawCursorCoords(mapRect);
 
-        // Titulek + nápověda.
-        GUI.Label(new Rect(halfX, 34f, halfW, 34f), Loc.T("MAPA", "MAP"), titleStyle);
-        GUI.Label(new Rect(halfX, mapRect.yMax + 10f, halfW, 26f),
+        // Nadpis + vlastní pozice (stejně jako souřadnice v HUD při hraní).
+        var ps = grid.gameData.players[owner];
+        GUI.Label(new Rect(sheet.x, sheet.y + 10f * s, sheet.width, 42f * s), Loc.T("MAPA", "MAP"), titleStyle);
+        GUI.Label(new Rect(sheet.x + pad, sheet.y + 14f * s, 320f * s, 36f * s),
+                  Loc.T($"Ty:  X: {ps.gridX}   Y: {ps.gridY}", $"You:  X: {ps.gridX}   Y: {ps.gridY}"), posStyle);
+
+        // Nápověda pod mapou.
+        GUI.Label(new Rect(sheet.x, mapRect.yMax + 10f * s, sheet.width, 24f * s),
             Loc.T("táhni myší = posun    kolečko = přiblížení    klik = cíl",
                   "drag = pan    wheel = zoom    click = set target"), hintStyle);
 
         // Klávesy, které mapu zavírají, jsou pro každého hráče jiné.
         string closeKeys = owner == 0 ? "M / Esc" : "Numpad2 / NumpadEnter";
-        bool hasWp = grid.gameData.players[owner].hasWaypoint;
-        GUI.Label(new Rect(halfX, mapRect.yMax + 34f, halfW, 24f),
-            hasWp ? Loc.T($"cíl nastaven — vede tě k němu azurová šipka na minimapě  ({closeKeys} = zavřít)",
-                          $"target set — the cyan arrow on the minimap leads you there  ({closeKeys} = close)")
-                  : Loc.T($"klikni do mapy a nastav si cíl  ({closeKeys} = zavřít)",
-                          $"click the map to set a target  ({closeKeys} = close)"), hintStyle);
+        GUI.Label(new Rect(sheet.x, mapRect.yMax + 32f * s, sheet.width, 24f * s),
+            ps.hasWaypoint ? Loc.T($"cíl nastaven — vede tě k němu azurová šipka na minimapě  ({closeKeys} = zavřít)",
+                                   $"target set — the cyan arrow on the minimap leads you there  ({closeKeys} = close)")
+                           : Loc.T($"klikni do mapy a nastav si cíl  ({closeKeys} = zavřít)",
+                                   $"click the map to set a target  ({closeKeys} = close)"), hintStyle);
     }
+
+    // Velikost písma podle měřítka obrazovky (jako dopis a obchody).
+    void ApplyFontSizes(float s)
+    {
+        titleStyle.fontSize   = Mathf.RoundToInt(30f * s);
+        posStyle.fontSize     = Mathf.RoundToInt(17f * s);
+        hintStyle.fontSize    = Mathf.RoundToInt(14f * s);
+        coordStyle.fontSize   = Mathf.RoundToInt(16f * s);
+        compassStyle.fontSize = Mathf.RoundToInt(19f * s);
+    }
+
+    // Textura musí mít stejný poměr stran jako okno mapy, jinak by se políčka roztáhla.
+    int WantedTexWidth(Rect mapRect)
+        => Mathf.Clamp(Mathf.RoundToInt(TEX_H * mapRect.width / Mathf.Max(1f, mapRect.height)), 160, 900);
+
+    bool NeedsResize(Rect mapRect) => tex == null || tex.width != WantedTexWidth(mapRect);
 
     // ── Vstup (tažení / zoom / klik) ─────────────────────────────────────────
     void HandleInput(Rect mapRect)
@@ -184,8 +224,8 @@ public class MapScreen : MonoBehaviour
         float sx = (mouse.x - mapRect.x) / mapRect.width;         // 0..1 zleva
         float sy = 1f - (mouse.y - mapRect.y) / mapRect.height;   // 0..1 zdola (obraceně než GUI)
 
-        tileX = Mathf.FloorToInt(centerTile.x + (sx - 0.5f) * TEX * zoom);
-        tileY = Mathf.FloorToInt(centerTile.y + (sy - 0.5f) * TEX * zoom);
+        tileX = Mathf.FloorToInt(centerTile.x + (sx - 0.5f) * texW  * zoom);
+        tileY = Mathf.FloorToInt(centerTile.y + (sy - 0.5f) * TEX_H * zoom);
     }
 
     // Popisek "X: … Y: …" v rohu mapy, jen když je kurzor nad mapou.
@@ -196,11 +236,17 @@ public class MapScreen : MonoBehaviour
 
         ScreenToTile(e.mousePosition, mapRect, out int tx, out int ty);
 
-        var box = new Rect(mapRect.x + 8f, mapRect.y + 8f, 150f, 26f);
-        GUI.color = new Color(0f, 0f, 0f, 0.6f);
+        // Papírový štítek u kurzoru (kousek vpravo dole, ať nezakrývá místo, kam míříš).
+        float bw = coordStyle.fontSize * 9.5f, bh = coordStyle.fontSize * 1.8f;
+        var box = new Rect(e.mousePosition.x + 18f, e.mousePosition.y + 18f, bw, bh);
+        if (box.xMax > mapRect.xMax) box.x = e.mousePosition.x - 18f - bw;
+        if (box.yMax > mapRect.yMax) box.y = e.mousePosition.y - 18f - bh;
+
+        GUI.color = new Color(0.95f, 0.88f, 0.70f, 0.95f);
         GUI.DrawTexture(box, Texture2D.whiteTexture);
         GUI.color = Color.white;
-        GUI.Label(new Rect(box.x + 8f, box.y, box.width - 8f, box.height), $"X: {tx}   Y: {ty}", coordStyle);
+        DrawFrame(box, 1f, HudSkin.InkTitle);
+        GUI.Label(box, $"X: {tx}   Y: {ty}", coordStyle);
     }
 
     // Klik do mapy → přepočet na políčko → nastav / zruš cíl.
@@ -226,37 +272,39 @@ public class MapScreen : MonoBehaviour
     }
 
     // ── Vykreslení mapy do textury ──────────────────────────────────────────
-    void Rebuild()
+    void Rebuild(Rect mapRect)
     {
-        if (tex == null)
+        if (NeedsResize(mapRect))
         {
-            tex = new Texture2D(TEX, TEX, TextureFormat.RGBA32, false) { filterMode = FilterMode.Point };
-            buf = new Color[TEX * TEX];
+            if (tex != null) Destroy(tex);
+            texW = WantedTexWidth(mapRect);
+            tex = new Texture2D(texW, TEX_H, TextureFormat.RGBA32, false) { filterMode = FilterMode.Point };
+            buf = new Color[texW * TEX_H];
         }
 
         var d = grid.gameData;
 
-        for (int py = 0; py < TEX; py++)
+        for (int py = 0; py < TEX_H; py++)
         {
-            float wy = centerTile.y + (py - TEX * 0.5f) * zoom;
+            float wy = centerTile.y + (py - TEX_H * 0.5f) * zoom;
             int ty = Mathf.FloorToInt(wy);
 
-            for (int px = 0; px < TEX; px++)
+            for (int px = 0; px < texW; px++)
             {
-                float wx = centerTile.x + (px - TEX * 0.5f) * zoom;
+                float wx = centerTile.x + (px - texW * 0.5f) * zoom;
                 int tx = Mathf.FloorToInt(wx);
-                buf[py * TEX + px] = TileColor(tx, ty);
+                buf[py * texW + px] = TileColor(tx, ty);
             }
         }
 
         // Značky.
-        StampCross(d.players[0].gridX, d.players[0].gridY, Color.white, 3);
+        StampCross(d.players[0].gridX, d.players[0].gridY, new Color(0.70f, 0.10f, 0.08f), 5); // P1 = červený křížek jako "tady jsi" na staré mapě
         if (MultiplayerManager.IsMultiplayer)
-            StampCross(d.players[1].gridX, d.players[1].gridY, new Color(1f, 0.5f, 0f), 3);
+            StampCross(d.players[1].gridX, d.players[1].gridY, new Color(0.85f, 0.45f, 0.05f), 5);
 
         var ownerPs = d.players[owner];
         if (ownerPs.hasWaypoint)
-            StampCross(ownerPs.waypointX, ownerPs.waypointY, new Color(0.3f, 0.95f, 0.95f), 4);
+            StampCross(ownerPs.waypointX, ownerPs.waypointY, new Color(0.05f, 0.55f, 0.60f), 6);
 
         tex.SetPixels(buf);
         tex.Apply(false);
@@ -306,48 +354,41 @@ public class MapScreen : MonoBehaviour
     // Křížek na políčku [tileX,tileY] o poloměru r pixelů.
     void StampCross(int tileX, int tileY, Color c, int r)
     {
-        int cx = Mathf.RoundToInt(TEX * 0.5f + (tileX + 0.5f - centerTile.x) / zoom);
-        int cy = Mathf.RoundToInt(TEX * 0.5f + (tileY + 0.5f - centerTile.y) / zoom);
+        int cx = Mathf.RoundToInt(texW  * 0.5f + (tileX + 0.5f - centerTile.x) / zoom);
+        int cy = Mathf.RoundToInt(TEX_H * 0.5f + (tileY + 0.5f - centerTile.y) / zoom);
 
+        // Křížek "×" o tloušťce 2 px — tenký by na velké mapě zanikl.
         for (int i = -r; i <= r; i++)
         {
-            Plot(cx + i, cy, c);
-            Plot(cx, cy + i, c);
+            Plot(cx + i, cy + i, c); Plot(cx + i + 1, cy + i, c);
+            Plot(cx + i, cy - i, c); Plot(cx + i + 1, cy - i, c);
         }
     }
 
     void Plot(int px, int py, Color c)
     {
-        if (px < 0 || px >= TEX || py < 0 || py >= TEX) return;
-        buf[py * TEX + px] = c;
+        if (px < 0 || px >= texW || py < 0 || py >= TEX_H) return;
+        buf[py * texW + px] = c;
     }
 
     // Písmena světových stran (S / J / V / Z) zevnitř u okrajů mapy.
     void DrawCompass(Rect m)
     {
-        if (compassStyle == null)
-            compassStyle = new GUIStyle(GUI.skin.label)
-            {
-                fontSize = 19, fontStyle = FontStyle.Bold,
-                alignment = TextAnchor.MiddleCenter,
-                normal = { textColor = new Color(1f, 0.92f, 0.6f) }
-            };
-
         // Česky S/J/V/Z, anglicky N/S/E/W (pozor: "S" je v češtině sever, v angličtině jih).
-        CompassLetter(Loc.T("S", "N"), new Rect(m.center.x - 14f, m.y + 4f,          28f, 22f));
-        CompassLetter(Loc.T("J", "S"), new Rect(m.center.x - 14f, m.yMax - 26f,      28f, 22f));
-        CompassLetter(Loc.T("V", "E"), new Rect(m.xMax - 26f,     m.center.y - 11f,  22f, 22f));
-        CompassLetter(Loc.T("Z", "W"), new Rect(m.x + 4f,         m.center.y - 11f,  22f, 22f));
+        float r = compassStyle.fontSize * 1.5f; // velikost kolečka pro písmeno
+        CompassLetter(Loc.T("S", "N"), new Rect(m.center.x - r / 2f, m.y + 4f,            r, r));
+        CompassLetter(Loc.T("J", "S"), new Rect(m.center.x - r / 2f, m.yMax - r - 4f,     r, r));
+        CompassLetter(Loc.T("V", "E"), new Rect(m.xMax - r - 4f,     m.center.y - r / 2f, r, r));
+        CompassLetter(Loc.T("Z", "W"), new Rect(m.x + 4f,            m.center.y - r / 2f, r, r));
     }
 
-    // Písmeno + tmavý stín pod ním, ať je čitelné i nad světlou mapou.
+    // Písmeno inkoustem na světlém papírovém štítku, ať je čitelné nad mořem i nad papírem.
     void CompassLetter(string s, Rect r)
     {
-        Color keep = compassStyle.normal.textColor;
-        var sh = new Rect(r.x + 1.5f, r.y + 1.5f, r.width, r.height);
-        compassStyle.normal.textColor = new Color(0f, 0f, 0f, 0.75f);
-        GUI.Label(sh, s, compassStyle);
-        compassStyle.normal.textColor = keep;
+        GUI.color = new Color(0.95f, 0.88f, 0.70f, 0.90f);
+        GUI.DrawTexture(r, Texture2D.whiteTexture);
+        GUI.color = Color.white;
+        DrawFrame(r, 1f, HudSkin.InkFaint);
         GUI.Label(r, s, compassStyle);
     }
 
@@ -367,18 +408,32 @@ public class MapScreen : MonoBehaviour
         if (titleStyle != null) return;
         titleStyle = new GUIStyle(GUI.skin.label)
         {
-            fontSize = 26, fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleCenter,
-            normal = { textColor = new Color(1f, 0.9f, 0.65f) }
+            fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleCenter,
+            normal = { textColor = HudSkin.InkTitle }
+        };
+        posStyle = new GUIStyle(GUI.skin.label)
+        {
+            fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleLeft,
+            normal = { textColor = HudSkin.Ink }
         };
         hintStyle = new GUIStyle(GUI.skin.label)
         {
-            fontSize = 13, alignment = TextAnchor.MiddleCenter,
-            normal = { textColor = new Color(0.75f, 0.78f, 0.82f) }
+            fontStyle = FontStyle.Italic, alignment = TextAnchor.MiddleCenter,
+            normal = { textColor = HudSkin.InkFaint }
         };
         coordStyle = new GUIStyle(GUI.skin.label)
         {
-            fontSize = 15, fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleLeft,
-            normal = { textColor = new Color(1f, 0.9f, 0.65f) }
+            fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleCenter,
+            normal = { textColor = HudSkin.Ink }
         };
+        compassStyle = new GUIStyle(GUI.skin.label)
+        {
+            fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleCenter,
+            normal = { textColor = HudSkin.InkTitle }
+        };
+
+        // Stejná barva i pod kurzorem myši (výchozí hover je světle šedý → na papíře by zmizel).
+        foreach (var st in new[] { titleStyle, posStyle, hintStyle, coordStyle, compassStyle })
+            HudSkin.InkAllStates(st, st.normal.textColor);
     }
 }

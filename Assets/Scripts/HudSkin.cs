@@ -269,6 +269,63 @@ public static class HudSkin
         }
     }
 
+    // ── Pergamen (dopis, obchody, mapa, deník) ───────────────────────────
+    // Všechna "papírová" okna hry kreslí stejný pergamen a píšou stejným
+    // inkoustem, aby k sobě graficky seděla (původně ho měl jen dopis).
+    public static readonly Color Ink      = new Color(0.22f, 0.14f, 0.08f); // běžný text
+    public static readonly Color InkTitle = new Color(0.36f, 0.20f, 0.10f); // nadpisy
+    public static readonly Color InkFaint = new Color(0.40f, 0.28f, 0.16f); // nápovědy, šedý text
+    public static readonly Color InkGreen = new Color(0.16f, 0.40f, 0.12f); // "zakoupeno", splněno
+    public static readonly Color InkRed   = new Color(0.58f, 0.14f, 0.08f); // varování
+
+    /// <summary>
+    /// Nastaví stejnou barvu textu ve VŠECH stavech stylu. Výchozí popisek IMGUI má
+    /// pro stav "myš nad textem" (hover) světle šedou barvu — na tmavém panelu to
+    /// nevadí, ale na pergamenu text pod kurzorem "zmizí". Proto každý papírový styl
+    /// projde touhle metodou.
+    /// </summary>
+    public static GUIStyle InkAllStates(GUIStyle st, Color c)
+    {
+        st.normal.textColor   = st.hover.textColor   = st.active.textColor   = st.focused.textColor   = c;
+        st.onNormal.textColor = st.onHover.textColor = st.onActive.textColor = st.onFocused.textColor = c;
+        return st;
+    }
+
+    private static Texture2D parchment;
+
+    /// <summary>Textura pergamenu: krémový podklad, jemný šum a ztmavené okraje (vytvoří se jednou).</summary>
+    public static Texture2D Parchment()
+    {
+        if (parchment != null) return parchment;
+
+        const int S = 256;
+        parchment = new Texture2D(S, S, TextureFormat.RGBA32, false) { filterMode = FilterMode.Bilinear };
+        Color light = new Color(0.94f, 0.86f, 0.66f);
+        Color edge  = new Color(0.60f, 0.44f, 0.24f);
+
+        for (int y = 0; y < S; y++)
+        for (int x = 0; x < S; x++)
+        {
+            float u = x / (float)(S - 1), v = y / (float)(S - 1);
+
+            // Vzdálenost od okraje (0 = kraj, 1 = střed) → ztmavení okrajů.
+            float dEdge = Mathf.Min(Mathf.Min(u, 1f - u), Mathf.Min(v, 1f - v)) * 2f;
+            float vignette = 1f - Mathf.SmoothStep(0f, 1f, Mathf.Clamp01(dEdge / 0.35f));
+
+            // Skvrny a vlákna papíru (Perlin).
+            float blotch = Mathf.PerlinNoise(u * 3.1f + 7.3f, v * 3.1f + 1.9f) - 0.5f;
+            float grain  = Mathf.PerlinNoise(u * 40f, v * 40f) - 0.5f;
+
+            Color c = Color.Lerp(light, edge, vignette * 0.85f);
+            c = new Color(c.r + blotch * 0.10f + grain * 0.04f,
+                          c.g + blotch * 0.09f + grain * 0.04f,
+                          c.b + blotch * 0.07f + grain * 0.03f, 1f);
+            parchment.SetPixel(x, y, c);
+        }
+        parchment.Apply();
+        return parchment;
+    }
+
     // ── Kreslicí pomůcky ─────────────────────────────────────────────────
     private static void DrawDisc(Texture2D t, int S, float radius, Color c)
         => DrawDisc(t, S, radius, c, S * 0.5f, S * 0.5f);

@@ -18,6 +18,7 @@ using UnityEngine;
 //  Stejně tak kolem ostrovů se dno zvedne až k jejich úpatí, aby ostrov
 //  "vyrůstal ze dna" a nekončil pod vodou uříznutý.
 //
+//  Barva dna jde podle hloubky: u pláže jako písek ostrova, hlouběji tmavší (rampa v UV).
 //  Objekt vytváří GridManager (viz CreateSeaWorld). Nemá kolizi ani vliv na hru.
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -25,7 +26,7 @@ using UnityEngine;
 public class SeaFloor : MonoBehaviour
 {
     private const float SIZE      = 164f;  // strana plochy
-    private const float STEP      = 4f;    // rozteč vrcholů (jemnější, ať se dá vykreslit mělčina pod vrakem)
+    private const float STEP      = 2f;    // rozteč vrcholů (jemná, ať dno u ostrova nespadne za jeden kvádr a dá se vykreslit mělčina pod vrakem)
     private const float FLOOR_MIN = -10f;  // nejhlubší místo dna
     private const float FLOOR_MAX = -3f;   // nejmělčí "normální" místo dna
     private const float NOISE     = 0.045f;// měřítko Perlinova šumu
@@ -40,8 +41,21 @@ public class SeaFloor : MonoBehaviour
     // žádného rodiče s posunem v ose Y, takže si IslandTerrain.Y_OFFSET musí připočítat
     // sám — jinak by zůstal drobný (0,1 j) zbytkový schod.
     private const float SHELF_Y       = IslandTerrain.DEEP_Y + IslandTerrain.Y_OFFSET;
-    private const float SHELF_CORE    = 2.5f;  // do téhle vzdálenosti od pevniny je dno rovnou na SHELF_Y (síť dna je hrubá)
-    private const float SHELF_RADIUS  = 15f;   // za jádrem se dno lineárně svažuje zpátky do hloubky
+    // Vzdálenost se měří od OKRAJE pobřežního políčka (stejně jako u pláže v IslandTerrain),
+    // pláž končí 1,25 od pevniny — dno tam navazuje a ještě kousek (SHELF_CORE) zůstane rovné,
+    // pak se plynule (smoothstep) svažuje do hloubky. Dřív se spádem 15 j klesalo moc prudce:
+    // za pár jednotek bylo dno hluboko a mezi koncem pláže a dnem byl vidět zlom.
+    private const float SHELF_CORE    = 2.5f;  // do téhle vzdálenosti od okraje pevniny je dno rovnou na SHELF_Y
+    private const float SHELF_RADIUS  = 20f;   // za jádrem se dno měkce svažuje zpátky do hloubky
+
+    // Barva dna podle hloubky: u ostrova stejná jako písek pláže a čím hlouběji, tím tmavší.
+    // Dno nemá vlastní shader — barva je 1D textura (rampa) a každý vrchol má v UV jen
+    // hloubku 0..1, kterou si materiál vezme z rampy.
+    private static readonly Color SAND_COLOR = new Color(0.83f, 0.69f, 0.47f);  // IslandTerrain.mat
+    private static readonly Color MID_COLOR  = new Color(0.30f, 0.36f, 0.34f);  // běžné dno na volném moři (jako dřív)
+    private static readonly Color DEEP_COLOR = new Color(0.10f, 0.17f, 0.21f);  // nejhlubší dno
+    private const float RAMP_MID_AT = 0.16f; // v jaké hloubce (0..1) je dno už "běžné" — písek je jen těsně u pláže
+    private const int   RAMP_SIZE = 64;
 
     // Přepočet dna je drahý (tisíce vrcholů × okolní ostrovy a vraky), proto se
     // nedělá naráz v jednom snímku: sběr políček i výška vrcholů se počítají po
@@ -49,7 +63,7 @@ public class SeaFloor : MonoBehaviour
     // pak použije najednou. Dřív to byl jeden zásek kolem 40 ms při každém
     // posunu hráče o STEP a ještě jednou za sekundu.
     private const int   COLUMNS_PER_FRAME = 12;   // sloupců políček prohledaných za snímek
-    private const int   VERTS_PER_FRAME   = 400;  // vrcholů dna přepočítaných za snímek
+    private const int   VERTS_PER_FRAME   = 800;  // vrcholů dna přepočítaných za snímek
     private const float RESCAN_SECONDS    = 1f;   // jak často se dno přepočítá, i když hráč stojí
 
     private Transform   p1;
@@ -62,6 +76,7 @@ public class SeaFloor : MonoBehaviour
     private Mesh       mesh;
     private Vector3[]  verts;
     private float[]    heights;          // nově spočtené výšky (použijí se až všechny naráz)
+    private Vector2[]  uvs;              // UV = hloubka 0..1 pro barevnou rampu
     private Vector2Int appliedSnap = new Vector2Int(int.MaxValue, int.MaxValue);
 
     private readonly List<Vector2Int>    wrecks  = new List<Vector2Int>();
@@ -79,8 +94,12 @@ public class SeaFloor : MonoBehaviour
         if (sandMaterial != null)
         {
             var mat = new Material(sandMaterial);
-            if (mat.HasProperty("_BaseColor")) mat.SetColor("_BaseColor", new Color(0.33f, 0.38f, 0.36f, 1f));
-            if (mat.HasProperty("_Color"))     mat.SetColor("_Color",     new Color(0.33f, 0.38f, 0.36f, 1f));
+            Texture2D ramp = BuildColorRamp();
+            // Barvu dává rampa (písek → tmavá hloubka), materiál ji jen nenásobí jinou.
+            if (mat.HasProperty("_BaseMap"))   mat.SetTexture("_BaseMap", ramp);
+            if (mat.HasProperty("_MainTex"))   mat.SetTexture("_MainTex", ramp);
+            if (mat.HasProperty("_BaseColor")) mat.SetColor("_BaseColor", Color.white);
+            if (mat.HasProperty("_Color"))     mat.SetColor("_Color",     Color.white);
             mr.sharedMaterial = mat;
         }
         mr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
@@ -99,6 +118,7 @@ public class SeaFloor : MonoBehaviour
         int n = Mathf.RoundToInt(SIZE / STEP) + 1;
         verts   = new Vector3[n * n];
         heights = new float[n * n];
+        uvs     = new Vector2[n * n];
         var tris = new int[(n - 1) * (n - 1) * 6];
 
         float half = SIZE * 0.5f;
@@ -124,6 +144,31 @@ public class SeaFloor : MonoBehaviour
         if (verts.Length > 65000) mesh.indexFormat = UnityEngine.Rendering.IndexFormat.UInt32;
         mesh.vertices  = verts;
         mesh.triangles = tris;
+        mesh.uv        = uvs;
+    }
+
+    // Rampa barev dna: vlevo písek (hloubka 0 = u pláže), rychle přejde do běžné barvy
+    // dna a dál tmavne až do hloubky vpravo.
+    static Texture2D BuildColorRamp()
+    {
+        var tex = new Texture2D(RAMP_SIZE, 1, TextureFormat.RGBA32, false);
+        tex.wrapMode   = TextureWrapMode.Clamp;
+        tex.filterMode = FilterMode.Bilinear;
+        for (int i = 0; i < RAMP_SIZE; i++)
+        {
+            float t = i / (float)(RAMP_SIZE - 1);
+            Color c;
+            if (t < RAMP_MID_AT)
+            {
+                float u = t / RAMP_MID_AT;
+                c = Color.Lerp(SAND_COLOR, MID_COLOR, u * u * (3f - 2f * u)); // písek → běžné dno
+            }
+            else
+                c = Color.Lerp(MID_COLOR, DEEP_COLOR, (t - RAMP_MID_AT) / (1f - RAMP_MID_AT)); // dál tmavne
+            tex.SetPixel(i, 0, c);
+        }
+        tex.Apply();
+        return tex;
     }
 
     void OnDisable()
@@ -189,7 +234,12 @@ public class SeaFloor : MonoBehaviour
         {
             int end = Mathf.Min(start + VERTS_PER_FRAME, verts.Length);
             for (int k = start; k < end; k++)
-                heights[k] = FloorHeight(verts[k].x + ox, verts[k].z + oz);
+            {
+                float h = FloorHeight(verts[k].x + ox, verts[k].z + oz);
+                heights[k] = h;
+                // Hloubka 0 = úroveň dna u pláže (SHELF_Y), 1 = nejhlubší dno.
+                uvs[k] = new Vector2(Mathf.Clamp01(Mathf.InverseLerp(SHELF_Y, FLOOR_MIN, h)), 0.5f);
+            }
             yield return null;
         }
 
@@ -197,6 +247,7 @@ public class SeaFloor : MonoBehaviour
         for (int k = 0; k < verts.Length; k++) verts[k].y = heights[k];
         transform.position = new Vector3(ox, 0f, oz);
         mesh.vertices = verts;
+        mesh.uv = uvs;
         mesh.RecalculateNormals();
         mesh.RecalculateBounds();
 
@@ -251,11 +302,13 @@ public class SeaFloor : MonoBehaviour
         // takže ostrov "vyrůstá ze dna" a nekončí pod vodou uříznutý. Falloff
         // je lineární (kužel/svah), ne plochá deska — a dál se přes Max()
         // vrací k náhodnému Perlinovu dnu.
+        // Políčko [x,y] pokrývá čtverec [x,x+1) × [y,y+1); měří se k jeho OKRAJI (stejně jako
+        // u pláže v IslandTerrain), ne ke středu.
         float nearestShore = float.MaxValue;
         for (int t = 0; t < shore.Count; t++)
         {
-            float dx = wx - (shore[t].x + 0.5f);
-            float dz = wz - (shore[t].y + 0.5f);
+            float dx = Mathf.Max(shore[t].x - wx, 0f, wx - (shore[t].x + 1f));
+            float dz = Mathf.Max(shore[t].y - wz, 0f, wz - (shore[t].y + 1f));
             float sq = dx * dx + dz * dz;
             if (sq < nearestShore) nearestShore = sq;
         }
@@ -264,6 +317,7 @@ public class SeaFloor : MonoBehaviour
         {
             float d = Mathf.Sqrt(nearestShore);
             float s = Mathf.Clamp01(1f - Mathf.Max(0f, d - SHELF_CORE) / SHELF_RADIUS);
+            s = s * s * (3f - 2f * s); // smoothstep → měkký přechod bez zlomu
             floorY = Mathf.Max(floorY, Mathf.Lerp(FLOOR_MIN, SHELF_Y, s));
         }
 

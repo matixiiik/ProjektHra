@@ -124,7 +124,7 @@ public class GameConsole : MonoBehaviour
                 Log("<color=#ffff88>get fish</color> <pocet>             přidá ryby");
                 Log("<color=#ffff88>get treasure</color> <pocet>         přidá poklady");
                 Log("<color=#ffff88>get boat</color> row/small/medium/large   změní loď");
-                Log("<color=#ffff88>get item</color> map/ammo/handweapon/handammo/histtreasure/sellbonus/megamap");
+                Log("<color=#ffff88>get item</color> map/ammo/handweapon/handammo/histtreasure/sellbonus/megamap/loot");
                 Log("<color=#ffff88>upgrade</color> speed/rod/mining      odemkne upgrade");
                 Log("<color=#ffff88>tp</color> <x> <y>                   teleport");
                 Log("<color=#ffff88>explore</color> [radius]             odhalí mapu");
@@ -204,7 +204,7 @@ public class GameConsole : MonoBehaviour
         grid.NotifyWorldChanged();
     }
 
-    // get item <map/ammo/handweapon/handammo/histtreasure/sellbonus/megamap/map>
+    // get item <map/ammo/handweapon/handammo/histtreasure/sellbonus/megamap/loot>
     // Vrací false, když nic nepřidal (chybu si vypíše sám).
     bool HandleGetItem(string[] p)
     {
@@ -212,7 +212,7 @@ public class GameConsole : MonoBehaviour
         var ps = d.players[0];
         if (p.Length < 3)
         {
-            Log("Použití: get item <map / ammo [pocet] / handweapon / handammo [pocet] / histtreasure / sellbonus / megamap>");
+            Log("Použití: get item <map / ammo [pocet] / handweapon / handammo [pocet] / histtreasure / sellbonus / megamap / loot [pocet]>");
             return false;
         }
 
@@ -249,6 +249,16 @@ public class GameConsole : MonoBehaviour
                 d.hasHistoricalTreasure = true;
                 Log("<color=#88ddff>Historický poklad</color> — chce ho starý námořník (příběh).");
                 return true;
+
+            case "loot":
+            {
+                // Náhodná pirátská kořist (jako po potopených pirátech) — test výkupny a questu "kořist".
+                int count = 3;
+                if (p.Length > 3) int.TryParse(p[3], out count);
+                for (int i = 0; i < Mathf.Max(1, count); i++) LootItems.TryDrop(ps, 1f);
+                Log($"<color=#ffcc44>Kořist</color> +{Mathf.Max(1, count)} ks (celkem {LootItems.TotalCount(ps)}, hodnota {LootItems.TotalValue(ps)} mincí).");
+                return true;
+            }
 
             case "sellbonus":
                 ps.sellBonus = true;

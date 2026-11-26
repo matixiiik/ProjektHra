@@ -17,16 +17,42 @@ using System;
 public class ActiveQuest
 {
     public bool   hasQuest;     // má hráč vůbec nějaký quest?
-    public int    questType;    // 0 = nalovit ryby, 1 = vytěžit poklady
+    public int    questType;    // co se plní — viz konstanty TYPE_… níž
     public string description;  // text do HUD ("Ulov 10 ryb")
     public int    target;       // kolik je potřeba splnit
     public int    progress;     // kolik už hráč splnil
     public int    cost;         // kolik quest stál při koupi
     public int    reward;       // kolik hráč dostane za splnění (cost * multiplier)
     public int    multiplier;   // násobič odměny (jen pro zobrazení "3x")
+    public int    rewardItem;   // věcná odměna navíc k mincím — viz konstanty REWARD_… níž (0 = jen mince)
+
+    // Typy questů. Hodnoty se ukládají do savu jako číslo → nikdy nepřečíslovat.
+    public const int TYPE_FISH     = 0; // nalovit ryby
+    public const int TYPE_TREASURE = 1; // vytěžit poklady z vraků
+    public const int TYPE_PIRATES  = 2; // potopit pirátské lodě
+    public const int TYPE_CANNONS  = 3; // zničit děla nepřátelských ostrovů
+    public const int TYPE_CHESTS   = 4; // otevřít bedny na ostrovech
+    public const int TYPE_LOOT     = 5; // získat kořist z pirátů (viz LootItems)
+
+    // Věcné odměny (taky se ukládají jako číslo → nepřečíslovat).
+    public const int REWARD_NONE       = 0; // jen mince
+    public const int REWARD_UPGRADE    = 1; // jedno vylepšení, které hráč ještě nemá (rychlost / prut / těžba)
+    public const int REWARD_AMMO       = 2; // 2 balíčky munice do lodního děla
+    public const int REWARD_HAND_AMMO  = 3; // 2 balíčky nábojů do pěší zbraně
+    public const int REWARD_LOOT       = 4; // jeden vzácný kus kořisti (prodá se ve výkupně)
 
     /// <summary>Quest je splněný, když je pokrok >= cíl.</summary>
     public bool IsComplete => hasQuest && progress >= target;
+
+    /// <summary>
+    /// Posune quest, když je zrovna tohohle typu (jinak nic). Volá se ze všech
+    /// míst, kde se něco "počítá" — rybaření, těžba, potopení piráta, bedna…
+    /// </summary>
+    public void AddProgress(int type, int amount)
+    {
+        if (!hasQuest || questType != type || amount <= 0) return;
+        progress = Mathf.Min(progress + amount, target);
+    }
 
     /// <summary>Vynuluje quest (po vyzvednutí odměny).</summary>
     public void Reset()
@@ -39,6 +65,7 @@ public class ActiveQuest
         cost        = 0;
         reward      = 0;
         multiplier  = 0;
+        rewardItem  = REWARD_NONE;
     }
 }
 
@@ -108,6 +135,11 @@ public class PlayerState
     public bool hasHandWeapon;
     public int  handAmmo;
     public int  activeHotbarSlot;      // 0=zbraň, 1=munice (jen zobrazení), 2=historický poklad (jen když ho hráč má)
+
+    // Neviditelný inventář kořisti z pirátů: loot[i] = kolik kusů předmětu i
+    // (index = LootItems.xxx). Starý save pole nemá → načte se prázdný seznam,
+    // proto se čte jen přes LootItems.Count(...), které chybějící index bere jako 0.
+    public List<int> loot = new List<int>();
 }
 
 /// <summary>

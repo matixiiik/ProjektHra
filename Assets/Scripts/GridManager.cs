@@ -1951,6 +1951,7 @@ public class GridManager : MonoBehaviour
 
         // ── Vynuluj kořist + vylepšení (mince a mega quest zůstávají) ──────
         ps.fishCount = 0; ps.treasureCount = 0; ps.ammo = 0;
+        LootItems.Clear(ps); // pirátská kořist propadne stejně jako ryby a poklady
         ps.hasSpeedUpgrade = ps.hasRodUpgrade = ps.hasMiningUpgrade = false;
         ps.hasMap = false; ps.sellBonus = false;
         ps.hasHandWeapon = false; ps.handAmmo = 0; ps.activeHotbarSlot = -1;

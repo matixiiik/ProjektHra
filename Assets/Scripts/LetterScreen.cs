@@ -14,7 +14,7 @@ using UnityEngine;
 //  pauzu (PauseMenu si tenhle stav hlídá), a znovu se dá přečíst z Deníku.
 //
 //  Kreslí se přes IMGUI (OnGUI), pergamen je textura vygenerovaná v kódu
-//  (žádný import assetu).
+//  (HudSkin.Parchment — sdílí ji i obchody, mapa a deník).
 // ─────────────────────────────────────────────────────────────────────────────
 
 public class LetterScreen : MonoBehaviour
@@ -31,7 +31,6 @@ public class LetterScreen : MonoBehaviour
     private int     islandX, islandY; // souřadnice, ze kterých se hádanka skládá
     private Vector2 scroll;
 
-    private Texture2D paper;
     private GUIStyle  titleStyle, bodyStyle, signStyle, hintStyle;
 
     /// <summary>Otevře dopis pro hráče. Souřadnice cíle se v textu schovají do hádanky.</summary>
@@ -72,7 +71,7 @@ public class LetterScreen : MonoBehaviour
         float h = Mathf.Min(760f * s, half.height - 50f);
         var sheet = new Rect(half.x + (half.width - w) / 2f, half.y + (half.height - h) / 2f, w, h);
 
-        GUI.DrawTexture(sheet, GetPaper(), ScaleMode.StretchToFill);
+        GUI.DrawTexture(sheet, HudSkin.Parchment(), ScaleMode.StretchToFill);
 
         // Velikosti písma podle měřítka.
         titleStyle.fontSize = Mathf.RoundToInt(34f * s);
@@ -202,40 +201,6 @@ public class LetterScreen : MonoBehaviour
           + "Do not expect me to welcome you. We will meet on that island when I decide it is time.";
     }
 
-    // ── Vzhled ───────────────────────────────────────────────────────────────
-    // Pergamen: krémový podklad, jemný šum a ztmavené okraje (vytvoří se jednou).
-    private Texture2D GetPaper()
-    {
-        if (paper != null) return paper;
-
-        const int S = 256;
-        paper = new Texture2D(S, S, TextureFormat.RGBA32, false) { filterMode = FilterMode.Bilinear };
-        Color light = new Color(0.94f, 0.86f, 0.66f);
-        Color edge  = new Color(0.60f, 0.44f, 0.24f);
-
-        for (int y = 0; y < S; y++)
-        for (int x = 0; x < S; x++)
-        {
-            float u = x / (float)(S - 1), v = y / (float)(S - 1);
-
-            // Vzdálenost od okraje (0 = kraj, 1 = střed) → ztmavení okrajů.
-            float dEdge = Mathf.Min(Mathf.Min(u, 1f - u), Mathf.Min(v, 1f - v)) * 2f;
-            float vignette = 1f - Mathf.SmoothStep(0f, 1f, Mathf.Clamp01(dEdge / 0.35f));
-
-            // Skvrny a vlákna papíru (Perlin).
-            float blotch = Mathf.PerlinNoise(u * 3.1f + 7.3f, v * 3.1f + 1.9f) - 0.5f;
-            float grain  = Mathf.PerlinNoise(u * 40f, v * 40f) - 0.5f;
-
-            Color c = Color.Lerp(light, edge, vignette * 0.85f);
-            c = new Color(c.r + blotch * 0.10f + grain * 0.04f,
-                          c.g + blotch * 0.09f + grain * 0.04f,
-                          c.b + blotch * 0.07f + grain * 0.03f, 1f);
-            paper.SetPixel(x, y, c);
-        }
-        paper.Apply();
-        return paper;
-    }
-
     private void InitStyles()
     {
         if (titleStyle != null) return;
@@ -262,5 +227,11 @@ public class LetterScreen : MonoBehaviour
             alignment = TextAnchor.MiddleCenter,
             normal = { textColor = new Color(0.40f, 0.28f, 0.16f) }
         };
+
+        // Stejná barva i pro stav "myš nad textem" — jinak by text pod kurzorem zesvětlal a na papíře zmizel.
+        HudSkin.InkAllStates(titleStyle, titleStyle.normal.textColor);
+        HudSkin.InkAllStates(bodyStyle,  ink);
+        HudSkin.InkAllStates(signStyle,  ink);
+        HudSkin.InkAllStates(hintStyle,  hintStyle.normal.textColor);
     }
 }

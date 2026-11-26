@@ -1,7 +1,7 @@
 // Generuje Uzivatelska_prirucka_The_Last_Beacon.docx
-// Sdílí pomocné funkce (styly, tabulky, obrázky) s mk_prace.js — bere z něj úvod souboru.
+// Sdílí pomocné funkce (styly, tabulky, obrázky) s mk_dokumentace.js — bere z něj úvod souboru.
 const fs = require('fs');
-const src = fs.readFileSync(require('path').join(__dirname, 'mk_prace.js'), 'utf8');
+const src = fs.readFileSync(require('path').join(__dirname, 'mk_dokumentace.js'), 'utf8');
 const head = src.slice(0, src.indexOf('// ───────── Titulní strana'));
 const lib = new Function('require', '__dirname', head +
   '; return { d, P, B, N, H1, H1n, H2, H3, CAP, IMG, table, spacer, numbering, FONT };')(require, __dirname);
@@ -43,7 +43,7 @@ const c = [
     ['Střelba (dělo lodě / zbraň v ruce)', 'levé tlačítko myši', 'Numpad *'],
     ['Oprava lodě u mola nebo v obchodě', 'R', 'Numpad /'],
     ['Velká mapa (po koupi mapy)', 'M', 'Numpad 2'],
-    ['Pauza', 'Esc', 'Numpad Enter'],
+    ['Pauza (deník, jazyk, převod mincí)', 'Esc', 'Numpad Enter'],
   ]),
   spacer(),
   B('Kamera: pohled se otáčí při držení pravého tlačítka myši, kolečko myši přibližuje a oddaluje; při maximálním přiblížení se přepne do pohledu z první osoby.'),
@@ -59,10 +59,17 @@ const c = [
   H3('Výdělek'),
   N('Plujte po moři a hledejte místa s rybami a vraky. Zastavte se na nich a držte mezerník, dokud se ukazatel nedokončí.'),
   N('Doplujte k ostrovu, u mola vystupte klávesou E a dojděte k majáku.'),
-  N('V majáku prodejte kořist ve výkupně. Jedna ryba je 1 mince, jeden poklad 5 mincí.'),
+  N('V majáku prodejte kořist ve výkupně. Jedna ryba jsou 2 mince, jeden poklad 5 mincí.'),
   H3('Obchod v majáku'),
-  ...IMG('obchod.png', 380, 'Obchod s vylepšeními'),
-  P('Za mince koupíte rychlejší loď, lepší prut a rychlejší těžbu, větší lodě (malá 180, střední 450, velká 1000 mincí), náboje a zbraň. Ceny se na různých ostrovech mírně liší. V dalším pultu si můžete vzít úkoly s odměnou.'),
+  ...IMG('obchod_pergamen.jpg', 400, 'Obchod s vylepšeními'),
+  P('Za mince koupíte rychlejší loď, lepší prut a rychlejší těžbu, větší lodě (malá 180, střední 450, velká 1000 mincí), náboje, zbraň a mapu. Ceny se na různých ostrovech mírně liší.'),
+  H3('Úkoly'),
+  P('U oranžového pultu si vezmete úkol: zaplatíte zálohu a po splnění dostanete její několikanásobek. Úkoly jsou na ryby, poklady, otevírání beden a – jakmile má vaše loď dělo – i bojové (potopit piráty, zničit děla, získat pirátskou kořist). Větší úkoly dávají kromě mincí i věc: vylepšení lodi, munici nebo vzácnou kořist. Postup vidíte nahoře na obrazovce, odměnu si vyzvednete zase u pultu.'),
+  H3('Pirátská kořist'),
+  P('Když potopíte pirátskou loď nebo porazíte pirátskou stráž, máte zhruba čtvrtinovou šanci, že vám padne předmět – lahev rumu, kompas, dalekohled, šavle, zlatý prsten nebo vzácný stříbrný kalich. Předměty se nikde nezobrazují, rovnou se připíšou do vašeho inventáře a prodáte je ve výkupně. Při smrti kořist propadne stejně jako ryby a poklady.'),
+  H3('Mapa a deník'),
+  ...IMG('mapa_pergamen.jpg', 400, 'Velká mapa (klávesa M)'),
+  P('Po koupi mapy otevřete klávesou M velkou mapu na pergamenu: nahoře jsou vaše souřadnice, u kurzoru souřadnice místa, na které ukazujete. Klikem nastavíte cíl a na minimapě vás k němu povede šipka. Deník najdete v pauze (Esc): ukazuje kapitolu příběhu, ve které jste, co už jste dokázali, a po kliknutí na Nápověda radu, co dělat teď.'),
   H3('Piráti a nepřátelské ostrovy'),
   P('Na moři vás mohou napadnout pirátské lodě. Nepřátelské ostrovy (mají červenou vlajku na majáku) střílejí z děl. Střílíte levým tlačítkem myši a míříte podle sklonu kamery. Když loď přijde o zdraví, začnete plavat a musíte ji opravit v obchodě; když přijdete o vlastní zdraví, nastane smrt: v menu si vyberete návrat na nejbližší ostrov (mince zůstanou, kořist, náboje a vylepšení zmizí) nebo hlavní menu. Zničením posledního děla nepřátelského ostrova získáte odměnu.'),
   H3('Příběh'),

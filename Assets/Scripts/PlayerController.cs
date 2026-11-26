@@ -1719,9 +1719,7 @@ public class PlayerController : MonoBehaviour
         tile.fishRemaining -= 1;
         PFishCount += catchAmount;
 
-        ActiveQuest q = PQuest;
-        if (q.hasQuest && q.questType == 0)
-            q.progress = Mathf.Min(q.progress + catchAmount, q.target);
+        PQuest.AddProgress(ActiveQuest.TYPE_FISH, catchAmount);
 
         // Vyčerpané políčko se změní na obyčejnou vodu.
         if (tile.fishRemaining <= 0)
@@ -1751,9 +1749,7 @@ public class PlayerController : MonoBehaviour
 
         PTreasureCount += 1;
 
-        ActiveQuest q = PQuest;
-        if (q.hasQuest && q.questType == 1)
-            q.progress = Mathf.Min(q.progress + 1, q.target);
+        PQuest.AddProgress(ActiveQuest.TYPE_TREASURE, 1);
 
         gridManager.SetTileType(x, y, TileType.Water);
         WorkProgress = 0f;

@@ -19,7 +19,7 @@ ostrově). Podporuje lokální split-screen pro dva hráče.
 - Veškerý herní kód: `Assets/Scripts/*.cs`. Materiály `Assets/Materials/`,
   runtime-loadované modely `Assets/Resources/{IslandDecor,PirateShips}/`.
 - **Žádný namespace** — všechny třídy jsou globální.
-- **Testy:** `Assets/Tests/EditMode` (22 testů: BoatStats, EconomyConfig, GameData, SaveMigration) a
+- **Testy:** `Assets/Tests/EditMode` (33 testů: BoatStats, EconomyConfig, GameData, SaveMigration, LootAndQuest) a
   `Assets/Tests/PlayMode` (kamera, vlny). Spuštění: Unity *Window → General → Test Runner* nebo MCP
   `run_tests` + `get_test_job`.
 - Komentáře a herní texty jsou **česky**. Hlavičky souborů/sekcí komentář s čárou `─────`.
@@ -38,9 +38,14 @@ ostrově). Podporuje lokální split-screen pro dva hráče.
   přesune `persistentDataPath`!). Shadery hledané přes `Shader.Find` musí být v *Project Settings →
   Graphics → Always Included Shaders* (jinak v buildu `null`; přidáno URP Lit/Unlit, Unlit/Color,
   Unlit/Transparent, Standard). CI není.
-- Dokumentace k ročníkové práci: `docs/` (generátory `mk_*.js` + `mk_diagramy.py`; prezentace se
-  generuje `NODE_PATH=<node_modules s pptxgenjs> node docs/mk_prezentace.js`), licence
-  `LICENSE` (MIT) a `THIRD_PARTY_LICENSES.md`.
+- **Maturita (1. IT Gymnázium Satalice)** — požadavky školy (obhajoba 25 min, termíny 31. 3. / 14. 4. 2027,
+  struktura dokumentace, hodnocení) jsou vypsané v `docs/Pozadavky_ITG_2026_2027.md`.
+- Dokumentace: `docs/` — `mk_dokumentace.js` → `Dokumentace_The_Last_Beacon.docx` (struktura podle
+  školy), `mk_prirucka.js` (bere pomocné funkce z mk_dokumentace.js), `mk_obhajoba.js` →
+  `Obhajoba_The_Last_Beacon.pptx` (25 min), `mk_prezentace.js` = čtvrtletní prezentace 11. 11.
+  (uživatel ji pak ručně upravoval — negenerovat přes ni). Spouštění `NODE_PATH=<node_modules s docx a
+  pptxgenjs> node docs/mk_….js`; PDF přes Word (`docs/export_pdf.ps1`). Licence `LICENSE` (MIT) a
+  `THIRD_PARTY_LICENSES.md`.
 
 ## Architektura
 
@@ -158,6 +163,17 @@ ostrově). Podporuje lokální split-screen pro dva hráče.
 - Nákupní ceny × `PriceMultiplier(islandPriceLevel)` (0.8–1.2×, deterministicky
   z pozice majáku). Výkup je všude stejný.
 
+### Úkoly a pirátská kořist (`QuestShopManager`, `ActiveQuest`, `LootItems`)
+- `ActiveQuest.questType` = konstanty `TYPE_FISH/TREASURE/PIRATES/CANNONS/CHESTS/LOOT` (0–5),
+  `rewardItem` = `REWARD_NONE/UPGRADE/AMMO/HAND_AMMO/LOOT`. **Ukládají se jako int — nepřečíslovat.**
+- Postup posouvá VÝHRADNĚ `ActiveQuest.AddProgress(type, n)` — volá se z rybaření/těžby
+  (`PlayerController`), `CombatDirector.OnPirateSunk/OnIslandCannonDestroyed`, `ChestManager.TryOpen`,
+  `LootItems.TryDrop`. Bojové šablony (`needsCannon`) se nabízí jen s dělem na lodi.
+- Kořist: `PlayerState.loot` (List<int>, index = `LootItems.Items[i]`, pořadí neměnit), šance
+  `LootItems.DROP_CHANCE` 25 % po pirátovi i stráži (`CombatDirector.RollPirateLoot`), Holanďan 100 %.
+  Čte se jen přes `LootItems.Count` (starý save = prázdný seznam). Při smrti propadne. Prodej ve výkupně,
+  tam jde prodat i historický poklad, až ho děda nepotřebuje (`storyStep >= 2`). Konzole `get item loot [n]`.
+
 ### Multiplayer (`MultiplayerManager`) — lokální split-screen
 - `MultiplayerManager.IsMultiplayer` (static) — všude se podle toho větví.
 - P2 = `Instantiate` kopie P1; z kopie se mažou komponenty, co mají být jednou
@@ -228,8 +244,11 @@ ostrově). Podporuje lokální split-screen pro dva hráče.
 - **IMGUI (`OnGUI`)**: `MainMenuManager`, `PauseMenu`, `GameConsole`,
   `UpgradeShopManager`, `QuestShopManager`, `DeathScreen`, `MapScreen`,
   `StoryNpc`/`RivalNpc` dialog, `VaultMechanism` puzzle, `LetterScreen` (dopis
-  přes celou obrazovku, zavírá se Esc/NumpadEnter bez pauzy). Styly lazy v
-  `InitStyles()`, pozadí tlačítek 1×1 texturou. Sdílený vzhled: `HudSkin` / `ShopUI`.
+  přes celou obrazovku, zavírá se Esc/NumpadEnter bez pauzy), `JournalScreen` (deník: kapitola,
+  zápisky, nápověda na klik). **Papírová okna** (dopis, obchody, mapa, deník) kreslí stejný pergamen
+  `HudSkin.Parchment()` a inkoustové barvy `HudSkin.Ink*`; obchody (a deník přes `ShopUI.Prepare`) sdílí
+  styly a panel `ShopUI.BeginSheet` — nové okno stejného typu dělat přes ně, ne vlastní kopií stylů.
+  Velikost písma škáluje `HudSkin.GuiScale`.
 - **Runtime uGUI**: `HUDCounter` (mince/ryby/poklady/quest + health bary +
   **hotbar** dole uprostřed — 4 sloty Zbraň·Boat ammo·Rifle ammo·Hist. poklad,
   v lodi zamknutý), `MinimapUIRenderer` (`Texture2D` po políčkách, **kruhová**

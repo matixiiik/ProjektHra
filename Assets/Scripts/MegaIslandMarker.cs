@@ -982,10 +982,15 @@ public class MegaIslandMarker : MonoBehaviour
     /// (megaTask) řeší Update() nahoře, který sečte, co všechno ještě žije.</summary>
     public void OnGuardDestroyed(LandGuard g)
     {
-        if (CombatDirector.Instance == null) return;
-        CombatDirector.Instance.RewardNearestPlayer(EconomyConfig.LandGuardReward);
+        var cd = CombatDirector.Instance;
+        if (cd == null) return;
+
+        // Stráž je taky pirát → stejná šance na kořist jako u pirátské lodi.
+        // Kořist se připíše dřív než mince, protože RewardNearestPlayer hru uloží.
+        string lootText = cd.RollPirateLoot(cd.PlayerStateOf(cd.RewardTarget()), LootItems.DROP_CHANCE);
+        cd.RewardNearestPlayer(EconomyConfig.LandGuardReward);
         int r = EconomyConfig.LandGuardReward;
-        CombatDirector.Instance.Toast(Loc.T($"Stráž poražena.  +{r} {Loc.CoinsWord(r)}", $"Guard defeated.  +{r} {Loc.CoinsWord(r)}"));
+        cd.Toast(Loc.T($"Stráž poražena.  +{r} {Loc.CoinsWord(r)}", $"Guard defeated.  +{r} {Loc.CoinsWord(r)}") + lootText);
     }
 
     // Vzkazy bratra na jednotlivých ostrovech (Krok 4 = Ostrov pirátů, Krok 6 =

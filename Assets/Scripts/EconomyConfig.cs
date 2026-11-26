@@ -18,6 +18,8 @@ public static class EconomyConfig
     // ── Výkup (prodej kořisti v questshopu) — všude stejný ──────────────────
     public const int FishPrice        = 2;  // za 1 rybu
     public const int TreasurePrice    = 5;  // za 1 poklad
+    public const int HistoricalTreasurePrice = 350; // historický poklad, když ho už děda nepotřebuje (výkup)
+    // Kořist z pirátů má výkupní cenu u každého předmětu zvlášť — viz LootItems.Items.
     public const int SellBonusPerItem = 2;  // navíc za kus po splnění mega questu
                                             // (drženo nízko — u ryb za 1 minci je
                                             //  i +2 velký skok; +2 = ryba za 3,

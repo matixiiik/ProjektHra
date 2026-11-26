@@ -189,9 +189,36 @@ public class HUDCounter : MonoBehaviour
         return img;
     }
 
+    /// <summary>
+    /// Kde končí horní panely HUD hráče 1 (úkol + příběhový cíl) — v pixelech od
+    /// HORNÍHO okraje obrazovky (jako souřadnice IMGUI). CombatDirector pod ně
+    /// kreslí ukazatel zdraví bosse, aby text úkolu nezakryl.
+    /// </summary>
+    public static float TopPanelsBottomPx { get; private set; } = 60f;
+
+    private readonly Vector3[] corners = new Vector3[4]; // pomocné pole pro GetWorldCorners (bez alokace)
+
     void Update()
     {
         RefreshHotbar(); // výběr slotu se mění klávesou bez události světa → kontrola každý snímek (levná)
+        if (playerIndex == 0) TopPanelsBottomPx = MeasureTopPanelsBottom();
+    }
+
+    // Canvas je Screen Space Overlay → rohy panelů jsou přímo pixely obrazovky (počátek vlevo dole).
+    float MeasureTopPanelsBottom()
+    {
+        float bottom = 16f;
+        bottom = Mathf.Max(bottom, PanelBottom(questPanelRT));
+        bottom = Mathf.Max(bottom, PanelBottom(storyPanelRT));
+        return bottom;
+    }
+
+    // Spodní okraj jednoho panelu (0, když panel není vidět).
+    float PanelBottom(RectTransform rt)
+    {
+        if (rt == null || !rt.gameObject.activeInHierarchy) return 0f;
+        rt.GetWorldCorners(corners);
+        return Screen.height - corners[0].y; // corners[0] = levý dolní roh
     }
 
     // Přečte stav hráče a překreslí hotbar, jen když se něco změnilo.
@@ -317,10 +344,21 @@ public class HUDCounter : MonoBehaviour
         coordBg.sprite = HudSkin.Panel();
         coordBg.type   = Image.Type.Sliced;
 
+        // Text vycentrovaný v panelu se stejným okrajem vlevo i vpravo; šířku
+        // panelu podle délky textu dopočítá Refresh (FitCoordPanel).
         coordText = MakeText(go.transform,
-            new Vector2(12, 2), new Vector2(-10, -2),
+            new Vector2(10, 2), new Vector2(-10, -2),
             Vector2.zero, Vector2.one,
-            22f, Color.white, FontStyle.Bold, TextAnchor.MiddleLeft);
+            22f, Color.white, FontStyle.Bold, TextAnchor.MiddleCenter);
+    }
+
+    // Panel souřadnic roste s textem (u velkých čísel jako -12345 by pevná šířka
+    // text uřízla) — nikdy ale není užší než 170 px, ať neposkakuje při každém kroku.
+    void FitCoordPanel()
+    {
+        if (coordRT == null || coordText == null) return;
+        float w = Mathf.Max(170f, coordText.preferredWidth + 28f);
+        coordRT.sizeDelta = new Vector2(w, coordRT.sizeDelta.y);
     }
 
     void BuildQuestPanel(Transform parent)
@@ -526,6 +564,7 @@ public class HUDCounter : MonoBehaviour
         treasureText.text = Loc.T("Poklady: ", "Treasure: ") + treasure;
         coinsText.text    = Loc.T("Mince: ",  "Coins: ")    + coins;
         coordText.text    = $"X: {gx}   Y: {gy}";
+        FitCoordPanel();
         RefreshQuest(q, mq);
         RefreshStory(d);
     }

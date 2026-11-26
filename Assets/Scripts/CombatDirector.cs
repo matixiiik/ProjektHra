@@ -225,17 +225,50 @@ public class CombatDirector : MonoBehaviour
                    : p.size == 1 ? EconomyConfig.PirateRewardMedium
                    :               EconomyConfig.PirateRewardLarge;
         var pc = NearestAnyPlayer();
+        if (grid != null) grid.gameData.pirateKills++;
+
+        // Quest "potop piráty" + šance na kořist (Bludný Holanďan dá kořist vždy).
+        // Musí být PŘED RewardCoins — ten hru uloží a překreslí HUD (i postup úkolu).
+        PlayerState ps = PlayerStateOf(pc);
+        if (ps != null) ps.activeQuest.AddProgress(ActiveQuest.TYPE_PIRATES, 1);
+        string lootText = RollPirateLoot(ps, p.isGhost ? 1f : LootItems.DROP_CHANCE);
+
         if (pc != null) pc.RewardCoins(reward);
-        if (grid != null) { grid.gameData.pirateKills++; grid.Save(); }
+        else if (grid != null) grid.Save();
+
         SoundManager.PlayCoin();
         string who = p.isGhost ? Loc.T("Bludný Holanďan potopen!", "The Flying Dutchman is sunk!")
                                : Loc.T("Pirát potopen!",           "Pirate sunk!");
-        Toast(who + "  +" + reward + " " + Loc.CoinsWord(reward));
+        Toast(who + "  +" + reward + " " + Loc.CoinsWord(reward) + lootText);
     }
+
+    /// <summary>
+    /// Pirátská kořist po poraženém nepříteli (loď nebo stráž): s šancí `chance`
+    /// připíše hráči jeden předmět (LootItems) a vrátí text na konec hlášky
+    /// ("  ·  Kořist: Zlatý prsten"). Když nic nepadne, vrací prázdný řetězec.
+    /// </summary>
+    public string RollPirateLoot(PlayerState ps, float chance)
+    {
+        int index = LootItems.TryDrop(ps, chance);
+        if (index < 0) return "";
+        return Loc.T("   ·   Kořist: ", "   ·   Loot: ") + LootItems.Items[index].Name;
+    }
+
+    /// <summary>Stav (PlayerState) hráče, který dostal odměnu — nebo null, když žádný není.</summary>
+    public PlayerState PlayerStateOf(PlayerController pc)
+    {
+        if (pc == null || grid == null || grid.gameData == null) return null;
+        return grid.gameData.players[pc.playerIndex];
+    }
+
+    /// <summary>Hráč, kterému patří odměna za poraženého nepřítele (P1 přednostně).</summary>
+    public PlayerController RewardTarget() => NearestAnyPlayer();
 
     public void OnIslandCannonDestroyed(string key, HostileIslandCannon self)
     {
         var pc = NearestAnyPlayer();
+        PlayerState ps = PlayerStateOf(pc);
+        if (ps != null) ps.activeQuest.AddProgress(ActiveQuest.TYPE_CANNONS, 1); // před RewardCoins — ten uloží
         if (pc != null) pc.RewardCoins(EconomyConfig.IslandCannonReward);
         SoundManager.PlayCoin();
 
@@ -345,7 +378,8 @@ public class CombatDirector : MonoBehaviour
     {
         float w = 360f, h = 22f;
         float x = (Screen.width - w) / 2f;
-        float y = 54f;
+        // Pod panely úkolu a příběhu (dřív pevně y = 54 → zakrýval text úkolu).
+        float y = HUDCounter.TopPanelsBottomPx + 10f;
 
         GUI.color = new Color(0f, 0f, 0f, 0.6f);
         GUI.DrawTexture(new Rect(x - 3, y - 3, w + 6, h + 20), Texture2D.whiteTexture);

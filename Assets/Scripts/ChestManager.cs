@@ -61,6 +61,7 @@ public class ChestManager : MonoBehaviour
         }
 
         grid.gameData.players[playerIndex].openedChests.Add(key);
+        grid.gameData.players[playerIndex].activeQuest.AddProgress(ActiveQuest.TYPE_CHESTS, 1);
 
         // Pár mincí rovnou z bedny.
         int loot = Random.Range(EconomyConfig.ChestCoinsMin, EconomyConfig.ChestCoinsMax + 1);

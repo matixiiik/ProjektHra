@@ -8,6 +8,24 @@ sem Claude píše, kde se přestalo, aby se dalo pokračovat i z notebooku.
 
 ---
 
+## STAV 2026-11-26 — maturitní dokončení (větev `maturita-dokonceni`)
+Uživatel: „projeď všechno, oprav, dodělej, udělej podle osnov školy“. Požadavky školy
+(1. IT Gymnázium) přečteny ze školního Drive → `docs/Pozadavky_ITG_2026_2027.md`.
+
+**Kód — druhý blok Napady2.txt (byl necommitnutý, Fáze 1 už v PR #18):**
+- dno: rozpracovaná barevná rampa v `SeaFloor.cs` (písek → tma) — dokončit/ověřit vizuálně
+- neviditelný inventář + 25 % drop z pirátů (`LootItems.cs`), prodej kořisti i historického pokladu ve výkupně
+- úkoly: 6 typů + věcné odměny (`QuestShopManager`, `ActiveQuest.AddProgress`)
+- obchody, mapa (M), deník = pergamen jako dopis (`HudSkin.Parchment`, `ShopUI.BeginSheet`)
+- deník: kapitola + nápověda na klik; HUD souřadnice vycentrované a panel roste s textem
+- testy `LootAndQuestTests` (11), konzole `get item loot [n]`
+
+**Dokumentace:** `mk_prace.js` → `mk_dokumentace.js` (struktura podle školy, výstup
+`Dokumentace_The_Last_Beacon.docx`), příručka doplněna, nová prezentace `Obhajoba_The_Last_Beacon.pptx`
+(`mk_obhajoba.js`, 25 min). Uživatelovy ručně upravené `Prezentace_…pptx` a `Ukol1_…docx` NEMĚNIT.
+
+---
+
 ## STAV 2026-09-29 (večer) — Napady2.txt KOMPLETNÍ, poslední položka fáze 6 hotová
 (PR #7, merge `b5fdf79`.) Uživatel po zneplatnění tokenu řekl "ať se do toho
 pustíš teď" na poslední zbývající položku.

@@ -9,6 +9,11 @@ using UnityEngine;
 //  čeká, ať to nespoiluje další ostrovy. Čistě informativní, na gameData
 //  se jen čte, nic se tu nemění ani neukládá.
 //
+//  Nahoře je název KAPITOLY, ve které hráč zrovna je, a tlačítko Nápověda —
+//  rada, co dělat teď. Nápověda se ukáže až po kliknutí (kdo chce hrát bez
+//  rad, nic neuvidí) a mluví jen o aktuálním kroku, ne o dalších ostrovech.
+//  Vzhled: pergamen jako dopis a obchody (HudSkin.Parchment + styly ShopUI).
+//
 //  Hra je v tu chvíli stejně zastavená (PauseMenu má otevřeno, Time.timeScale
 //  = 0), takže žádné vlastní zamykání ovládání hráče není potřeba — jen si
 //  Escape bere pro sebe (zavře deník, ne rovnou celou pauzu), viz PauseMenu.
@@ -19,14 +24,14 @@ public class JournalScreen : MonoBehaviour
     public static bool IsOpen { get; private set; }
     private static JournalScreen instance;
 
-    private GUIStyle titleStyle, entryStyle, emptyStyle, closeHintStyle;
-    private bool     stylesReady;
     private Vector2  scroll;
+    private bool     showHint;   // hráč klikl na "Nápověda" (při dalším otevření deníku je zase schovaná)
 
     public static void Toggle()
     {
         if (IsOpen) { Close(); return; }
         if (instance == null) instance = new GameObject("JournalScreen").AddComponent<JournalScreen>();
+        instance.showHint = false;
         IsOpen = true;
     }
 
@@ -35,59 +40,78 @@ public class JournalScreen : MonoBehaviour
     void OnGUI()
     {
         if (!IsOpen) return;
-        InitStyles();
+        GUI.depth = -900; // nad pauzou a HUD, pod dopisem
+        HudSkin.UseUiFont();
 
         GameData d = GameSession.Instance != null ? GameSession.Instance.Data : null;
         if (d == null) return;
 
         // Tmavý overlay přes celou obrazovku (PauseMenu se, dokud je deník
         // otevřený, sám nekreslí — viz jeho OnGUI).
-        GUI.color = new Color(0f, 0f, 0f, 0.75f);
+        GUI.color = new Color(0f, 0f, 0f, 0.8f);
         GUI.DrawTexture(new Rect(0, 0, Screen.width, Screen.height), Texture2D.whiteTexture);
         GUI.color = Color.white;
 
-        float w = Mathf.Min(560f, Screen.width - 80f);
-        float h = Mathf.Min(520f, Screen.height - 80f);
-        var box = new Rect((Screen.width - w) / 2f, (Screen.height - h) / 2f, w, h);
+        float s = HudSkin.GuiScale;
+        ShopUI.Prepare(s);
 
-        GUI.color = new Color(0.08f, 0.09f, 0.12f, 0.98f);
-        GUI.DrawTexture(box, Texture2D.whiteTexture);
-        GUI.color = new Color(0.9f, 0.75f, 0.35f, 1f);
-        GUI.DrawTexture(new Rect(box.x, box.y, box.width, 3f), Texture2D.whiteTexture);
-        GUI.color = Color.white;
+        float w = Mathf.Min(720f * s, Screen.width - 60f);
+        float h = Mathf.Min(680f * s, Screen.height - 50f);
+        var sheet = new Rect((Screen.width - w) / 2f, (Screen.height - h) / 2f, w, h);
+        GUI.DrawTexture(sheet, HudSkin.Parchment(), ScaleMode.StretchToFill);
 
-        GUILayout.BeginArea(new Rect(box.x + 22f, box.y + 16f, box.width - 44f, box.height - 32f));
-        GUILayout.Label(Loc.T("DENÍK", "JOURNAL"), titleStyle);
-        GUILayout.Space(8);
+        float pad = 40f * s;
+        GUILayout.BeginArea(new Rect(sheet.x + pad, sheet.y + 22f * s, sheet.width - 2f * pad, sheet.height - 44f * s));
+        GUILayout.Label(Loc.T("DENÍK", "JOURNAL"), ShopUI.Title);
+        GUILayout.Label(ChapterTitle(d), ShopUI.Subtitle);
+        GUILayout.Space(10f * s);
 
+        // Zápisky o tom, co už hráč dokázal.
         var entries = BuildEntries(d);
+        scroll = GUILayout.BeginScrollView(scroll, GUILayout.ExpandHeight(true));
         if (entries.Count == 0)
         {
             GUILayout.Label(Loc.T("Zatím žádné zápisky. Vrať se sem, až něco dokážeš.",
-                                  "No entries yet. Come back once you've accomplished something."), emptyStyle);
+                                  "No entries yet. Come back once you've accomplished something."), ShopUI.Faint);
         }
         else
         {
-            scroll = GUILayout.BeginScrollView(scroll, GUILayout.Height(box.height - 90f));
             foreach (string e in entries)
             {
-                GUILayout.Label("•  " + e, entryStyle);
-                GUILayout.Space(6);
+                GUILayout.Label("•  " + e, ShopUI.Row);
+                GUILayout.Space(6f * s);
             }
-            GUILayout.EndScrollView();
         }
 
-        GUILayout.FlexibleSpace();
+        // Nápověda — jen po kliknutí.
+        if (showHint)
+        {
+            GUILayout.Space(8f * s);
+            GUILayout.Label(Loc.T("NÁPOVĚDA", "HINT"), ShopUI.Section);
+            GUILayout.Label(HintText(d), ShopUI.Row);
+        }
+        GUILayout.EndScrollView();
+
+        GUILayout.Space(8f * s);
+        GUILayout.BeginHorizontal();
+        string hintBtn = showHint ? Loc.T("Skrýt nápovědu", "Hide hint") : Loc.T("Nápověda — co dělat teď?", "Hint — what now?");
+        if (SoundManager.Click(GUILayout.Button(hintBtn, ShopUI.Button, GUILayout.Height(34f * s))))
+        {
+            showHint = !showHint;
+            if (showHint) scroll.y = float.MaxValue; // posuň dolů, ať je nápověda hned vidět
+        }
 
         // Dopis z trezoru jde znovu přečíst (hádanka na souřadnice dalšího ostrova).
-        if (d.hasLetter && SoundManager.Click(GUILayout.Button(Loc.T("Přečíst dopis z trezoru", "Read the letter from the vault"), GUILayout.Height(34))))
+        if (d.hasLetter && SoundManager.Click(GUILayout.Button(Loc.T("Přečíst dopis z trezoru", "Read the letter from the vault"),
+                                                               ShopUI.Button, GUILayout.Height(34f * s))))
         {
             Close();
             LetterScreen.Show(0, d.letterX, d.letterY);
         }
-        GUILayout.Space(4);
+        GUILayout.EndHorizontal();
+        GUILayout.Space(4f * s);
 
-        GUILayout.Label(Loc.T("[Esc] zavřít deník", "[Esc] close journal"), closeHintStyle);
+        GUILayout.Label(Loc.T("[Esc] zavřít deník", "[Esc] close journal"), ShopUI.Subtitle);
         GUILayout.EndArea();
 
         // Escape patří deníku (zavře jen jeho) — spotřebuj event, ať ho hned
@@ -98,6 +122,85 @@ public class JournalScreen : MonoBehaviour
         {
             Close();
             ev.Use();
+        }
+    }
+
+    // ── Kapitoly ──────────────────────────────────────────────────────────
+    // Číslo kapitoly odvozené z postupu příběhu (storyStep / megaIndex / storyDone).
+    // Kapitola "na cestě" (storyStep 2) ostrov nejmenuje — hráč ho ještě neviděl.
+    private static int ChapterNumber(GameData d)
+    {
+        if (d.storyDone) return 9;
+        if (d.storyStep <= 0) return 1;
+        if (d.storyStep == 1) return 2;
+        int island = Mathf.Clamp(d.megaIndex, 0, 2);
+        // Na ostrově = storyStep 3 (nastaví se při doplutí). Pozor: megaTask to neurčuje —
+        // u Hřbitova lodí je 1 hned, jak se ostrov postaví, i když je hráč ještě daleko.
+        bool onIsland = d.storyStep >= 3;
+        return 3 + island * 2 + (onIsland ? 1 : 0); // 3–8: cesta / ostrov, třikrát
+    }
+
+    private static string ChapterTitle(GameData d)
+    {
+        int n = ChapterNumber(d);
+        string name;
+        switch (n)
+        {
+            case 1: name = Loc.T("Starý námořník", "The Old Sailor"); break;
+            case 2: name = Loc.T("Zkouška",        "The Trial"); break;
+            case 3: name = Loc.T("Vyplutí", "Setting Sail"); break;
+            case 4: name = Loc.T("Pirátský ostrov", "Pirate Island"); break;
+            case 5: name = Loc.T("Hádanka z dopisu", "The Letter's Riddle"); break;
+            case 6: name = Loc.T("Hřbitov lodí",    "The Ship Graveyard"); break;
+            case 7: name = Loc.T("Po stopě bratra", "On the Brother's Trail"); break;
+            case 8: name = Loc.T("Poslední ostrov", "The Final Island"); break;
+            default: return Loc.T("Epilog", "Epilogue");
+        }
+        return Loc.T($"Kapitola {n}: {name}", $"Chapter {n}: {name}");
+    }
+
+    // Rada pro aktuální kapitolu (a u ostrovů pro aktuální úkol na nich — megaTask).
+    private static string HintText(GameData d)
+    {
+        switch (ChapterNumber(d))
+        {
+            case 1:
+                return Loc.T("Starý námořník sedí u startovního ostrova. Dojdi k němu pěšky a zmáčkni E. Mezitím si vydělávej: u hejna ryb drž mezerník a ryby prodej ve výkupně v majáku (E u dveří majáku). Za první peníze si kup malou loď.",
+                             "The old sailor sits by the starting island. Walk up to him and press E. Meanwhile, earn money: hold Space at a school of fish and sell the fish at the trading post in the lighthouse (E at its door). Buy a small boat with your first coins.");
+            case 2:
+                return Loc.T("Děda chce 1000 mincí a historický poklad. Ten najdeš přes bedny na ostrovech: bedna dá mapu, dopluj na místo z mapy, vykopej poklad mezerníkem a vyplať ho ve výkupně — zhruba každý pátý je historický. Peníze nejrychleji vydělají úkoly z oranžového pultu a potopení piráti.",
+                             "Grandpa wants 1,000 coins and a historic treasure. Find it through chests on islands: a chest gives you a map, sail to the marked spot, dig with Space and cash it in at the trading post — about one in five is historic. Jobs from the orange counter and sinking pirates earn money fastest.");
+            case 3:
+            case 7:
+                return Loc.T("Pluj podle šipky na minimapě (souřadnice cíle máš i nahoře na obrazovce). Ostrov bude bráněný — předem si kup munici do děla a oprav loď.",
+                             "Follow the arrow on the minimap (the target coordinates are also at the top of the screen). The island will be defended — buy cannon ammo and repair your boat beforehand.");
+            case 4:
+                if (d.megaTask == 0)
+                    return Loc.T("Zbourej obranu ostrova: děla na věžích hradeb (zamiř kamerou nahoru a střílej levým tlačítkem myši), stráže na břehu a hlídkovou loď.",
+                                 "Break the island's defenses: the cannons on the wall towers (aim the camera up and fire with the left mouse button), the guards on shore and the patrol ship.");
+                if (d.megaTask == 1)
+                    return Loc.T("Obrana padla. Najdi uvnitř hradeb trezor a otoč ozubená kola tak, aby do sebe zapadla a roztočila se všechna.",
+                                 "The defenses have fallen. Find the vault inside the walls and turn the gears so they all mesh and spin together.");
+                return Loc.T("Trezor je otevřený — přečti si, co je uvnitř (E u trezoru).",
+                             "The vault is open — read what is inside (E at the vault).");
+            case 5:
+                return Loc.T("Souřadnice dalšího ostrova jsou schované v hádance v dopise (tlačítko níž). Spočítej X a Y, otevři mapu (M) a najeď myší na to místo — u kurzoru se ukážou souřadnice. Klikni tam a šipka na minimapě tě dovede.",
+                             "The next island's coordinates are hidden in the riddle in the letter (button below). Work out X and Y, open the map (M) and move the mouse to that spot — the coordinates appear next to the cursor. Click there and the minimap arrow will lead you.");
+            case 6:
+                if (d.megaTask <= 1)
+                    return Loc.T("V mělčině kolem ostrova trčí z vody trosky. Dopluj k nim a mezerníkem vykopej tři kusy roztržené mapy.",
+                                 "Wrecks stick out of the shoals around the island. Sail up to them and dig out three pieces of the torn map with Space.");
+                return Loc.T("Mapa je kompletní — najdi vrak s podpalubím a prohledej ho (E).",
+                             "The map is complete — find the wreck with a hold and search it (E).");
+            case 8:
+                if (d.megaTask == 0)
+                    return Loc.T("Příjezd k ostrovu hlídá velká loď. Potop ji.",
+                                 "A large ship guards the approach to the island. Sink it.");
+                return Loc.T("Někdo se vylodil na ostrov. Dojdi k němu pěšky a promluv si s ním (E).",
+                             "Someone has come ashore on the island. Walk up to him and talk (E).");
+            default:
+                return Loc.T("Příběh je u konce. Můžeš dál volně plout, plnit úkoly, lovit piráty a sbírat kořist.",
+                             "The story is over. You can keep sailing freely, take on jobs, hunt pirates and collect loot.");
         }
     }
 
@@ -156,32 +259,8 @@ public class JournalScreen : MonoBehaviour
     // Ostrov v pořadí `idx` (0/1/2) je aspoň na kroku `minTask` — buď je to
     // ten AKTUÁLNÍ ostrov s dost vysokým megaTask, nebo je hráč už dávno za
     // ním (vyšší megaIndex = tenhle ostrov dokončil celý, platí i tenhle krok).
+    // U AKTUÁLNÍHO ostrova se navíc musí hráč na ostrov opravdu dostat (storyStep 3) —
+    // megaTask se u Hřbitova lodí nastaví na 1 už při postavení ostrova, ne při příjezdu.
     private static bool Reached(GameData d, int idx, int minTask)
-        => d.megaIndex > idx || (d.megaIndex == idx && d.megaTask >= minTask);
-
-    private void InitStyles()
-    {
-        if (stylesReady) return;
-        titleStyle = new GUIStyle(GUI.skin.label)
-        {
-            fontSize = 22, fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleCenter,
-            normal = { textColor = new Color(1f, 0.9f, 0.65f) }
-        };
-        entryStyle = new GUIStyle(GUI.skin.label)
-        {
-            fontSize = 14, wordWrap = true,
-            normal = { textColor = new Color(0.92f, 0.92f, 0.9f) }
-        };
-        emptyStyle = new GUIStyle(GUI.skin.label)
-        {
-            fontSize = 14, wordWrap = true, fontStyle = FontStyle.Italic,
-            normal = { textColor = new Color(0.7f, 0.7f, 0.68f) }
-        };
-        closeHintStyle = new GUIStyle(GUI.skin.label)
-        {
-            fontSize = 12, alignment = TextAnchor.MiddleCenter,
-            normal = { textColor = new Color(0.75f, 0.78f, 0.82f) }
-        };
-        stylesReady = true;
-    }
+        => d.megaIndex > idx || (d.megaIndex == idx && d.storyStep >= 3 && d.megaTask >= minTask);
 }

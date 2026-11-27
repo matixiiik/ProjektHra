@@ -2155,6 +2155,15 @@ public class GridManager : MonoBehaviour
     /// Změní typ existujícího políčka (např. políčko s rybami → obyčejná voda,
     /// když se ryby vyloví) a hned mu vymění 3D objekt.
     /// </summary>
+    /// <summary>Jako SetTileType, ale políčko, které ještě nebylo vygenerované, rovnou založí
+    /// (molo Pirátského ostrova, které se přestavuje proti bráně — MegaIslandMarker).</summary>
+    public void SetOrCreateTile(int x, int y, TileType newType)
+    {
+        string key = GridKey(x, y);
+        if (!gameData.tileData.ContainsKey(key)) gameData.tileData[key] = new TileStatus((int)newType);
+        SetTileType(x, y, newType);
+    }
+
     public void SetTileType(int x, int y, TileType newType)
     {
         string key = GridKey(x, y);

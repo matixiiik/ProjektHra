@@ -115,6 +115,9 @@ public class CombatDirector : MonoBehaviour
     private SeaMonster monster;
     public void RegisterMonster(SeaMonster m) => monster = m;
 
+    /// <summary>Děla nepřátelských ostrovů a mega ostrova (čte AimAssist).</summary>
+    public IReadOnlyList<HostileIslandCannon> Cannons => cannons;
+
     /// <summary>Probíhá souboj s příběhovým bossem? (megalodon, Holanďan, bratrova loď nebo
     /// hlídková loď mega ostrova) — podle toho StoryAtmosphere pouští bojovou hudbu.</summary>
     public bool StoryBossEngaged

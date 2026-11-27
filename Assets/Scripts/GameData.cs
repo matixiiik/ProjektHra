@@ -270,6 +270,9 @@ public class GameData
     public int   statTreasuresDug;  // kolik pokladů z vraků vytěžili
     public float playSeconds;       // čistý čas hraní v sekundách (bez pauzy)
 
+    // Pirátský ostrov — které strážní věže už hráč zbořil (bit = pořadí věže, FortressTower.Index).
+    public int fortressTowersDown;
+
     // ── LEGACY (zbraň panáčka + hotbar) — zdroj pro migraci, viz výš. Bývala tu
     // samostatná sekce, protože se přidala později (staré savy ji dřív neměly).
     public bool hasHandWeapon;

@@ -232,6 +232,19 @@ public class PirateShip : MonoBehaviour
     private const float OFFSCREEN_RANGE            = 70f;
     private const int   IDLE_UPDATE_EVERY_N_FRAMES = 4;
 
+    /// <summary>Odhad rychlosti lodi (j/s) z posunu za poslední snímek — AimAssist podle
+    /// něj míří kousek před plující loď, ať ji koule doletí.</summary>
+    public Vector3 Velocity { get; private set; }
+    private Vector3 prevPos;
+    private bool    prevPosSet;
+
+    void LateUpdate()
+    {
+        if (prevPosSet && Time.deltaTime > 0f) Velocity = (transform.position - prevPos) / Time.deltaTime;
+        prevPos = transform.position;
+        prevPosSet = true;
+    }
+
     void Update()
     {
         var target = CombatDirector.Instance != null

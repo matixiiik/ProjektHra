@@ -19,7 +19,7 @@ ostrově). Podporuje lokální split-screen pro dva hráče.
 - Veškerý herní kód: `Assets/Scripts/*.cs`. Materiály `Assets/Materials/`,
   runtime-loadované modely `Assets/Resources/{IslandDecor,PirateShips}/`.
 - **Žádný namespace** — všechny třídy jsou globální.
-- **Testy:** `Assets/Tests/EditMode` (41 testů: BoatStats, EconomyConfig, GameData, SaveMigration, LootAndQuest, StoryLogic, StoryPhaseBC) a
+- **Testy:** `Assets/Tests/EditMode` (45 testů: BoatStats, EconomyConfig, GameData, SaveMigration, LootAndQuest, StoryLogic, StoryPhaseBC, AimAssist) a
   `Assets/Tests/PlayMode` (kamera, vlny). Spuštění: Unity *Window → General → Test Runner* nebo MCP
   `run_tests` + `get_test_job`.
 - Komentáře a herní texty jsou **česky**. Hlavičky souborů/sekcí komentář s čárou `─────`.
@@ -94,7 +94,11 @@ ostrově). Podporuje lokální split-screen pro dva hráče.
 - **Mega ostrovy** (`PlaceMegaIsland`, typ `MegaIsland`) — velké příběhové ostrovy,
   vždy aktivní nejvýš jeden. `MegaIslandMarker.megaIndex` (0-2) určuje obsah:
   0 = Ostrov pirátů (hradby + děla na věžích + strážci + hlídková loď, po
-  poražení trezor s hádankou ozubených kol, pak vzkaz), 1 = Hřbitov lodí
+  poražení trezor s hádankou ozubených kol, pak vzkaz; hradby jsou neprůchozí —
+  `MegaIslandMarker.BlocksWalkingAt`, brána stojí proti molu a molo se k ní případně přestaví
+  (`AlignPierToGate`), v rozích 7 rozbitelných věží `FortressTower` (zbořené v
+  `gameData.fortressTowersDown`), nádvoří `BuildYard` s chatrčemi a bednami; modely v
+  `Resources/PirateKit`), 1 = Hřbitov lodí
   (Bludný Holanďan, 3 vykopávané kusy mapy z mělčiny, podpalubí se vzkazem),
   2 = Konfrontace (bratrova loď, `RivalNpc`, volba ušetřit/zabít → 2 koncovky).
   `megaTask` (0-3) sleduje postup na aktuálním ostrově; `GridManager.
@@ -120,7 +124,10 @@ ostrově). Podporuje lokální split-screen pro dva hráče.
 - **Souboj**: střelba **levým tlačítkem myši** (P1) / `Numpad *` (P2), spotřebuje
   `ammo` (kupuje se v obchodě). Náměr podle sklonu kamery (`AimElevationDeg`,
   ±30° ve 3. osobě / ±60° v 1. osobě) — jde trefit i dělo na věži hradby.
-  `IsSailing` / `IsSwimming` — terč pro děla. Kromě lodního děla má hráč i
+  `IsSailing` / `IsSwimming` — terč pro děla. **Ve třetí osobě se nemíří sklonem kamery** —
+  `AimAssist` najde cíl v kuželu 14° před přídí / pohledem (pirát s předsazením podle
+  `PirateShip.Velocity`, dělo, věž pevnosti, stráž, obluda) a dorovná náměr i směr; bez cíle letí
+  koule vodorovně. Cíl ukazuje zaměřovač (`PlayerController.DrawAimReticle`). V první osobě ručně. Kromě lodního děla má hráč i
   **pěší zbraň** (hotbar slot 0, vlastní munice `handAmmo`), koupí se v obchodě,
   střílí se vodorovně tam, kam se dívá kamera; panáček se při vytažené zbrani
   otáčí za kamerou (`UpdateAimFacing`). Držený předmět (zbraň/poklad) sedí

@@ -1076,7 +1076,7 @@ public class MegaIslandMarker : MonoBehaviour
 
     // ── Nádvoří pevnosti (vnitřek hradeb) ───────────────────────────────────
     // Ať uvnitř není jen trezor: chatrče s doškovou střechou, hromady beden a sudů,
-    // pirátské vlajky, palma a polní dělo — a dřevěný chodník od brány ke středu.
+    // pirátské vlajky, palma a polní dělo. Od brány k náměstí vede volná cesta.
     // Všechno deterministicky podle tvaru ostrova (stejný ostrov = stejné nádvoří).
     // Chatrče a bedny blokují chůzi (yardBlocked) — volné zůstane náměstí uprostřed
     // (cedule, trezor, stránka deníku) a chodník od brány.
@@ -1132,20 +1132,8 @@ public class MegaIslandMarker : MonoBehaviour
             if (what != "flag" && what != "palm") yardBlocked.Add(t); // přes chatrč a bedny se nechodí
             if (yard != null) BuildYardProp(what, t, center, yard.transform);
         }
-
-        // Dřevěný chodník od brány k náměstí (díly prken za sebou, kousek zapuštěné do země).
-        if (yard != null)
-        {
-            Vector2 dir = (center - gate);
-            float len = dir.magnitude - 2.5f;
-            dir.Normalize();
-            float yRot = Mathf.Atan2(dir.x, dir.y) * Mathf.Rad2Deg;
-            for (float d = 1.2f; d < len; d += 1.3f)
-            {
-                Vector2 p = gate + dir * d;
-                PlaceKit("platform-planks", new Vector3(p.x, -0.17f, p.y), yRot, 0.5f, yard.transform);
-            }
-        }
+        // (Prkenný chodník od brány jsem zkoušel — terén ostrova uvnitř stoupá, prkna se
+        //  zanořovala do trávy. Cesta od brány k náměstí proto zůstává jen volná.)
     }
 
     // Jedna rekvizita nádvoří na políčku `t` (natočená ke středu, ať "kouká" na náměstí).

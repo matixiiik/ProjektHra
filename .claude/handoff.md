@@ -8,23 +8,17 @@ sem Claude píše, kde se přestalo, aby se dalo pokračovat i z notebooku.
 
 ---
 
-## STAV 2026-11-27 (poledne) — Pirátský ostrov předělávka, větev `pribeh-piratsky-ostrov` (ROZDĚLANÉ)
-PR #25 (fáze B+C) je otevřený, Auto-fix zapnutý. Uložené kvůli limitu 94 %. Zadání uživatele: hradby podél
-pobřeží + brána u přístavu, zdi neprůchozí, věže v rozích rozbitelné koulí, vycentrovat míření z lodi,
-interiér pevnosti, „všechno lepší“ (jen tenhle ostrov).
-HOTOVO a ověřené v Play (story 4 + tp 340 -200): `FortressTower.cs` (7 věží ze 3 Kenney dílů, 3 s dělem
-na CANNON_HEIGHT 3,02, 6 HP, rozpad + prach + sutiny, `GameData.fortressTowersDown`), brána na úseku
-nejblíž molu + molo se přestaví proti bráně (`AlignPierToGate`, `GridManager.SetOrCreateTile`),
-`MegaIslandMarker.BlocksWalkingAt` (zdi/věže/chatrče, brána průchozí — ověřeno), nádvoří `BuildYard`
-(chatrče structure-roof, bedny, sudy, vlajky, palma, polní dělo, prkenný chodník), strážci jen uvnitř
-hradeb. Míření: `AimAssist.cs` (náměr + natočení na cíl v kuželu 14°, předsazení plující lodi přes
-`PirateShip.Velocity`), zaměřovač (rohy) v `PlayerController.DrawAimReticle`, první osoba = ruční.
-Modely zkopírované do `Assets/Resources/PirateKit` (tower-base/middle/top/watch, structure-roof, crate…).
-ZBÝVÁ: 1) překompilovat a ověřit poslední změnu `CannonBall.SHIP_HIT_RADIUS = 1.4` (koule minula
-plující pirátskou loď o ~1,2 j) — `TryShoot` z (391,-207) na guard ship; 2) EditMode testy (41);
-3) CLAUDE.md doplnit (FortressTower, AimAssist, BlocksWalkingAt, fortressTowersDown); 4) commit
-nebo dokončení + PR; 5) případně checklist v HUD „Věže x/7“. Před Play zálohovat savy (scratchpad
-`saves_backup_bc`), po Stop vrátit.
+## STAV 2026-11-27 (odpoledne) — Pirátský ostrov předělaný, větev `pribeh-piratsky-ostrov` (PR)
+PR #25 (fáze B+C) čeká na merge. Na větvi `pribeh-piratsky-ostrov` (navazuje na #25) je předělávka
+Pirátského ostrova podle zadání uživatele, ověřená v Play (story 4 + tp 340 -200):
+`FortressTower.cs` (7 věží ze 3 Kenney dílů, 3 s dělem na výšce 3,02, 6 HP, rozpad + prach + sutiny,
+`GameData.fortressTowersDown`), brána na úseku nejblíž molu + molo se přestaví proti bráně
+(`AlignPierToGate`, `GridManager.SetOrCreateTile`), `MegaIslandMarker.BlocksWalkingAt` (zdi, věže,
+chatrče; bránou se projde — ověřeno skutečnou chůzí), nádvoří `BuildYard` (chatrče, bedny, sudy,
+vlajky, palma, polní dělo; prkenný chodník zrušen — terén uvnitř stoupá a prkna se zanořovala),
+strážci jen uvnitř hradeb. Míření: `AimAssist.cs` (náměr i směr na cíl v kuželu 14°, předsazení
+plující lodi), zaměřovač, `CannonBall.SHIP_HIT_RADIUS = 1.4` (ověřeno: zásahy plující lodi sedí).
+EditMode 45/45. Neověřeno: build, split-screen. Možný další krok: „Věže x/7“ v checklistu HUD.
 
 ---
 

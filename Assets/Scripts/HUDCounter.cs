@@ -577,9 +577,10 @@ public class HUDCounter : MonoBehaviour
         string txt = "";
         if (d.storyDone)
         {
-            // Ostrov 3 dohraný (Krok 7) — storyStep dál neputuje, ať se cíl
-            // nezasekne navěky na "probojuj se ostrovem 3".
-            txt = "";
+            // Po finále ještě zbývá dojet za dědou (epilog + závěrečná obrazovka, viz StoryNpc).
+            // Pak už žádný příběhový cíl — volné hraní.
+            txt = d.storyEpilogueSeen ? ""
+                : Loc.T("Úkol: vrať se za dědou na startovní ostrov", "Quest: return to Grandpa on the starting island");
         }
         else switch (d.storyStep)
         {
@@ -597,18 +598,9 @@ public class HUDCounter : MonoBehaviour
                                 $"Quest: sail to the island at  [{d.storyIslandX}, {d.storyIslandY}]");
                 break;
             case 3:
-                // Názvy ostrovů stejné jako v deníku (JournalScreen).
-                if (d.megaTask >= 3)
-                    txt = Loc.T("Úkol: vrať se za dědou", "Quest: return to the old sailor");
-                else if (d.megaIndex == 0)
-                    txt = Loc.T("Úkol: probojuj se Pirátským ostrovem a najdi, co skrývá",
-                                "Quest: fight your way across Pirate Island and find what it hides");
-                else if (d.megaIndex == 1)
-                    txt = Loc.T("Úkol: prozkoumej Hřbitov lodí a najdi, co skrývá",
-                                "Quest: explore the Ship Graveyard and find what it hides");
-                else
-                    txt = Loc.T("Úkol: prozkoumej Poslední ostrov a najdi, co skrývá",
-                                "Quest: explore the Final Island and find what it hides");
+                // Na ostrově: nahoře název ostrova (stejný jako v deníku), pod ním checklist
+                // úkolů ostrova, ať hráč vidí, co mu ještě zbývá (fáze B, "checklist v HUD").
+                txt = IslandChecklist(d);
                 break;
         }
 
@@ -616,6 +608,54 @@ public class HUDCounter : MonoBehaviour
         storyPanel.SetActive(show);
         if (show) storyLine.text = txt;
     }
+
+    // Dva řádky pro mega ostrov: 1) název ostrova + hlavní cíl, 2) menším písmem body
+    // checklistu — hotové zeleně, rozdělané bíle. Počty bere z MegaIslandMarker.
+    string IslandChecklist(GameData d)
+    {
+        var marker = MegaIslandMarker.Instance;
+        string head, items;
+
+        if (d.megaIndex == 0)
+        {
+            head = Loc.T("Pirátský ostrov — prolom obranu a otevři trezor", "Pirate Island — break the defenses, open the vault");
+            int cl = 0, ct = 0, gl = 0, gt = 0, sl = 0, st = 0;
+            if (marker != null) marker.GetDefenseStatus(out cl, out ct, out gl, out gt, out sl, out st);
+            bool defenseDown = d.megaTask >= 1;
+            items = Item(Loc.T("Děla", "Cannons"), defenseDown ? ct : ct - cl, ct)
+                  + "   ·   " + Item(Loc.T("Stráže", "Guards"), defenseDown ? gt : gt - gl, gt)
+                  + "   ·   " + Item(Loc.T("Hlídková loď", "Patrol ship"), defenseDown ? st : st - sl, st)
+                  + "   ·   " + Check(Loc.T("Trezor", "Vault"), d.megaTask >= 2);
+        }
+        else if (d.megaIndex == 1)
+        {
+            head = Loc.T("Hřbitov lodí — najdi kusy mapy a prohledej vrak", "Ship Graveyard — find the map pieces, search the wreck");
+            int pieces = 0;
+            for (int i = 0; i < 3; i++) if ((d.megaCluesMask & (1 << i)) != 0) pieces++;
+            items = Item(Loc.T("Kusy mapy", "Map pieces"), d.megaTask >= 2 ? 3 : pieces, 3)
+                  + "   ·   " + Check(Loc.T("Podpalubí vraku", "The wreck's hold"), d.megaTask >= 3);
+        }
+        else
+        {
+            head = Loc.T("Poslední ostrov — kde všechno začalo", "Final Island — where it all began");
+            items = Check(Loc.T("Potop bratrovu loď", "Sink the brother's ship"), d.megaTask >= 1)
+                  + "   ·   " + Check(Loc.T("Promluv si s bratrem", "Talk to the brother"), d.storyDone);
+        }
+        return head + "\n<size=16>" + items + "</size>";
+    }
+
+    // "Děla 2/3" — zeleně, když je hotovo; bez cíle (total 0) se ukáže pomlčka.
+    static string Item(string label, int done, int total)
+    {
+        if (total <= 0) return $"<color=#9a9a9a>{label} —</color>";
+        bool ok = done >= total;
+        return ok ? $"<color=#66ff66>{label} {total}/{total}</color>"
+                  : $"<color=#ffffff>{label} {Mathf.Max(0, done)}/{total}</color>";
+    }
+
+    // Bod bez počtu (hotovo = zeleně; bez speciálních znaků, ať je písmo určitě umí).
+    static string Check(string label, bool ok)
+        => ok ? $"<color=#66ff66>{label}</color>" : $"<color=#ffffff>{label}</color>";
 
     void RefreshQuest(ActiveQuest q, MegaQuest mq)
     {

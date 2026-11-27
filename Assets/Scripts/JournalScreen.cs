@@ -83,6 +83,20 @@ public class JournalScreen : MonoBehaviour
             }
         }
 
+        // Stránky bratrova deníku (sběratelské, DiaryPages) — jen ty sebrané, ostatní jako "chybí".
+        int pages = DiaryPages.Count(d);
+        if (pages > 0)
+        {
+            GUILayout.Space(8f * s);
+            GUILayout.Label(Loc.T($"BRATRŮV DENÍK  ({pages}/{DiaryPages.COUNT})", $"THE BROTHER'S DIARY  ({pages}/{DiaryPages.COUNT})"), ShopUI.Section);
+            for (int i = 0; i < DiaryPages.COUNT; i++)
+            {
+                if (DiaryPages.Has(d, i)) GUILayout.Label("„" + DiaryPages.Text(i) + "“", ShopUI.Row);
+                else GUILayout.Label(Loc.T("…stránka chybí…", "…a page is missing…"), ShopUI.Faint);
+                GUILayout.Space(4f * s);
+            }
+        }
+
         // Nápověda — jen po kliknutí.
         if (showHint)
         {
@@ -108,6 +122,16 @@ public class JournalScreen : MonoBehaviour
             Close();
             LetterScreen.Show(0, d.letterX, d.letterY);
         }
+
+        // Závěrečná obrazovka (statistiky, titulky, Těžké moře) jde po dohrání otevřít znovu.
+        if (d.storyEpilogueSeen && SoundManager.Click(GUILayout.Button(Loc.T("Závěr a titulky", "Ending and credits"),
+                                                                       ShopUI.Button, GUILayout.Height(34f * s))))
+        {
+            Close();
+            PauseMenu pm = FindFirstObjectByType<PauseMenu>();
+            if (pm != null && PauseMenu.IsPaused) pm.ContinueGame(); // zavři pauzu, ať se čas nevrátí pod obrazovkou
+            EndScreen.Show();
+        }
         GUILayout.EndHorizontal();
         GUILayout.Space(4f * s);
 
@@ -128,7 +152,7 @@ public class JournalScreen : MonoBehaviour
     // ── Kapitoly ──────────────────────────────────────────────────────────
     // Číslo kapitoly odvozené z postupu příběhu (storyStep / megaIndex / storyDone).
     // Kapitola "na cestě" (storyStep 2) ostrov nejmenuje — hráč ho ještě neviděl.
-    private static int ChapterNumber(GameData d)
+    public static int ChapterNumber(GameData d)
     {
         if (d.storyDone) return 9;
         if (d.storyStep <= 0) return 1;
@@ -141,20 +165,25 @@ public class JournalScreen : MonoBehaviour
     private static string ChapterTitle(GameData d)
     {
         int n = ChapterNumber(d);
-        string name;
+        if (n >= 9) return ChapterName(n);
+        return Loc.T($"Kapitola {n}: {ChapterName(n)}", $"Chapter {n}: {ChapterName(n)}");
+    }
+
+    /// <summary>Jméno kapitoly bez čísla (používá i ChapterCard).</summary>
+    public static string ChapterName(int n)
+    {
         switch (n)
         {
-            case 1: name = Loc.T("Starý námořník", "The Old Sailor"); break;
-            case 2: name = Loc.T("Zkouška",        "The Trial"); break;
-            case 3: name = Loc.T("Vyplutí", "Setting Sail"); break;
-            case 4: name = Loc.T("Pirátský ostrov", "Pirate Island"); break;
-            case 5: name = Loc.T("Hádanka z dopisu", "The Letter's Riddle"); break;
-            case 6: name = Loc.T("Hřbitov lodí",    "The Ship Graveyard"); break;
-            case 7: name = Loc.T("Po stopě bratra", "On the Brother's Trail"); break;
-            case 8: name = Loc.T("Poslední ostrov", "The Final Island"); break;
-            default: return Loc.T("Epilog", "Epilogue");
+            case 1:  return Loc.T("Starý námořník",   "The Old Sailor");
+            case 2:  return Loc.T("Zkouška",          "The Trial");
+            case 3:  return Loc.T("Vyplutí",          "Setting Sail");
+            case 4:  return Loc.T("Pirátský ostrov",  "Pirate Island");
+            case 5:  return Loc.T("Hádanka z dopisu", "The Letter's Riddle");
+            case 6:  return Loc.T("Hřbitov lodí",     "The Ship Graveyard");
+            case 7:  return Loc.T("Po stopě bratra",  "On the Brother's Trail");
+            case 8:  return Loc.T("Poslední ostrov",  "The Final Island");
+            default: return Loc.T("Epilog",           "Epilogue");
         }
-        return Loc.T($"Kapitola {n}: {name}", $"Chapter {n}: {name}");
     }
 
     // Rada pro aktuální kapitolu (a u ostrovů pro aktuální úkol na nich — megaTask).
@@ -197,8 +226,11 @@ public class JournalScreen : MonoBehaviour
                 return Loc.T("Někdo se vylodil na ostrov. Dojdi k němu pěšky a promluv si s ním (E).",
                              "Someone has come ashore on the island. Walk up to him and talk (E).");
             default:
-                return Loc.T("Příběh je u konce. Můžeš dál volně plout, plnit úkoly, lovit piráty a sbírat kořist.",
-                             "The story is over. You can keep sailing freely, take on jobs, hunt pirates and collect loot.");
+                if (!d.storyEpilogueSeen)
+                    return Loc.T("Vrať se za dědou na startovní ostrov — šipka na minimapě ukazuje cestu. Promluv si s ním (E).",
+                                 "Return to Grandpa on the starting island — the minimap arrow shows the way. Talk to him (E).");
+                return Loc.T("Příběh je u konce. Můžeš dál volně plout, plnit úkoly, lovit piráty a sbírat kořist. V závěrečné obrazovce (tlačítko níž) jde zapnout Těžké moře.",
+                             "The story is over. You can keep sailing freely, take on jobs, hunt pirates and collect loot. Rough Seas can be switched on in the ending screen (button below).");
         }
     }
 
@@ -228,6 +260,10 @@ public class JournalScreen : MonoBehaviour
             "Pirátský ostrov: v trezoru čekal vzkaz. Přečetl jsi ho a vydal ses po stopě dál.",
             "Pirate Island: a message was waiting in the vault. You read it and followed the trail onward."));
 
+        if (d.ambush1Done) list.Add(Loc.T(
+            "Na cestě tě přepadl megalodon. Skolil jsi ho — jeho zub si vezeš jako trofej.",
+            "A megalodon ambushed you on the way. You slew it — you carry its tooth as a trophy."));
+
         if (Reached(d, 1, 1)) list.Add(Loc.T(
             "Hřbitov lodí: dorazil jsi. V mělčině kolem trčí trosky a skrývají se v nich kousky roztržené mapy.",
             "Ship Graveyard: you have arrived. Wrecks stick out of the shoals around it, hiding pieces of a torn map."));
@@ -237,6 +273,10 @@ public class JournalScreen : MonoBehaviour
         if (Reached(d, 1, 3)) list.Add(Loc.T(
             "Hřbitov lodí: prohledal jsi podpalubí vraku a přečetl další vzkaz.",
             "Ship Graveyard: you searched the wreck's hold and read another message."));
+
+        if (d.ambush2Done) list.Add(Loc.T(
+            "Z mlhy za Hřbitovem lodí se vynořil Bludný Holanďan. Poslal jsi ho ke dnu.",
+            "The Flying Dutchman loomed out of the mist beyond the Ship Graveyard. You sent it to the bottom."));
 
         if (Reached(d, 2, 1)) list.Add(Loc.T(
             "Poslední ostrov: potopil jsi loď, která hlídala příjezd.",

@@ -114,6 +114,19 @@ public class CombatDirector : MonoBehaviour
     // ── Mořská obluda (Krok 5, story-plan.md §4) — vždy nejvýš jedna ────────
     private SeaMonster monster;
     public void RegisterMonster(SeaMonster m) => monster = m;
+
+    /// <summary>Probíhá souboj s příběhovým bossem? (megalodon, Holanďan, bratrova loď nebo
+    /// hlídková loď mega ostrova) — podle toho StoryAtmosphere pouští bojovou hudbu.</summary>
+    public bool StoryBossEngaged
+    {
+        get
+        {
+            if (monster != null && monster.Engaged) return true;
+            foreach (var p in pirates)
+                if (p != null && p.Engaged && (p.isGhost || p.isBrotherShip || p.guardIslandKey == "mega")) return true;
+            return false;
+        }
+    }
     public SeaMonster MonsterNear(Vector3 pos, float radius)
         => monster != null && monster.IsNear(pos, radius) ? monster : null;
 
@@ -224,6 +237,7 @@ public class CombatDirector : MonoBehaviour
         int reward = p.size == 0 ? EconomyConfig.PirateRewardSmall
                    : p.size == 1 ? EconomyConfig.PirateRewardMedium
                    :               EconomyConfig.PirateRewardLarge;
+        if (EconomyConfig.HardMode) reward = Mathf.RoundToInt(reward * EconomyConfig.HardRewardMult);
         var pc = NearestAnyPlayer();
         if (grid != null) grid.gameData.pirateKills++;
 
@@ -237,9 +251,18 @@ public class CombatDirector : MonoBehaviour
         else if (grid != null) grid.Save();
 
         SoundManager.PlayCoin();
-        string who = p.isGhost ? Loc.T("Bludný Holanďan potopen!", "The Flying Dutchman is sunk!")
-                               : Loc.T("Pirát potopen!",           "Pirate sunk!");
-        Toast(who + "  +" + reward + " " + Loc.CoinsWord(reward) + lootText);
+        string who = p.isGhost       ? Loc.T("Bludný Holanďan potopen!", "The Flying Dutchman is sunk!")
+                   : p.isBrotherShip ? Loc.T("Bratrova loď potopena!",  "The brother's ship is sunk!")
+                   :                   Loc.T("Pirát potopen!",           "Pirate sunk!");
+
+        // Z vraku Holanďana vyplave stránka bratrova deníku (DiaryPages, index 3).
+        string pageText = "";
+        if (p.isGhost && grid != null && DiaryPages.Collect(grid.gameData, 3))
+        {
+            grid.Save();
+            pageText = "\n" + DiaryPages.FoundToast(grid.gameData);
+        }
+        Toast(who + "  +" + reward + " " + Loc.CoinsWord(reward) + lootText + pageText, pageText != "" ? 6f : 2.6f);
     }
 
     /// <summary>
@@ -249,6 +272,8 @@ public class CombatDirector : MonoBehaviour
     /// </summary>
     public string RollPirateLoot(PlayerState ps, float chance)
     {
+        // Těžké moře: kořist padá častěji (ale Holanďan s jistotou 100 % zůstává 100 %).
+        if (EconomyConfig.HardMode) chance = Mathf.Max(chance, EconomyConfig.HardLootChance);
         int index = LootItems.TryDrop(ps, chance);
         if (index < 0) return "";
         return Loc.T("   ·   Kořist: ", "   ·   Loot: ") + LootItems.Items[index].Name;
@@ -298,11 +323,20 @@ public class CombatDirector : MonoBehaviour
     public void OnMonsterSunk()
     {
         var pc = NearestAnyPlayer();
+
+        // Trofej: zub megalodona (drahá kořist, prodá se ve výkupně). Před RewardCoins — ten uloží.
+        PlayerState ps = PlayerStateOf(pc);
+        if (ps != null)
+        {
+            LootItems.Add(ps, LootItems.MEGALODON_TOOTH, 1);
+            ps.activeQuest.AddProgress(ActiveQuest.TYPE_LOOT, 1);
+        }
+
         if (pc != null) pc.RewardCoins(EconomyConfig.SeaMonsterReward);
         SoundManager.PlayCoin();
         int reward = EconomyConfig.SeaMonsterReward;
-        Toast(Loc.T($"Mořská obluda potopena!  +{reward} {Loc.CoinsWord(reward)}",
-                    $"Sea monster sunk!  +{reward} {Loc.CoinsWord(reward)}"), 4f);
+        Toast(Loc.T($"Mořská obluda potopena!  +{reward} {Loc.CoinsWord(reward)}   ·   Trofej: Zub megalodona",
+                    $"Sea monster sunk!  +{reward} {Loc.CoinsWord(reward)}   ·   Trophy: Megalodon tooth"), 5f);
     }
 
     public void Toast(string text) => Toast(text, 2.6f);
@@ -350,6 +384,7 @@ public class CombatDirector : MonoBehaviour
         {
             string name = boss.isGhost
                 ? Loc.T("BLUDNÝ HOLANĎAN", "FLYING DUTCHMAN")
+                : boss.isBrotherShip ? Loc.T("BRATROVA LOĎ", "THE BROTHER'S SHIP")
                 : (boss.size == 0 ? Loc.T("PIRÁT (malá loď)",   "PIRATE (small ship)")
                 :  boss.size == 1 ? Loc.T("PIRÁT (střední loď)", "PIRATE (medium ship)")
                 :                   Loc.T("PIRÁT (velká loď)",   "PIRATE (large ship)"));

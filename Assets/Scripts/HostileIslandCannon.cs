@@ -144,19 +144,25 @@ public class HostileIslandCannon : MonoBehaviour
                 float flat = Mathf.Max(0.1f, to.magnitude);
                 float drop = target.transform.position.y - from.y;
                 float elevation = Mathf.Atan2(drop, flat) * Mathf.Rad2Deg;
-                CannonBall.FireAimed(from, to, elevation, DAMAGE, CannonBall.Side.Enemy);
+                CannonBall.FireAimed(from, to, elevation, ShotDamage, CannonBall.Side.Enemy);
             }
             else
             {
-                CannonBall.Fire(from, to, DAMAGE, CannonBall.Side.Enemy);
+                CannonBall.Fire(from, to, ShotDamage, CannonBall.Side.Enemy);
             }
             SoundManager.PlayCannon();
         }
     }
 
+    // Poškození jedné střely — v Těžkém moři (GameData.hardMode) víc.
+    private static float ShotDamage => EconomyConfig.HardMode ? DAMAGE * EconomyConfig.HardEnemyDamageMult : DAMAGE;
+    private bool hardHpApplied; // zdraví navýšené pro Těžké moře (jen jednou)
+
     /// <summary>Zásah hráčovou dělovou koulí.</summary>
     public void TakeHit(float dmg)
     {
+        // Těžké moře: dělo vydrží víc — navýšení až při prvním zásahu, ať nezáleží na pořadí Spawn/Start.
+        if (!hardHpApplied) { hardHpApplied = true; if (EconomyConfig.HardMode) hp *= EconomyConfig.HardEnemyHpMult; }
         hp -= dmg;
         if (hp <= 0f)
         {

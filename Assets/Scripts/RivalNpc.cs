@@ -11,9 +11,11 @@ using UnityEngine;
 //  — schválně stejná, ať hra nenutí hráče k temnější volbě kvůli mincím.
 //
 //  Vytváří ho MegaIslandMarker.BuildConfrontation() na pevné políčko, až padne
-//  bratrova hlídková loď (megaTask 0→1). Po volbě zůstává na místě (jen s
-//  jinými, kratšími replikami — viz BuildDialog), ať hráč může znovu promluvit
-//  bez pádu hry.
+//  bratrova hlídková loď (megaTask 0→1) — finále má tedy dvě fáze: bitva s lodí
+//  (bratr volá z paluby, viz MegaIslandMarker.UpdateBrotherTaunts) a rozhovor na
+//  břehu. Volba se ukáže jako pergamenový list se dvěma tlačítky (DrawChoiceLetter).
+//  Po zavření dialogu se konec projeví ve světě (ApplyEndingToWorld): bratr zmizí —
+//  buď odplul s hráčem domů k dědovi, nebo po něm zůstane hrob.
 // ─────────────────────────────────────────────────────────────────────────────
 
 public class RivalNpc : MonoBehaviour
@@ -32,8 +34,9 @@ public class RivalNpc : MonoBehaviour
     private bool        showChoiceButtons; // volba A/B na poslední replice
     private float       ignoreKeyUntil;
     private float       reopenAllowedAt;
+    private bool        endingApplied;     // konec už se projevil ve světě (jen jednou)
 
-    private GUIStyle nameStyle, textStyle, hintStyle, spareStyle, killStyle;
+    private GUIStyle nameStyle, textStyle, hintStyle;
     private bool     stylesReady;
 
     void Awake()     { Instance = this; }
@@ -95,7 +98,9 @@ public class RivalNpc : MonoBehaviour
                 "Vyrostl jsem tady sám a živil se, jak se dalo. Zestárl jsem u moře, které mi vzalo rodinu.",
                 "Rodina? Ta si po letech řekla, že jsem utonul. Pohřbili mě, jako bych byl nikdo.",
                 "Potkal jsem dokonce i jeho syna, víš. I toho si nakonec vzalo moře — bere si, co chce, a nikoho se neptá.",
-                "Tohle jste s dědou tak dlouho hledali — rodinné dědictví. Celé ty roky jsem ho měl u sebe.",
+                DiaryPages.Count(Data) >= DiaryPages.COUNT
+                    ? "Četl jsi můj deník, viď? Všech šest stránek. Tak víš, jaké to bylo — nemusím ti nic vysvětlovat."
+                    : "Tohle jste s dědou tak dlouho hledali — rodinné dědictví. Celé ty roky jsem ho měl u sebe.",
                 "Tak co bude, chlapče? Vezmeš mě domů, nebo si vezmeš jen tohle?",
             },
             new[]
@@ -106,7 +111,9 @@ public class RivalNpc : MonoBehaviour
                 "I grew up here alone, living off whatever I could find. I grew old beside the sea that took my family.",
                 "Family? After some years they decided I had drowned. They buried me as if I were nobody.",
                 "I even met his son along the way, you know. The sea took him too in the end — it takes what it wants and asks no one.",
-                "This is what you and Grandpa have been searching for all this time — the family inheritance. I've had it with me all these years.",
+                DiaryPages.Count(Data) >= DiaryPages.COUNT
+                    ? "You read my diary, didn't you? All six pages. Then you know what it was like — I don't have to explain a thing."
+                    : "This is what you and Grandpa have been searching for all this time — the family inheritance. I've had it with me all these years.",
                 "So what will it be, lad? Will you take me home, or will you take only this?",
             });
         showChoiceButtons = true;
@@ -201,9 +208,41 @@ public class RivalNpc : MonoBehaviour
 
     private void EndTalk()
     {
+        int who = talkingWith;
         talkingWith     = -1;
         line            = 0;
         reopenAllowedAt = Time.unscaledTime + 0.35f;
+
+        // Po volbě se konec projeví ve světě — až po zavření dialogu, ať hráč dočte repliku.
+        if (Data.storyDone && !endingApplied) ApplyEndingToWorld(who);
+    }
+
+    // Viditelný konec (fáze C): šipka domů k dědovi, bratr zmizí (doma u dědy / hrob).
+    private void ApplyEndingToWorld(int playerIndex)
+    {
+        endingApplied = true;
+
+        // Oběma hráčům šipka na minimapě ke dědovi — HUD píše "vrať se za dědou".
+        if (Data.storyNpcPlaced)
+            foreach (var ps in Data.players)
+            {
+                ps.hasWaypoint = true;
+                ps.waypointX   = Data.storyNpcX;
+                ps.waypointY   = Data.storyNpcY;
+            }
+        gridManager.Save();
+        gridManager.NotifyWorldChanged();
+
+        if (StoryNpc.Instance != null) StoryNpc.Instance.RefreshCompanion(); // bratr se objeví doma (konec 1)
+        if (CombatDirector.Instance != null)
+            CombatDirector.Instance.Toast(Data.storyEnding == 1
+                ? Loc.T("Bratr nastoupil k tobě na loď. Zavez ho domů za dědou — šipka na minimapě.",
+                        "The brother has come aboard. Take him home to Grandpa — follow the minimap arrow.")
+                : Loc.T("Na útesu zůstal jen hrob. Dědictví vezeš domů za dědou — šipka na minimapě.",
+                        "Only a grave remains on the cliff. Take the inheritance home to Grandpa — follow the minimap arrow."), 6f);
+
+        // Zničí i tenhle objekt (bratr z ostrova odejde) — proto až úplně na konci.
+        if (MegaIslandMarker.Instance != null) MegaIslandMarker.Instance.ApplyEnding(Data.storyEnding);
     }
 
     void OnGUI()
@@ -240,8 +279,6 @@ public class RivalNpc : MonoBehaviour
         nameStyle.fontSize  = Mathf.RoundToInt(20f * s);
         textStyle.fontSize  = Mathf.RoundToInt(21f * s);
         hintStyle.fontSize  = Mathf.RoundToInt(16f * s);
-        spareStyle.fontSize = Mathf.RoundToInt(16f * s);
-        killStyle.fontSize  = Mathf.RoundToInt(16f * s);
 
         float w = Mathf.Min(780f * s, half.width - 40f);
         float h = 200f * s;
@@ -264,11 +301,7 @@ public class RivalNpc : MonoBehaviour
 
         if (showChoiceButtons && lastLine)
         {
-            float bw = Mathf.Min(300f * s, (box.width - 2 * pad - 20f) / 2f);
-            var brSpare = new Rect(box.x + box.width / 2f - bw - 10f, box.yMax - 44f * s, bw, 34f * s);
-            var brKill  = new Rect(box.x + box.width / 2f + 10f,      box.yMax - 44f * s, bw, 34f * s);
-            if (SoundManager.Click(GUI.Button(brSpare, Loc.T("Ušetřit — vzít domů",    "Spare him — take him home"),      spareStyle))) ChooseSpare();
-            if (SoundManager.Click(GUI.Button(brKill,  Loc.T("Zabít — vzít dědictví", "Kill him — take the inheritance"), killStyle))) ChooseKill();
+            DrawChoiceLetter(half, box, s);
         }
         else
         {
@@ -276,6 +309,32 @@ public class RivalNpc : MonoBehaviour
                                    : "[" + key + "] " + Loc.T("dál",   "next");
             GUI.Label(new Rect(box.x + pad, box.yMax - 34f * s, box.width - 2 * pad, 26f * s), more, hintStyle);
         }
+    }
+
+    // Volba jako pergamenový list nad dialogem: krátké shrnutí a dvě tlačítka.
+    // Schválně vážnější vzhled než běžná replika — tohle rozhodnutí nejde vzít zpět.
+    private void DrawChoiceLetter(Rect half, Rect dialogBox, float s)
+    {
+        ShopUI.Prepare(s);
+        float w = Mathf.Min(640f * s, half.width - 40f);
+        float h = Mathf.Min(230f * s, dialogBox.y - half.y - 20f); // v malém okně se zmenší, ať nevyleze nahoru
+        var sheet = new Rect(half.x + (half.width - w) / 2f, dialogBox.y - h - 12f * s, w, h);
+        GUI.DrawTexture(sheet, HudSkin.Parchment(), ScaleMode.StretchToFill);
+
+        float pad = 30f * s;
+        GUILayout.BeginArea(new Rect(sheet.x + pad, sheet.y + 16f * s, sheet.width - 2f * pad, sheet.height - 28f * s));
+        GUILayout.Label(Loc.T("Rozhodnutí", "The Choice"), ShopUI.Title);
+        GUILayout.Label(Loc.T("Bratr čeká na odpověď. Tohle rozhodnutí už nepůjde vzít zpět.",
+                              "The brother is waiting for your answer. This decision cannot be undone."), ShopUI.Row);
+        GUILayout.FlexibleSpace();
+        GUILayout.BeginHorizontal();
+        if (SoundManager.Click(GUILayout.Button(Loc.T("Ušetřit ho — vzít ho domů za dědou", "Spare him — take him home to Grandpa"),
+                                                ShopUI.ClaimButton, GUILayout.Height(40f * s)))) ChooseSpare();
+        GUILayout.Space(12f * s);
+        if (SoundManager.Click(GUILayout.Button(Loc.T("Zabít ho — vzít si dědictví", "Kill him — take the inheritance"),
+                                                ShopUI.Button, GUILayout.Height(40f * s)))) ChooseKill();
+        GUILayout.EndHorizontal();
+        GUILayout.EndArea();
     }
 
     private Rect HalfRect(int playerIndex)
@@ -305,26 +364,6 @@ public class RivalNpc : MonoBehaviour
             fontSize = 13, alignment = TextAnchor.MiddleCenter, fontStyle = FontStyle.Bold,
             normal = { textColor = new Color(0.85f, 0.85f, 0.7f) }
         };
-        spareStyle = new GUIStyle(GUI.skin.button)
-        {
-            fontSize = 13, fontStyle = FontStyle.Bold,
-            normal = { textColor = Color.white, background = Solid(new Color(0.2f, 0.5f, 0.25f)) },
-            hover  = { textColor = Color.white, background = Solid(new Color(0.3f, 0.65f, 0.35f)) }
-        };
-        killStyle = new GUIStyle(GUI.skin.button)
-        {
-            fontSize = 13, fontStyle = FontStyle.Bold,
-            normal = { textColor = Color.white, background = Solid(new Color(0.5f, 0.18f, 0.16f)) },
-            hover  = { textColor = Color.white, background = Solid(new Color(0.65f, 0.25f, 0.22f)) }
-        };
         stylesReady = true;
-    }
-
-    private static Texture2D Solid(Color c)
-    {
-        var t = new Texture2D(1, 1);
-        t.SetPixel(0, 0, c);
-        t.Apply();
-        return t;
     }
 }

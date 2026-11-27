@@ -81,7 +81,8 @@ public class CameraOrbit : MonoBehaviour
                        || UpgradeShopManager.AnyShopOpen
                        || MapScreen.IsOpen
                        || JournalScreen.IsOpen
-                       || LetterScreen.IsOpen;
+                       || LetterScreen.IsOpen
+                       || EndScreen.IsOpen;
 
         if (!uiBlocking)
         {

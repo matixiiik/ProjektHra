@@ -19,7 +19,7 @@ ostrově). Podporuje lokální split-screen pro dva hráče.
 - Veškerý herní kód: `Assets/Scripts/*.cs`. Materiály `Assets/Materials/`,
   runtime-loadované modely `Assets/Resources/{IslandDecor,PirateShips}/`.
 - **Žádný namespace** — všechny třídy jsou globální.
-- **Testy:** `Assets/Tests/EditMode` (36 testů: BoatStats, EconomyConfig, GameData, SaveMigration, LootAndQuest, StoryLogic) a
+- **Testy:** `Assets/Tests/EditMode` (41 testů: BoatStats, EconomyConfig, GameData, SaveMigration, LootAndQuest, StoryLogic, StoryPhaseBC) a
   `Assets/Tests/PlayMode` (kamera, vlny). Spuštění: Unity *Window → General → Test Runner* nebo MCP
   `run_tests` + `get_test_job`.
 - Komentáře a herní texty jsou **česky**. Hlavičky souborů/sekcí komentář s čárou `─────`.
@@ -228,9 +228,27 @@ ostrově). Podporuje lokální split-screen pro dva hráče.
 - **Celý oblouk je hotový**: tři mega ostrovy za sebou (`megaIndex` 0→1→2, viz
   výš) — po přečtení vzkazu na druhém z nich se na třetím objeví bratrova loď
   (`RivalNpc.Spawn` po jejím potopení), dlouhý monolog a volba **ušetřit /
-  zabít** → `gameData.storyDone=true`, `storyEnding` (1/2) mění dědovu
-  poslední repliku. Detail: `.claude/story-plan.md`, historie kroků:
-  `.claude/handoff.md`.
+  zabít** (pergamenový list se 2 tlačítky) → `gameData.storyDone=true`, `storyEnding` (1/2).
+  Detail: `.claude/story-plan.md`, historie kroků: `.claude/handoff.md`.
+- **Fáze B+C (11/2026)** — vzhled a dokončení příběhu:
+  - `StoryAtmosphere` (z `GridManager.Awake`): nálada podle vzdálenosti od mega ostrova — Pirátský
+    = západ slunce, Hřbitov (i když honí Holanďan, `StoryEvents.GhostHunting`) = zelená mlha,
+    Poslední = bouře (déšť částicemi, blesky + hrom). Mění jen `RenderSettings` + hlavní světlo, nic
+    neukládá. Vybírá i hudbu (`SoundManager.SetMusic`, smyčky akordů generované kódem; bojová při
+    `CombatDirector.StoryBossEngaged`, závěrečná při `EndScreen.IsOpen`).
+  - `ChapterCard`: pergamenová karta při změně `JournalScreen.ChapterNumber` (po loadu se neukáže,
+    čeká, až se zavře dopis/dialog).
+  - HUD checklist ostrova (`HUDCounter.IslandChecklist`, počty z `MegaIslandMarker.GetDefenseStatus`).
+  - `DiaryPages` — 6 stránek bratrova deníku (`gameData.diaryPagesMask`, bit = index, **nepřečíslovat**):
+    0/2/4 svitek na mega ostrově (`MegaIslandMarker.BuildDiaryPage`), 1/5 z bedny (`PageForChest`),
+    3 z vraku Holanďana. Čtou se v Deníku.
+  - Finále: bratr volá z paluby (`UpdateBrotherTaunts`), boss bar „BRATROVA LOĎ" (`PirateShip.isBrotherShip`).
+    Po volbě `RivalNpc.ApplyEndingToWorld`: šipka domů, konec 1 = bratr sedí doma vedle dědy
+    (`StoryNpc.RefreshCompanion`), konec 2 = hrob na ostrově. Epilog u dědy (střídají se mluvčí,
+    `activeNames`) → `gameData.storyEpilogueSeen` → `EndScreen` (statistiky `stat*`/`playSeconds`,
+    titulky, přepínač **Těžké moře** `gameData.hardMode` → `EconomyConfig.Hard*`).
+  - Megalodon má stín pod hladinou a dává trofej `LootItems.MEGALODON_TOOTH` (váha 0 = nepadá náhodně).
+  - `FlagWave` — vlající vlajky nepřátelských ostrovů (vrcholy sítě, jen když je vidět).
 
 ### Lokalizace (`Loc.cs`) — čeština / angličtina
 - Obě verze textu stojí vedle sebe v kódu: `Loc.T("Nová hra", "New Game")`; dialogy jako
@@ -278,7 +296,8 @@ neřídí `Time.timeScale` (jako obchod/mapa), v sólu ji pauzuje `SoloPause`.
   nastaví `GameData` znovu i při opakovaném spuštění).
 - **`story step <0-9>`** — jen nastaví `storyStep` (dřívější `story <n>`, přejmenováno
   kvůli kolizi s presety výše). Dál: `story island`, `story histtreasure`,
-  `story megatask <0-3>`, `story ending <0-2>`, `story nextisland`.
+  `story megatask <0-3>`, `story ending <0-2>`, `story nextisland`, `story diary <0-5|all>`,
+  `story epilogue`, `story endscreen`, `story hardmode`.
 
 ## Konvence v kódu
 

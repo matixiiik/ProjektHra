@@ -26,7 +26,11 @@ ověřeny, 7/8/10 teď doplouvají přirozeně (storyStep 2 → 3). Testy StoryL
 5. **Konec hry:** po volbě ušetřit/zabít jen jiná replika dědy. Chybí pocit „dohráno“.
 6. Projet presety `story 4–10` jeden po druhém a zkontrolovat, že každý sedí na aktuální kód.
 
-## B. Velký efekt za málo práce (vzhled a atmosféra)
+## B. Velký efekt za málo práce (vzhled a atmosféra) — HOTOVO 27. 11. 2026 (větev `pribeh-faze-bc`)
+Stav: B1 ✅ `ChapterCard`; B2 ✅ checklist v HUD; B3 ✅ `StoryAtmosphere` (západ slunce / zelená mlha /
+bouře s deštěm a blesky); B4 ✅ stín pod hladinou + trofej „Zub megalodona“ (ploutev a varování už byly);
+B5 ✅ zelená mlha a lucerny Holanďana; B6 ✅ hudba 5 skladeb kódem; B7 ✅ vlající vlajky (`FlagWave`) —
+pěna u břehu VYNECHÁNA (dva pásy u břehu na mřížce terénu spolehlivě nejdou, viz CLAUDE.md).
 
 1. **Úvodní karta kapitoly** při připlutí k mega ostrovu: pergamenový pruh „Kapitola 4 — Pirátský
    ostrov“ (názvy už jsou v `JournalScreen`), pomalé ztmavení + zvukový akord.
@@ -42,7 +46,10 @@ ověřeny, 7/8/10 teď doplouvají přirozeně (storyStep 2 → 3). Testy StoryL
    kapitolu + napětí v souboji s bossem.
 7. Vlajky a plachty se vlní (shader / jednoduchá animace vrcholů), pěna u břehu.
 
-## C. Větší novinky (aby byl příběh „propracovaný“)
+## C. Větší novinky (aby byl příběh „propracovaný“) — HOTOVO 27. 11. 2026 (větev `pribeh-faze-bc`)
+Stav: C1 ✅ `DiaryPages` (6 stránek); C2 ✅ děda reaguje na megalodona a stránky; C3 ✅ hlášky z paluby +
+volba jako pergamen; C4 ✅ bratr doma vedle dědy / hrob; C5 ✅ `EndScreen` (statistiky, titulky);
+C6 ✅ jako „Těžké moře“ (přepínač na závěrečné obrazovce) — příběh se znovu nehraje, jen silnější svět.
 
 1. **Bratrův deník — sběratelské stránky** (5–6 kusů) schované na ostrovech po cestě; v Deníku se
    skládají do příběhu, proč bratr odešel. Přidává průzkum a vysvětluje motivaci bez dlouhých monologů.

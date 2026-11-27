@@ -55,13 +55,30 @@ public class MegaIslandMarker : MonoBehaviour
 
     private bool hasObelisk; // stojí na ostrově obelisk? (Pirátský ostrov ho nemá)
 
+    // ── Checklist v HUD (fáze B) — kolik obrany ostrova 1 bylo na začátku ────
+    private int cannonsTotal, guardsTotal, shipsTotal;
+    private int lastAliveSum = -1; // změna = překreslit HUD (NotifyWorldChanged)
+
+    // ── Stránka bratrova deníku schovaná na ostrově (fáze C, DiaryPages) ────
+    private int        pageIndex = -1;   // která stránka tu leží (0/2/4), -1 = žádná
+    private Vector2Int pageTile;
+    private GameObject pageVisual;
+
+    // ── Hlášky bratra během bitvy s jeho lodí (ostrov 3) ────────────────────
+    private int        tauntStage;       // kolik hlášek už zaznělo (0–4)
+    private GameObject graveGo;          // hrob po konci "zabít" (storyEnding 2)
+
     /// <summary>Stojí na políčku obelisk? Pěšák do něj nesmí vejít (neviditelná bariéra);
     /// interakce (E) funguje z vedlejšího políčka.</summary>
     public static bool BlocksWalking(int tx, int ty)
         => Instance != null && Instance.hasObelisk && tx == Instance.tilePos.x && ty == Instance.tilePos.y;
 
     void Awake()     { Instance = this; }
-    void OnDestroy() { if (Instance == this) Instance = null; }
+    void OnDestroy()
+    {
+        if (Instance == this) Instance = null;
+        if (pageVisual != null) Destroy(pageVisual); // stránka patří ostrovu — se starým markerem zmizí
+    }
 
     void Start()
     {
@@ -80,6 +97,67 @@ public class MegaIslandMarker : MonoBehaviour
             case 1: BuildWreckGraveyard(); break;
             default: BuildConfrontation(); break; // 2 (a jistota pro budoucí)
         }
+
+        // Na každém ostrově leží jedna stránka bratrova deníku (0 / 2 / 4).
+        BuildDiaryPage(megaIndex == 0 ? 0 : megaIndex == 1 ? 2 : 4);
+    }
+
+    // ── Stránka bratrova deníku (DiaryPages) ─────────────────────────────────
+    // Svitek na sudu s teplým světýlkem, na políčku kousek od středu ostrova (nejvzdálenější
+    // ze tří nejbližších vhodných políček — to první si berou trezor / podpalubí / bratr).
+    private void BuildDiaryPage(int index)
+    {
+        if (gridManager == null || DiaryPages.Has(gridManager.gameData, index)) return;
+
+        var spots = FindGuardTiles(3);
+        if (spots.Count < 2) return; // mrňavý ostrov — stránka se tu prostě neschová
+        pageIndex = index;
+        pageTile  = spots[spots.Count - 1];
+
+        pageVisual = new GameObject("DiaryPage");
+        pageVisual.transform.position = new Vector3(pageTile.x, 0f, pageTile.y);
+
+        var barrel = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+        Destroy(barrel.GetComponent<Collider>());
+        barrel.transform.SetParent(pageVisual.transform, false);
+        barrel.transform.localPosition = new Vector3(0f, 0.25f, 0f);
+        barrel.transform.localScale    = new Vector3(0.42f, 0.25f, 0.42f);
+        barrel.GetComponent<MeshRenderer>().sharedMaterial = MakeMat(new Color(0.36f, 0.24f, 0.14f));
+
+        var scroll = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+        Destroy(scroll.GetComponent<Collider>());
+        scroll.name = "Scroll";
+        scroll.transform.SetParent(pageVisual.transform, false);
+        scroll.transform.localPosition    = new Vector3(0f, 0.56f, 0f);
+        scroll.transform.localScale       = new Vector3(0.09f, 0.2f, 0.09f);
+        scroll.transform.localEulerAngles = new Vector3(0f, 30f, 90f); // svitek leží na boku
+        Material paper = MakeMat(new Color(0.93f, 0.86f, 0.68f));
+        if (paper.HasProperty("_EmissionColor"))
+        {
+            paper.EnableKeyword("_EMISSION");
+            paper.SetColor("_EmissionColor", new Color(0.5f, 0.4f, 0.2f)); // lehce "svítí", ať jde najít
+        }
+        scroll.GetComponent<MeshRenderer>().sharedMaterial = paper;
+
+        var lightGo = new GameObject("PageLight");
+        lightGo.transform.SetParent(pageVisual.transform, false);
+        lightGo.transform.localPosition = new Vector3(0f, 1.1f, 0f);
+        var l = lightGo.AddComponent<Light>();
+        l.type = LightType.Point; l.color = new Color(1f, 0.8f, 0.45f); l.range = 4f; l.intensity = 1.6f;
+    }
+
+    // Sebrání stránky (E vedle sudu).
+    private void CollectDiaryPage()
+    {
+        var d = gridManager.gameData;
+        if (DiaryPages.Collect(d, pageIndex))
+        {
+            gridManager.Save();
+            SoundManager.PlayChapterChord();
+            if (CombatDirector.Instance != null) CombatDirector.Instance.Toast(DiaryPages.FoundToast(d), 5f);
+        }
+        if (pageVisual != null) Destroy(pageVisual);
+        pageIndex = -1;
     }
 
     // Sečti zničenou obranu → megaTask 0→1. Ostrov pirátů (děla+strážci+loď) i
@@ -96,6 +174,11 @@ public class MegaIslandMarker : MonoBehaviour
         {
             myCannons.RemoveAll(c => c == null);
             myGuards.RemoveAll(g => g == null);
+
+            // Něco z obrany padlo → překresli HUD (checklist "Děla 1/3 · Stráže 2/3").
+            int alive = myCannons.Count + myGuards.Count + (myGuardShip != null ? 1 : 0);
+            if (alive != lastAliveSum) { lastAliveSum = alive; gridManager.NotifyWorldChanged(); }
+
             if (myCannons.Count == 0 && myGuards.Count == 0 && myGuardShip == null)
             {
                 d.megaTask = 1;
@@ -112,6 +195,10 @@ public class MegaIslandMarker : MonoBehaviour
             gridManager.NotifyWorldChanged();
             if (CombatDirector.Instance != null) CombatDirector.Instance.Toast(Loc.T("Bludný Holanďan je poražen. Mělčina teď skrývá kousky mapy.", "The Flying Dutchman is defeated. The shoals now hide pieces of the map."));
             SpawnDigSpots();
+        }
+        else if (bossShipSpawned && bossShipSpawnedOk && myBossShip != null)
+        {
+            UpdateBrotherTaunts();
         }
         else if (bossShipSpawned && bossShipSpawnedOk && myBossShip == null)
         {
@@ -188,7 +275,26 @@ public class MegaIslandMarker : MonoBehaviour
         foreach (var spot in FindScatteredGuardTiles(guardCount))
             myGuards.Add(LandGuard.Spawn(spot, "mega"));
 
+        // Kolik obrany bylo na začátku — HUD z toho skládá checklist (GetDefenseStatus).
+        cannonsTotal   = myCannons.Count;
+        guardsTotal    = myGuards.Count;
+        shipsTotal     = myGuardShip != null ? 1 : 0;
         defenseSpawned = true;
+    }
+
+    /// <summary>Stav obrany Pirátského ostrova pro checklist v HUD: kolik čeho ještě
+    /// žije (…Left) a kolik toho bylo na začátku (…All). Po reloadu s už padlou
+    /// obranou jsou všechny nuly — HUD pak podle megaTask ukáže "hotovo".</summary>
+    public void GetDefenseStatus(out int cannonsLeft, out int cannonsAll, out int guardsLeft, out int guardsAll,
+                                 out int shipsLeft, out int shipsAll)
+    {
+        cannonsLeft = 0; guardsLeft = 0;
+        foreach (var c in myCannons) if (c != null) cannonsLeft++;
+        foreach (var g in myGuards)  if (g != null) guardsLeft++;
+        shipsLeft  = myGuardShip != null ? 1 : 0;
+        cannonsAll = cannonsTotal;
+        guardsAll  = guardsTotal;
+        shipsAll   = shipsTotal;
     }
 
     // Rozmístí 2–3 děla NA věže hradby (náhodně, ale deterministicky podle
@@ -480,6 +586,10 @@ public class MegaIslandMarker : MonoBehaviour
         if (gridManager == null) return;
         var d = gridManager.gameData;
 
+        // Po finále: bratr tu už nestojí — buď odplul s hráčem domů (konec 1),
+        // nebo po něm zůstal hrob (konec 2). Viz ApplyEnding.
+        if (d.storyDone) { if (d.storyEnding == 2) BuildGrave(); return; }
+
         // Po reloadu: loď se staví jen jednou, jinak rovnou obnov bratra.
         if (d.megaTask > 0) { SpawnRival(); return; }
 
@@ -488,6 +598,7 @@ public class MegaIslandMarker : MonoBehaviour
         {
             var w = bossSpot.Value;
             myBossShip = PirateShip.Spawn(new Vector3(w.x, 0f, w.y), 2); // velká loď
+            myBossShip.isBrotherShip = true; // jiné jméno na boss baru
             myBossShip.SetGuard(new Vector3(w.x, 0f, w.y));
             myBossShip.guardIslandKey = "mega";
             if (CombatDirector.Instance != null) CombatDirector.Instance.RegisterGuardShip(myBossShip);
@@ -501,6 +612,73 @@ public class MegaIslandMarker : MonoBehaviour
             SpawnRival();
         }
         bossShipSpawned = true;
+    }
+
+    // ── Finále: bratr volá z paluby během bitvy (fáze C) ──────────────────────
+    // Čtyři hlášky: když loď poprvé zaútočí a když jí klesne zdraví pod 70 / 40 / 15 %.
+    // Toast "Hlas z paluby" — hráč tak ví, s kým bojuje, a monolog na břehu pak navazuje.
+    private void UpdateBrotherTaunts()
+    {
+        var cd = CombatDirector.Instance;
+        if (cd == null) return;
+
+        float hp = myBossShip.HpFraction;
+        int want = (!myBossShip.Engaged && tauntStage == 0) ? 0
+                 : hp > 0.70f ? 1 : hp > 0.40f ? 2 : hp > 0.15f ? 3 : 4;
+        if (want <= tauntStage) return;
+        tauntStage = want;
+
+        string voice = Loc.T("Hlas z paluby: ", "A voice from the deck: ");
+        string line;
+        switch (tauntStage)
+        {
+            case 1:  line = Loc.T("„Otoč to, dokud můžeš! Tenhle ostrov je můj!“", "“Turn back while you still can! This island is mine!”"); break;
+            case 2:  line = Loc.T("„Starý tě poslal, co? Sám si netroufl přijet?“", "“The old man sent you, did he? Too afraid to come himself?”"); break;
+            case 3:  line = Loc.T("„Tuhle loď jsem čtyřicet let skládal z trosek, co moře vyplavilo!“", "“I spent forty years building this ship from wreckage the sea washed up!”"); break;
+            default: line = Loc.T("„Dost… dost. Přistaň. Promluvíme si na břehu.“", "“Enough… enough. Come ashore. We will talk on land.”"); break;
+        }
+        cd.Toast(voice + line, 5f);
+    }
+
+    /// <summary>
+    /// Viditelný konec příběhu na Posledním ostrově (volá RivalNpc po zavření dialogu s volbou).
+    /// Konec 1 (ušetřit): bratr zmizí — odplul s hráčem, objeví se doma u dědy (StoryNpc).
+    /// Konec 2 (zabít): na jeho místě zůstane hrob.
+    /// </summary>
+    public void ApplyEnding(int ending)
+    {
+        if (rival != null) Destroy(rival.gameObject);
+        rival = null;
+        if (ending == 2) BuildGrave();
+    }
+
+    // Hrob — hromádka kamenů a dřevěný kříž na místě, kde stál bratr.
+    private void BuildGrave()
+    {
+        if (graveGo != null || gridManager == null) return;
+        var candidates = FindGuardTiles(1);
+        Vector2Int spot = candidates.Count > 0 ? candidates[0] : tilePos;
+
+        graveGo = new GameObject("BrotherGrave");
+        graveGo.transform.SetParent(transform, false);
+        graveGo.transform.position = new Vector3(spot.x, 0f, spot.y);
+
+        Material stone = MakeMat(new Color(0.45f, 0.44f, 0.42f));
+        Material wood  = MakeMat(new Color(0.30f, 0.20f, 0.12f));
+        GravePart(PrimitiveType.Sphere, new Vector3(0f, 0.05f, 0f),      new Vector3(0.9f, 0.25f, 1.3f),  stone);
+        GravePart(PrimitiveType.Sphere, new Vector3(0.25f, 0.14f, 0.3f), new Vector3(0.3f, 0.2f, 0.3f),   stone);
+        GravePart(PrimitiveType.Cube,   new Vector3(0f, 0.55f, -0.55f),  new Vector3(0.08f, 0.9f, 0.08f), wood);
+        GravePart(PrimitiveType.Cube,   new Vector3(0f, 0.75f, -0.55f),  new Vector3(0.45f, 0.08f, 0.08f), wood);
+    }
+
+    private void GravePart(PrimitiveType type, Vector3 localPos, Vector3 scale, Material mat)
+    {
+        var go = GameObject.CreatePrimitive(type);
+        Destroy(go.GetComponent<Collider>());
+        go.transform.SetParent(graveGo.transform, false);
+        go.transform.localPosition = localPos;
+        go.transform.localScale    = scale;
+        go.GetComponent<MeshRenderer>().sharedMaterial = mat;
     }
 
     // Bratr se objeví na pevném políčku poblíž obelisku, jakmile jeho loď padne.
@@ -948,6 +1126,9 @@ public class MegaIslandMarker : MonoBehaviour
         if (holdBuilt && x == holdTile.x && y == holdTile.y)
             return TryReadMessage(playerIndex);
 
+        // Stránka bratrova deníku.
+        if (pageIndex >= 0 && x == pageTile.x && y == pageTile.y) { CollectDiaryPage(); return true; }
+
         if (x != tilePos.x || y != tilePos.y) return false;
         if (CombatDirector.Instance != null) CombatDirector.Instance.Toast(Loc.T(signTextCs, signTextEn));
         return true;
@@ -969,6 +1150,8 @@ public class MegaIslandMarker : MonoBehaviour
 
         if (holdBuilt && x == holdTile.x && y == holdTile.y)
             return gridManager != null && gridManager.gameData.megaTask < 3 ? Loc.T("prohledat podpalubí", "search the hold") : null;
+
+        if (pageIndex >= 0 && x == pageTile.x && y == pageTile.y) return Loc.T("vzít svitek", "take the scroll");
 
         if (x == tilePos.x && y == tilePos.y)
         {

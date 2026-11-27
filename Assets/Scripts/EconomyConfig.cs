@@ -47,6 +47,18 @@ public static class EconomyConfig
     public const int LandGuardReward    = 30;  // stráž na mega ostrově (story-plan.md Krok 2) — menší než dělo, jen doplněk
     public const int SeaMonsterReward   = 400; // jednorázová odměna za mořskou obludu (story-plan.md Krok 5)
     public const int FamilyTreasureReward = 5000; // rodinné dědictví od bratra (Krok 7) — stejná odměna bez ohledu na volbu, ať se nevyplácí "zabít"
+    public const int MegalodonToothPrice = 300; // trofej po megalodonovi (LootItems.MEGALODON_TOOTH) — výkup
+
+    // ── Těžké moře (odemkne se po dohrání příběhu, GameData.hardMode) ──────
+    public const float HardEnemyHpMult     = 1.6f; // piráti a děla vydrží víc zásahů
+    public const float HardEnemyDamageMult = 1.5f; // a víc bolí
+    public const float HardRewardMult      = 1.5f; // za to víc mincí za potopení
+    public const float HardLootChance      = 0.40f; // a častější kořist (místo LootItems.DROP_CHANCE)
+
+    /// <summary>Je zapnuté Těžké moře? (bezpečné i bez GameSession — v testech/editoru vrací false)</summary>
+    public static bool HardMode => GameSession.Instance != null && GameSession.Instance.Data != null
+                                   && GameSession.Instance.Data.hardMode;
+
     public const int ChestCoinsMin      = 40;
     public const int ChestCoinsMax      = 120;
     public const int MegaQuestCoinsMin  = 400;

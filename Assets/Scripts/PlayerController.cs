@@ -316,7 +316,7 @@ public class PlayerController : MonoBehaviour
                         || (RivalNpc.Instance != null && RivalNpc.Instance.IsTalkingWith(playerIndex));
         bool myVaultOpen = VaultMechanism.IsOpenFor(playerIndex); // puzzle na trezoru mega ostrova (Krok 3)
         if (isMoving || isWorking || myShopOpen || myTalkOpen || myVaultOpen || LetterScreen.IsOpenFor(playerIndex) || MapScreen.IsOpenFor(playerIndex)
-            || GameConsole.IsOpen || MainMenuManager.IsVisible || DeathScreen.IsOpenFor(playerIndex)) return;
+            || GameConsole.IsOpen || MainMenuManager.IsVisible || DeathScreen.IsOpenFor(playerIndex) || EndScreen.IsOpen) return;
 
         // E / Numpad1 → nastup/vystup z lodě, nebo vejdi do sousední budovy (maják).
         if (KeyDown(KeyCode.E, KeyCode.Keypad1))
@@ -374,27 +374,66 @@ public class PlayerController : MonoBehaviour
     private Transform AimCamera
         => viewCamera != null ? viewCamera : (Camera.main != null ? Camera.main.transform : null);
 
-    private const float AIM_NEUTRAL_PITCH = 52f; // sklon kamery, při kterém se střílí vodorovně (výchozí pohled)
-    private const float MAX_AIM_ANGLE     = 30f; // nejvyšší náměr nahoru / dolů ve třetí osobě
-    private const float FP_MAX_AIM_ANGLE  = 60f; // v první osobě jde mířit strměji
+    private const float FP_MAX_AIM_ANGLE  = 60f; // v první osobě se míří ručně kamerou, až do ±60°
 
-    // Náměr výstřelu ve stupních (kladný = nahoru, záporný = dolů) podle sklonu kamery.
-    //  • první osoba: přímo tam, kam se díváš
-    //  • třetí osoba: výchozí pohled (52°) = rovně; kamera výš (menší sklon) = nahoru,
-    //    kamera kolmo dolů = dolů. Nahoru se tak dá trefit dělo na věži hradby.
-    private float AimElevationDeg()
+    // Náměr výstřelu ve stupních (kladný = nahoru, záporný = dolů) pro střelu z `from`
+    // vodorovným směrem `dirH`:
+    //  • první osoba: ručně — přímo tam, kam se díváš (sklon kamery)
+    //  • třetí osoba: AUTOMATICKY (AimAssist) — když je před hráčem cíl, náměr přesně
+    //    na něj (i na dělo na věži), jinak vodorovně. Sklon kamery se už nepoužívá:
+    //    podle toho, jak hráč zrovna natočil kameru, létaly koule do vody nebo do nebe.
+    private float AimElevationDeg(Vector3 from, Vector3 dirH)
     {
         Transform cam = AimCamera;
-        if (cam == null) return 0f;
-
-        // Sklon kamery ve stupních (kladný = kouká dolů).
-        float camPitch = Mathf.Asin(Mathf.Clamp(-cam.forward.y, -1f, 1f)) * Mathf.Rad2Deg;
-
-        var orbit = cam.GetComponent<CameraOrbit>();
-        if (orbit != null && orbit.IsFirstPerson)
+        if (IsFirstPersonView && cam != null)
+        {
+            float camPitch = Mathf.Asin(Mathf.Clamp(-cam.forward.y, -1f, 1f)) * Mathf.Rad2Deg; // kladný = kouká dolů
             return Mathf.Clamp(-camPitch, -FP_MAX_AIM_ANGLE, FP_MAX_AIM_ANGLE);
+        }
+        return AimAssist.FindTarget(from, dirH, out Vector3 target) ? AimAssist.ElevationTo(from, target) : 0f;
+    }
 
-        return Mathf.Clamp(AIM_NEUTRAL_PITCH - camPitch, -MAX_AIM_ANGLE, MAX_AIM_ANGLE);
+    // Kompletní výstřel: odkud, kterým směrem a s jakým náměrem. Ve třetí osobě s cílem
+    // v kuželu (AimAssist) se směr dorovná přímo na cíl (i do strany), jinak letí rovně.
+    private void AimShot(out Vector3 from, out Vector3 dir, out float elevation)
+    {
+        ShotOrigin(out from, out dir);
+        if (!IsFirstPersonView && AimAssist.FindTarget(from, dir, out Vector3 target))
+        {
+            Vector3 flat = target - from; flat.y = 0f;
+            if (flat.sqrMagnitude > 0.0001f) dir = flat.normalized;
+            elevation = AimAssist.ElevationTo(from, target);
+            return;
+        }
+        elevation = AimElevationDeg(from, dir);
+    }
+
+    // Je kamera tohoto hráče v první osobě?
+    private bool IsFirstPersonView
+    {
+        get
+        {
+            Transform cam = AimCamera;
+            var orbit = cam != null ? cam.GetComponent<CameraOrbit>() : null;
+            return orbit != null && orbit.IsFirstPerson;
+        }
+    }
+
+    // Odkud a kam by teď vyletěla střela (loď = z přídě dopředu, pěšky = pohled kamery).
+    private void ShotOrigin(out Vector3 from, out Vector3 dirH)
+    {
+        if (!isOnFoot)
+        {
+            dirH = boatModel != null ? boatModel.forward : transform.forward;
+            from = transform.position + Vector3.up * 0.4f; // ústí děla nad palubou
+        }
+        else
+        {
+            dirH = AimHorizontalDir();
+            from = fpWeapon != null && fpWeapon.activeSelf ? fpMuzzle.position : transform.position + Vector3.up * 0.9f;
+        }
+        dirH.y = 0f;
+        dirH = dirH.sqrMagnitude > 0.0001f ? dirH.normalized : Vector3.forward;
     }
 
     // Vodorovný směr, kam se kamera dívá (pro pěší zbraň).
@@ -428,11 +467,10 @@ public class PlayerController : MonoBehaviour
 
         PAmmo -= 1;
 
-        // Koule letí vždy PŘED loď (podél přídě), nahoru / dolů podle kamery.
-        Vector3 dir  = boatModel != null ? boatModel.forward : transform.forward;
-        Vector3 from = transform.position + Vector3.up * 0.4f; // ústí děla nad palubou
+        // Koule letí vždy PŘED loď (podél přídě); výšku dorovná AimAssist na cíl před přídí.
+        AimShot(out Vector3 from, out Vector3 dir, out float elevation);
         CombatDirector.Ensure();
-        CannonBall.FireAimed(from, dir, AimElevationDeg(), BoatStats.CannonDamage(PShipLevel), CannonBall.Side.Player);
+        CannonBall.FireAimed(from, dir, elevation, BoatStats.CannonDamage(PShipLevel), CannonBall.Side.Player);
 
         SoundManager.PlayCannon();
         gridManager.NotifyWorldChanged(); // překresli munici v HUD
@@ -453,11 +491,11 @@ public class PlayerController : MonoBehaviour
 
         // Střílí se tam, kam se dívá kamera (vodorovně) a panáček se k tomu okamžitě otočí,
         // ať míří zbraní přesně směrem výstřelu. Nahoru / dolů podle sklonu kamery.
-        Vector3 dir  = AimHorizontalDir();
-        Vector3 from = fpWeapon != null && fpWeapon.activeSelf ? fpMuzzle.position : transform.position + Vector3.up * 0.9f;
+        AimShot(out Vector3 from, out Vector3 dir, out float elevation);
         if (headDot != null) headDot.transform.rotation = Quaternion.LookRotation(dir);
         CombatDirector.Ensure();
-        CannonBall.FireAimed(from, dir, AimElevationDeg(), HAND_SHOT_DAMAGE, CannonBall.Side.Player);
+        // heavy = false: náboj z pušky kamennou věž nerozbije (jen dělová koule).
+        CannonBall.FireAimed(from, dir, elevation, HAND_SHOT_DAMAGE, CannonBall.Side.Player, false);
 
         SoundManager.PlayHandgun();
         FirstPersonShotEffect();
@@ -962,7 +1000,8 @@ public class PlayerController : MonoBehaviour
         Vector3 dirH = WeaponDrawn ? AimHorizontalDir() : headDot.transform.forward;
         dirH.y = 0f;
         dirH = dirH.sqrMagnitude > 0.0001f ? dirH.normalized : Vector3.forward;
-        float elev = WeaponDrawn ? AimElevationDeg() : 0f;
+        float elev = 0f;
+        if (WeaponDrawn) AimShot(out _, out _, out elev);
 
         // Směr paže / hlavně: vodorovný směr nakloněný nahoru / dolů o náměr.
         Vector3 right = Vector3.Cross(Vector3.up, dirH);
@@ -1226,6 +1265,7 @@ public class PlayerController : MonoBehaviour
         TileType tile = gridManager.GetTileType(tx, ty);
         if (!CanEnter(tile)) return false;
         if (isOnFoot && MegaIslandMarker.BlocksWalking(tx, ty)) return false; // do obelisku se nechodí
+        if (isOnFoot && MegaIslandMarker.BlocksWalkingAt(transform.position, target)) return false; // hradby, věže, chatrče
 
         // Pěšák plave jen kousek od břehu — dál do moře jen lodí.
         if (isOnFoot && IsBoatWater(tile) && !LandWithin(tx, ty, FOOT_SWIM_RANGE)) return false;
@@ -1720,6 +1760,7 @@ public class PlayerController : MonoBehaviour
         PFishCount += catchAmount;
 
         PQuest.AddProgress(ActiveQuest.TYPE_FISH, catchAmount);
+        gridManager.gameData.statFishCaught += catchAmount; // statistika na závěrečnou obrazovku
 
         // Vyčerpané políčko se změní na obyčejnou vodu.
         if (tile.fishRemaining <= 0)
@@ -1750,6 +1791,7 @@ public class PlayerController : MonoBehaviour
         PTreasureCount += 1;
 
         PQuest.AddProgress(ActiveQuest.TYPE_TREASURE, 1);
+        gridManager.gameData.statTreasuresDug++; // statistika na závěrečnou obrazovku
 
         gridManager.SetTileType(x, y, TileType.Water);
         WorkProgress = 0f;
@@ -1854,6 +1896,8 @@ public class PlayerController : MonoBehaviour
         bool blocked = ModalOpen || isMoving || isWorking || GameConsole.IsOpen
                      || MainMenuManager.IsVisible || DeathScreen.IsOpenFor(playerIndex) || VaultMechanism.IsOpenFor(playerIndex);
 
+        if (!blocked) DrawAimReticle();
+
         if (!blocked)
         {
             string hint = GetContextHint();
@@ -1892,6 +1936,39 @@ public class PlayerController : MonoBehaviour
             };
 
         GUI.Label(new Rect(HalfX(), Screen.height - 132f, HalfW(), 24f), msg, repairStyle);
+    }
+
+    // Zaměřovač: když má hráč čím střílet (dělo na lodi / vytažená zbraň) a před sebou
+    // cíl, který by AimAssist trefil, nakreslí kolem cíle čtyři rohy. Hráč tak vidí,
+    // na co koule poletí (a že nemusí mířit kamerou nahoru/dolů).
+    void DrawAimReticle()
+    {
+        bool canShoot = isOnFoot ? (WeaponDrawn && PHandAmmo > 0)
+                                 : (!PBoatWrecked && BoatStats.HasCannon(PShipLevel) && PAmmo > 0);
+        if (!canShoot || IsFirstPersonView) return;
+
+        Transform camTf = AimCamera;
+        Camera cam = camTf != null ? camTf.GetComponent<Camera>() : null;
+        if (cam == null) return;
+
+        ShotOrigin(out Vector3 from, out Vector3 dir);
+        if (!AimAssist.FindTarget(from, dir, out Vector3 target)) return;
+
+        Vector3 sp = cam.WorldToScreenPoint(target);
+        if (sp.z <= 0f) return; // cíl je za kamerou
+        float x = sp.x, y = Screen.height - sp.y; // IMGUI má y odshora
+        float r = 16f * HudSkin.GuiScale, len = 7f * HudSkin.GuiScale, th = 2f;
+
+        GUI.color = new Color(1f, 0.35f, 0.25f, 0.9f);
+        // Čtyři rohy: vlevo nahoře, vpravo nahoře, vlevo dole, vpravo dole (každý = 2 čárky).
+        for (int sx = -1; sx <= 1; sx += 2)
+            for (int sy = -1; sy <= 1; sy += 2)
+            {
+                float cx = x + sx * r, cy = y + sy * r;
+                GUI.DrawTexture(new Rect(sx < 0 ? cx : cx - len, cy - th / 2f, len, th), Texture2D.whiteTexture);
+                GUI.DrawTexture(new Rect(cx - th / 2f, sy < 0 ? cy : cy - len, th, len), Texture2D.whiteTexture);
+            }
+        GUI.color = Color.white;
     }
 
     // Šířka/X začátek "své" půlky obrazovky (celá obrazovka v sólu).

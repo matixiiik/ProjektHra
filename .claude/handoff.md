@@ -8,6 +8,31 @@ sem Claude píše, kde se přestalo, aby se dalo pokračovat i z notebooku.
 
 ---
 
+## STAV 2026-11-27 (odpoledne) — Pirátský ostrov předělaný, větev `pribeh-piratsky-ostrov` (PR)
+PR #25 (fáze B+C) čeká na merge. Na větvi `pribeh-piratsky-ostrov` (navazuje na #25) je předělávka
+Pirátského ostrova podle zadání uživatele, ověřená v Play (story 4 + tp 340 -200):
+`FortressTower.cs` (7 věží ze 3 Kenney dílů, 3 s dělem na výšce 3,02, 6 HP, rozpad + prach + sutiny,
+`GameData.fortressTowersDown`), brána na úseku nejblíž molu + molo se přestaví proti bráně
+(`AlignPierToGate`, `GridManager.SetOrCreateTile`), `MegaIslandMarker.BlocksWalkingAt` (zdi, věže,
+chatrče; bránou se projde — ověřeno skutečnou chůzí), nádvoří `BuildYard` (chatrče, bedny, sudy,
+vlajky, palma, polní dělo; prkenný chodník zrušen — terén uvnitř stoupá a prkna se zanořovala),
+strážci jen uvnitř hradeb. Míření: `AimAssist.cs` (náměr i směr na cíl v kuželu 14°, předsazení
+plující lodi), zaměřovač, `CannonBall.SHIP_HIT_RADIUS = 1.4` (ověřeno: zásahy plující lodi sedí).
+EditMode 45/45. Neověřeno: build, split-screen. Možný další krok: „Věže x/7“ v checklistu HUD.
+
+---
+
+## STAV 2026-11-27 — fáze B (vzhled) + C (dokončení příběhu) hotové, větev `pribeh-faze-bc`
+Fáze A je v main (PR #24). Na větvi `pribeh-faze-bc`: karta kapitoly, checklist v HUD, nálada ostrovů
+(západ slunce / zelená mlha / bouře s deštěm a blesky), hudba generovaná kódem, stín megalodona + trofej,
+zelené lucerny Holanďana, vlající vlajky, 6 stránek bratrova deníku, hlášky bratra z paluby, volba
+jako pergamen, viditelné konce (bratr doma / hrob), epilog u dědy, závěrečná obrazovka se statistikami
+a titulky, Těžké moře. Detail v CLAUDE.md („Fáze B+C“). Ověřeno v Play přes MCP (presety 4, 5, 9, 10,
+screenshoty), EditMode 41/41. Neověřeno: build, split-screen, hraní bez konzole od začátku do konce.
+Dál: čekáme na seznam změn od uživatele z jeho playtestu.
+
+---
+
 ## STAV 2026-11-26 (večer) — PR #23 sloučen, další krok = PŘEPRACOVÁNÍ PŘÍBĚHU
 Uživatel teď sám hraje příběh od 1. mega ostrova (`story 4`) do konce a pošle seznam změn
 („ať hra vypadá co nejlíp a je logicky co nejpropracovanější“). Moje návrhy jsou v

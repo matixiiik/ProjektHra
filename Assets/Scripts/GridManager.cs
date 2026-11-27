@@ -137,6 +137,8 @@ public class GridManager : MonoBehaviour
 
         CombatDirector.Ensure(); // piráti + děla nepřátelských ostrovů
         SoloPause.Ensure();      // v sólu pauza při otevřeném obchodu / dialogu / mapě
+        StoryAtmosphere.Ensure(); // nálada příběhových ostrovů (světlo, mlha, bouře, hudba)
+        ChapterCard.Ensure();     // úvodní karta při přechodu do nové kapitoly
     }
 
     // Při zavření hry / ztrátě okna / zničení scény ulož, co je rozdělané.
@@ -146,6 +148,10 @@ public class GridManager : MonoBehaviour
 
     void Update()
     {
+        // Čistý čas hraní (deltaTime = v pauze 0) — statistika na závěrečnou obrazovku.
+        // Ukládá se s nejbližším jiným uložením, kvůli času se zvlášť neukládá.
+        if (!MainMenuManager.IsVisible) gameData.playSeconds += Time.deltaTime;
+
         // Odložené uložení (viz Save) — nejvýš jednou za SAVE_INTERVAL sekund.
         if (saveDirty && Time.unscaledTime - lastSaveTime >= SAVE_INTERVAL) FlushSave();
     }
@@ -1169,6 +1175,7 @@ public class GridManager : MonoBehaviour
         flag.transform.localPosition = new Vector3(0.5f + 0.46f, topLocalY + 1.2f, 0.5f);
         flag.transform.localScale    = new Vector3(0.85f, 0.52f, 0.04f);
         TintPrimitive(flag, new Color(0.86f, 0.09f, 0.07f));
+        flag.AddComponent<FlagWave>(); // vlaje ve větru (fáze B)
     }
 
     private static void TintPrimitive(GameObject go, Color c)
@@ -1187,6 +1194,15 @@ public class GridManager : MonoBehaviour
     /// Zamluví políčko [x,y] jako "bez dekorace" — volá StoryNpc, když se děda
     /// usadí. Když ta dlaždice právě existuje ve scéně, dekoraci z ní hned sundá.
     /// </summary>
+    /// <summary>Sundá dekoraci (palmu, kámen) z políčka natrvalo — pro postavy, které na
+    /// ostrově stojí (bratr doma u dědy). Na rozdíl od ReserveNpcTile nemění dědovo políčko.</summary>
+    public void ClearTileDecor(int x, int y)
+    {
+        string key = GridKey(x, y);
+        if (gameData != null && gameData.tileData.TryGetValue(key, out var st)) st.decor = 1;
+        if (activeTiles.TryGetValue(key, out GameObject tile)) StripTileDecor(tile);
+    }
+
     public void ReserveNpcTile(int x, int y)
     {
         npcClearTile = new Vector2Int(x, y);
@@ -2139,6 +2155,15 @@ public class GridManager : MonoBehaviour
     /// Změní typ existujícího políčka (např. políčko s rybami → obyčejná voda,
     /// když se ryby vyloví) a hned mu vymění 3D objekt.
     /// </summary>
+    /// <summary>Jako SetTileType, ale políčko, které ještě nebylo vygenerované, rovnou založí
+    /// (molo Pirátského ostrova, které se přestavuje proti bráně — MegaIslandMarker).</summary>
+    public void SetOrCreateTile(int x, int y, TileType newType)
+    {
+        string key = GridKey(x, y);
+        if (!gameData.tileData.ContainsKey(key)) gameData.tileData[key] = new TileStatus((int)newType);
+        SetTileType(x, y, newType);
+    }
+
     public void SetTileType(int x, int y, TileType newType)
     {
         string key = GridKey(x, y);

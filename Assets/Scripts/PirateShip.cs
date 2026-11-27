@@ -38,6 +38,7 @@ public class PirateShip : MonoBehaviour
 
     public  int    size;               // 0 = malá, 1 = střední, 2 = velká
     public  bool   isGhost;            // kosmetika: Bludný Holanďan (ostrov 2, Krok 6) místo pirátské lodi
+    public  bool   isBrotherShip;      // bratrova loď na Posledním ostrově — jiné jméno na boss baru
 
     // Hlídka nepřátelského ostrova: nezmizí sama, po souboji se vrací k ostrovu.
     // Nastavuje CombatDirector přes SetGuard().
@@ -127,6 +128,7 @@ public class PirateShip : MonoBehaviour
         ps.size    = size;
         ps.isGhost = ghost;
         ps.maxHp   = size == 0 ? 2.5f : size == 1 ? 5f : 9f;
+        if (EconomyConfig.HardMode) ps.maxHp *= EconomyConfig.HardEnemyHpMult; // Těžké moře
         ps.hp      = ps.maxHp;
         return ps;
     }
@@ -182,7 +184,7 @@ public class PirateShip : MonoBehaviour
         if (ghostMat.HasProperty("_EmissionColor"))
         {
             ghostMat.EnableKeyword("_EMISSION");
-            ghostMat.SetColor("_EmissionColor", new Color(0.22f, 0.32f, 0.36f));
+            ghostMat.SetColor("_EmissionColor", new Color(0.12f, 0.36f, 0.22f)); // přízračně zelená záře
         }
         foreach (var mr in go.GetComponentsInChildren<MeshRenderer>(true))
         {
@@ -229,6 +231,19 @@ public class PirateShip : MonoBehaviour
     // lodě do různých snímků, ať se neaktualizují všechny najednou (fáze 6 výkon).
     private const float OFFSCREEN_RANGE            = 70f;
     private const int   IDLE_UPDATE_EVERY_N_FRAMES = 4;
+
+    /// <summary>Odhad rychlosti lodi (j/s) z posunu za poslední snímek — AimAssist podle
+    /// něj míří kousek před plující loď, ať ji koule doletí.</summary>
+    public Vector3 Velocity { get; private set; }
+    private Vector3 prevPos;
+    private bool    prevPosSet;
+
+    void LateUpdate()
+    {
+        if (prevPosSet && Time.deltaTime > 0f) Velocity = (transform.position - prevPos) / Time.deltaTime;
+        prevPos = transform.position;
+        prevPosSet = true;
+    }
 
     void Update()
     {
@@ -323,6 +338,7 @@ public class PirateShip : MonoBehaviour
         {
             nextRam = Time.time + 1.5f;
             int ram = size == 0 ? 6 : size == 1 ? 10 : 16;
+            if (EconomyConfig.HardMode) ram = Mathf.RoundToInt(ram * EconomyConfig.HardEnemyDamageMult);
             target.DamageBoat(ram);
             MoveShip(-dir * 1.6f); // odraz zpět
             hp -= 0.4f;                        // náraz bolí i piráta
@@ -334,6 +350,7 @@ public class PirateShip : MonoBehaviour
         {
             nextShot = Time.time + RELOAD;
             float dmg = size == 0 ? 5f : size == 1 ? 8f : 12f;
+            if (EconomyConfig.HardMode) dmg *= EconomyConfig.HardEnemyDamageMult;
             CannonBall.Fire(transform.position + Vector3.up * 0.4f, dir, dmg, CannonBall.Side.Enemy);
             SoundManager.PlayCannon();
         }

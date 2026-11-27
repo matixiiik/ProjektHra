@@ -50,7 +50,9 @@ public class SoloPause : MonoBehaviour
         bool modal = UpgradeShopManager.AnyShopOpen
                   || MapScreen.IsOpen
                   || DeathScreen.IsOpen
-                  || (StoryNpc.Instance != null && StoryNpc.Instance.IsTalking);
+                  || EndScreen.IsOpen
+                  || (StoryNpc.Instance != null && StoryNpc.Instance.IsTalking)
+                  || (RivalNpc.Instance != null && RivalNpc.Instance.IsTalkingWith(0)); // finále s bratrem
 
         if (modal && !weStoppedTime)
         {

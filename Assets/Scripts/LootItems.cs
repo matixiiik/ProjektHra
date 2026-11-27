@@ -43,7 +43,12 @@ public static class LootItems
         new Item("Pirátská šavle",      "Pirate cutlass",      55, 15),
         new Item("Zlatý prsten",        "Golden ring",         70,  7),
         new Item("Stříbrný kalich",     "Silver chalice",     110,  3),
+        // Trofej po megalodonovi — váha 0 = nikdy nepadne náhodně, dává ji jen CombatDirector.OnMonsterSunk.
+        new Item("Zub megalodona",      "Megalodon tooth",    EconomyConfig.MegalodonToothPrice, 0),
     };
+
+    /// <summary>Index trofeje "Zub megalodona" v Items (pořadí se nemění).</summary>
+    public const int MEGALODON_TOOTH = 6;
 
     /// <summary>Kolik kusů předmětu `index` hráč má (chybějící položka = 0).</summary>
     public static int Count(PlayerState ps, int index)

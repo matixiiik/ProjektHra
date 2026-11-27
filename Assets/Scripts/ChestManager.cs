@@ -84,6 +84,11 @@ public class ChestManager : MonoBehaviour
             msg += Loc.T("\n(Mapu si nech na příště — jednu už máš rozdělanou.)",
                          "\n(Keep the map for later — you already have one in progress.)");
         }
+        // Během příběhu může v bedně ležet i stránka bratrova deníku (viz DiaryPages.PageForChest).
+        int page = DiaryPages.PageForChest(grid.gameData);
+        if (page >= 0 && DiaryPages.Collect(grid.gameData, page))
+            msg += "\n" + DiaryPages.FoundToast(grid.gameData);
+
         Toast(msg);
         SoundManager.PlayCoin();
 

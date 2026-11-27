@@ -55,13 +55,30 @@ public class MegaIslandMarker : MonoBehaviour
 
     private bool hasObelisk; // stojí na ostrově obelisk? (Pirátský ostrov ho nemá)
 
+    // ── Checklist v HUD (fáze B) — kolik obrany ostrova 1 bylo na začátku ────
+    private int cannonsTotal, guardsTotal, shipsTotal;
+    private int lastAliveSum = -1; // změna = překreslit HUD (NotifyWorldChanged)
+
+    // ── Stránka bratrova deníku schovaná na ostrově (fáze C, DiaryPages) ────
+    private int        pageIndex = -1;   // která stránka tu leží (0/2/4), -1 = žádná
+    private Vector2Int pageTile;
+    private GameObject pageVisual;
+
+    // ── Hlášky bratra během bitvy s jeho lodí (ostrov 3) ────────────────────
+    private int        tauntStage;       // kolik hlášek už zaznělo (0–4)
+    private GameObject graveGo;          // hrob po konci "zabít" (storyEnding 2)
+
     /// <summary>Stojí na políčku obelisk? Pěšák do něj nesmí vejít (neviditelná bariéra);
     /// interakce (E) funguje z vedlejšího políčka.</summary>
     public static bool BlocksWalking(int tx, int ty)
         => Instance != null && Instance.hasObelisk && tx == Instance.tilePos.x && ty == Instance.tilePos.y;
 
     void Awake()     { Instance = this; }
-    void OnDestroy() { if (Instance == this) Instance = null; }
+    void OnDestroy()
+    {
+        if (Instance == this) Instance = null;
+        if (pageVisual != null) Destroy(pageVisual); // stránka patří ostrovu — se starým markerem zmizí
+    }
 
     void Start()
     {
@@ -80,6 +97,67 @@ public class MegaIslandMarker : MonoBehaviour
             case 1: BuildWreckGraveyard(); break;
             default: BuildConfrontation(); break; // 2 (a jistota pro budoucí)
         }
+
+        // Na každém ostrově leží jedna stránka bratrova deníku (0 / 2 / 4).
+        BuildDiaryPage(megaIndex == 0 ? 0 : megaIndex == 1 ? 2 : 4);
+    }
+
+    // ── Stránka bratrova deníku (DiaryPages) ─────────────────────────────────
+    // Svitek na sudu s teplým světýlkem, na políčku kousek od středu ostrova (nejvzdálenější
+    // ze tří nejbližších vhodných políček — to první si berou trezor / podpalubí / bratr).
+    private void BuildDiaryPage(int index)
+    {
+        if (gridManager == null || DiaryPages.Has(gridManager.gameData, index)) return;
+
+        var spots = FindGuardTiles(3);
+        if (spots.Count < 2) return; // mrňavý ostrov — stránka se tu prostě neschová
+        pageIndex = index;
+        pageTile  = spots[spots.Count - 1];
+
+        pageVisual = new GameObject("DiaryPage");
+        pageVisual.transform.position = new Vector3(pageTile.x, 0f, pageTile.y);
+
+        var barrel = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+        Destroy(barrel.GetComponent<Collider>());
+        barrel.transform.SetParent(pageVisual.transform, false);
+        barrel.transform.localPosition = new Vector3(0f, 0.25f, 0f);
+        barrel.transform.localScale    = new Vector3(0.42f, 0.25f, 0.42f);
+        barrel.GetComponent<MeshRenderer>().sharedMaterial = MakeMat(new Color(0.36f, 0.24f, 0.14f));
+
+        var scroll = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+        Destroy(scroll.GetComponent<Collider>());
+        scroll.name = "Scroll";
+        scroll.transform.SetParent(pageVisual.transform, false);
+        scroll.transform.localPosition    = new Vector3(0f, 0.56f, 0f);
+        scroll.transform.localScale       = new Vector3(0.09f, 0.2f, 0.09f);
+        scroll.transform.localEulerAngles = new Vector3(0f, 30f, 90f); // svitek leží na boku
+        Material paper = MakeMat(new Color(0.93f, 0.86f, 0.68f));
+        if (paper.HasProperty("_EmissionColor"))
+        {
+            paper.EnableKeyword("_EMISSION");
+            paper.SetColor("_EmissionColor", new Color(0.5f, 0.4f, 0.2f)); // lehce "svítí", ať jde najít
+        }
+        scroll.GetComponent<MeshRenderer>().sharedMaterial = paper;
+
+        var lightGo = new GameObject("PageLight");
+        lightGo.transform.SetParent(pageVisual.transform, false);
+        lightGo.transform.localPosition = new Vector3(0f, 1.1f, 0f);
+        var l = lightGo.AddComponent<Light>();
+        l.type = LightType.Point; l.color = new Color(1f, 0.8f, 0.45f); l.range = 4f; l.intensity = 1.6f;
+    }
+
+    // Sebrání stránky (E vedle sudu).
+    private void CollectDiaryPage()
+    {
+        var d = gridManager.gameData;
+        if (DiaryPages.Collect(d, pageIndex))
+        {
+            gridManager.Save();
+            SoundManager.PlayChapterChord();
+            if (CombatDirector.Instance != null) CombatDirector.Instance.Toast(DiaryPages.FoundToast(d), 5f);
+        }
+        if (pageVisual != null) Destroy(pageVisual);
+        pageIndex = -1;
     }
 
     // Sečti zničenou obranu → megaTask 0→1. Ostrov pirátů (děla+strážci+loď) i
@@ -96,6 +174,11 @@ public class MegaIslandMarker : MonoBehaviour
         {
             myCannons.RemoveAll(c => c == null);
             myGuards.RemoveAll(g => g == null);
+
+            // Něco z obrany padlo → překresli HUD (checklist "Děla 1/3 · Stráže 2/3").
+            int alive = myCannons.Count + myGuards.Count + (myGuardShip != null ? 1 : 0);
+            if (alive != lastAliveSum) { lastAliveSum = alive; gridManager.NotifyWorldChanged(); }
+
             if (myCannons.Count == 0 && myGuards.Count == 0 && myGuardShip == null)
             {
                 d.megaTask = 1;
@@ -112,6 +195,10 @@ public class MegaIslandMarker : MonoBehaviour
             gridManager.NotifyWorldChanged();
             if (CombatDirector.Instance != null) CombatDirector.Instance.Toast(Loc.T("Bludný Holanďan je poražen. Mělčina teď skrývá kousky mapy.", "The Flying Dutchman is defeated. The shoals now hide pieces of the map."));
             SpawnDigSpots();
+        }
+        else if (bossShipSpawned && bossShipSpawnedOk && myBossShip != null)
+        {
+            UpdateBrotherTaunts();
         }
         else if (bossShipSpawned && bossShipSpawnedOk && myBossShip == null)
         {
@@ -152,7 +239,8 @@ public class MegaIslandMarker : MonoBehaviour
         // v týhle scéně už stojí (další "Nová hra" bez restartu Unity),
         // BuildWalls ji podruhé nepostaví, ale pozice věží (deterministické)
         // vrátí i tak — podle nich se dole rozmisťují děla.
-        var towerCorners = BuildWalls();
+        BuildWalls();
+        BuildYard(); // chatrče, bedny, vlajky… (musí být před strážci — ti se vyhnou obsazeným políčkům)
 
         // Trezor je přístupný HNED, i když obrana ještě stojí (na žádost
         // playtestu — nemá smysl nutit hráče vyřídit VŠECHNA děla/strážce/
@@ -169,7 +257,7 @@ public class MegaIslandMarker : MonoBehaviour
         int seed = Mathf.Abs(unchecked(tilePos.x * 73856093 ^ tilePos.y * 19349663));
         int guardCount = 2 + (seed / 2) % 2;
 
-        PlaceCannonsOnTowers(towerCorners, seed);
+        PlaceCannonsOnTowers();
 
         Vector2Int? guardSpot = FindGuardWaterSpot();
         if (guardSpot != null)
@@ -188,32 +276,41 @@ public class MegaIslandMarker : MonoBehaviour
         foreach (var spot in FindScatteredGuardTiles(guardCount))
             myGuards.Add(LandGuard.Spawn(spot, "mega"));
 
+        // Kolik obrany bylo na začátku — HUD z toho skládá checklist (GetDefenseStatus).
+        cannonsTotal   = myCannons.Count;
+        guardsTotal    = myGuards.Count;
+        shipsTotal     = myGuardShip != null ? 1 : 0;
         defenseSpawned = true;
     }
 
-    // Rozmístí 2–3 děla NA věže hradby (náhodně, ale deterministicky podle
-    // pozice ostrova — žádný Random.value, ať stejný ostrov po reloadu vypadá
-    // pořád stejně). Dělo sedí na plošině věže (CANNON_HEIGHT), ne až úplně
-    // nahoře na střeše. HostileIslandCannon.IsNear počítá jen vodorovnou
-    // vzdálenost, takže i takhle vysoko posazené dělo jde normálně trefit
-    // koulí letící u hladiny (nebo obloukem — viz CannonBall/PlayerController).
-    private const float CANNON_TOWER_HEIGHT = 2.4f;
-
-    private void PlaceCannonsOnTowers(List<Vector2> towerPositions, int seed)
+    /// <summary>Stav obrany Pirátského ostrova pro checklist v HUD: kolik čeho ještě
+    /// žije (…Left) a kolik toho bylo na začátku (…All). Po reloadu s už padlou
+    /// obranou jsou všechny nuly — HUD pak podle megaTask ukáže "hotovo".</summary>
+    public void GetDefenseStatus(out int cannonsLeft, out int cannonsAll, out int guardsLeft, out int guardsAll,
+                                 out int shipsLeft, out int shipsAll)
     {
-        if (towerPositions == null || towerPositions.Count == 0) return;
+        cannonsLeft = 0; guardsLeft = 0;
+        foreach (var c in myCannons) if (c != null) cannonsLeft++;
+        foreach (var g in myGuards)  if (g != null) guardsLeft++;
+        shipsLeft  = myGuardShip != null ? 1 : 0;
+        cannonsAll = cannonsTotal;
+        guardsAll  = guardsTotal;
+        shipsAll   = shipsTotal;
+    }
 
-        int count = Mathf.Min(towerPositions.Count, 2 + seed % 2);
-        var order = new List<int>();
-        for (int i = 0; i < towerPositions.Count; i++) order.Add(i);
-        order.Sort((a, b) => TowerPickKey(seed, a).CompareTo(TowerPickKey(seed, b)));
-
-        for (int k = 0; k < count; k++)
+    // Postaví děla na věže, které je mají mít (cannonTowerIdx — vybrané v BuildWalls,
+    // deterministicky podle pozice ostrova). Na zbořenou věž se dělo nestaví.
+    // HostileIslandCannon.IsNear počítá jen vodorovnou vzdálenost, takže i vysoko
+    // posazené dělo jde trefit (AimAssist na něj navede náměr).
+    private void PlaceCannonsOnTowers()
+    {
+        foreach (var t in towers)
         {
-            Vector2 pos = towerPositions[order[k]];
-            var tile = new Vector2Int(Mathf.RoundToInt(pos.x), Mathf.RoundToInt(pos.y));
-            var cannon = HostileIslandCannon.Spawn(tile, "mega");
-            cannon.transform.position = new Vector3(pos.x, CANNON_TOWER_HEIGHT, pos.y);
+            if (t == null || !t.Standing || !cannonTowerIdx.Contains(t.Index)) continue;
+            Vector3 p = t.transform.position;
+            var cannon = HostileIslandCannon.Spawn(new Vector2Int(Mathf.RoundToInt(p.x), Mathf.RoundToInt(p.z)), "mega");
+            cannon.transform.position = new Vector3(p.x, FortressTower.CANNON_HEIGHT, p.z);
+            t.Cannon = cannon;
             myCannons.Add(cannon);
             if (CombatDirector.Instance != null) CombatDirector.Instance.RegisterCannon(cannon);
         }
@@ -263,6 +360,8 @@ public class MegaIslandMarker : MonoBehaviour
             {
                 if (Mathf.Max(Mathf.Abs(x - tilePos.x), Mathf.Abs(y - tilePos.y)) < 2) continue;
                 if (gridManager.GetTileType(x, y) != TileType.MegaIsland) continue;
+                // Jen uvnitř hradeb (ne ve zdi ani na pláži za ní) a ne v chatrči / na bednách.
+                if (!IsInnerTile(x, y, 1) || yardBlocked.Contains(new Vector2Int(x, y))) continue;
                 cand.Add(new Vector2Int(x, y));
             }
 
@@ -480,6 +579,10 @@ public class MegaIslandMarker : MonoBehaviour
         if (gridManager == null) return;
         var d = gridManager.gameData;
 
+        // Po finále: bratr tu už nestojí — buď odplul s hráčem domů (konec 1),
+        // nebo po něm zůstal hrob (konec 2). Viz ApplyEnding.
+        if (d.storyDone) { if (d.storyEnding == 2) BuildGrave(); return; }
+
         // Po reloadu: loď se staví jen jednou, jinak rovnou obnov bratra.
         if (d.megaTask > 0) { SpawnRival(); return; }
 
@@ -488,6 +591,7 @@ public class MegaIslandMarker : MonoBehaviour
         {
             var w = bossSpot.Value;
             myBossShip = PirateShip.Spawn(new Vector3(w.x, 0f, w.y), 2); // velká loď
+            myBossShip.isBrotherShip = true; // jiné jméno na boss baru
             myBossShip.SetGuard(new Vector3(w.x, 0f, w.y));
             myBossShip.guardIslandKey = "mega";
             if (CombatDirector.Instance != null) CombatDirector.Instance.RegisterGuardShip(myBossShip);
@@ -501,6 +605,73 @@ public class MegaIslandMarker : MonoBehaviour
             SpawnRival();
         }
         bossShipSpawned = true;
+    }
+
+    // ── Finále: bratr volá z paluby během bitvy (fáze C) ──────────────────────
+    // Čtyři hlášky: když loď poprvé zaútočí a když jí klesne zdraví pod 70 / 40 / 15 %.
+    // Toast "Hlas z paluby" — hráč tak ví, s kým bojuje, a monolog na břehu pak navazuje.
+    private void UpdateBrotherTaunts()
+    {
+        var cd = CombatDirector.Instance;
+        if (cd == null) return;
+
+        float hp = myBossShip.HpFraction;
+        int want = (!myBossShip.Engaged && tauntStage == 0) ? 0
+                 : hp > 0.70f ? 1 : hp > 0.40f ? 2 : hp > 0.15f ? 3 : 4;
+        if (want <= tauntStage) return;
+        tauntStage = want;
+
+        string voice = Loc.T("Hlas z paluby: ", "A voice from the deck: ");
+        string line;
+        switch (tauntStage)
+        {
+            case 1:  line = Loc.T("„Otoč to, dokud můžeš! Tenhle ostrov je můj!“", "“Turn back while you still can! This island is mine!”"); break;
+            case 2:  line = Loc.T("„Starý tě poslal, co? Sám si netroufl přijet?“", "“The old man sent you, did he? Too afraid to come himself?”"); break;
+            case 3:  line = Loc.T("„Tuhle loď jsem čtyřicet let skládal z trosek, co moře vyplavilo!“", "“I spent forty years building this ship from wreckage the sea washed up!”"); break;
+            default: line = Loc.T("„Dost… dost. Přistaň. Promluvíme si na břehu.“", "“Enough… enough. Come ashore. We will talk on land.”"); break;
+        }
+        cd.Toast(voice + line, 5f);
+    }
+
+    /// <summary>
+    /// Viditelný konec příběhu na Posledním ostrově (volá RivalNpc po zavření dialogu s volbou).
+    /// Konec 1 (ušetřit): bratr zmizí — odplul s hráčem, objeví se doma u dědy (StoryNpc).
+    /// Konec 2 (zabít): na jeho místě zůstane hrob.
+    /// </summary>
+    public void ApplyEnding(int ending)
+    {
+        if (rival != null) Destroy(rival.gameObject);
+        rival = null;
+        if (ending == 2) BuildGrave();
+    }
+
+    // Hrob — hromádka kamenů a dřevěný kříž na místě, kde stál bratr.
+    private void BuildGrave()
+    {
+        if (graveGo != null || gridManager == null) return;
+        var candidates = FindGuardTiles(1);
+        Vector2Int spot = candidates.Count > 0 ? candidates[0] : tilePos;
+
+        graveGo = new GameObject("BrotherGrave");
+        graveGo.transform.SetParent(transform, false);
+        graveGo.transform.position = new Vector3(spot.x, 0f, spot.y);
+
+        Material stone = MakeMat(new Color(0.45f, 0.44f, 0.42f));
+        Material wood  = MakeMat(new Color(0.30f, 0.20f, 0.12f));
+        GravePart(PrimitiveType.Sphere, new Vector3(0f, 0.05f, 0f),      new Vector3(0.9f, 0.25f, 1.3f),  stone);
+        GravePart(PrimitiveType.Sphere, new Vector3(0.25f, 0.14f, 0.3f), new Vector3(0.3f, 0.2f, 0.3f),   stone);
+        GravePart(PrimitiveType.Cube,   new Vector3(0f, 0.55f, -0.55f),  new Vector3(0.08f, 0.9f, 0.08f), wood);
+        GravePart(PrimitiveType.Cube,   new Vector3(0f, 0.75f, -0.55f),  new Vector3(0.45f, 0.08f, 0.08f), wood);
+    }
+
+    private void GravePart(PrimitiveType type, Vector3 localPos, Vector3 scale, Material mat)
+    {
+        var go = GameObject.CreatePrimitive(type);
+        Destroy(go.GetComponent<Collider>());
+        go.transform.SetParent(graveGo.transform, false);
+        go.transform.localPosition = localPos;
+        go.transform.localScale    = scale;
+        go.GetComponent<MeshRenderer>().sharedMaterial = mat;
     }
 
     // Bratr se objeví na pevném políčku poblíž obelisku, jakmile jeho loď padne.
@@ -543,45 +714,114 @@ public class MegaIslandMarker : MonoBehaviour
     //   3) Podél každého úseku se rozmístí PŘESNĚ tolik dílů hradby, kolik má
     //      dlaždic — díly na sebe navazují bez mezery i bez překryvu, protože
     //      Kenney hradba je při WALL_SCALE přesně 1.0 j široká = 1 dlaždice.
-    // Čistě dekorativní, žádný vliv na hratelnost/kolize (modely nemají collider).
-    // ── Střely vs. hradby ──────────────────────────────────────────────────
-    // Tvar hradeb a věží posledního postaveného ostrova (statické — hradby stojí i po
-    // zničení markeru). CannonBall se přes BlocksShot ptá, jestli střela do něčeho narazila.
+    // Hradby blokují střely (BlocksShot) i chůzi pěšáka (BlocksWalkingAt) — modely
+    // samy collider nemají, kolize se počítá z tvaru úseků (shotRuns).
+    // ── Střely a chůze vs. hradby ──────────────────────────────────────────
+    // Tvar hradeb posledního postaveného ostrova (statické — hradby stojí i po
+    // zničení markeru). CannonBall se přes BlocksShot ptá, jestli střela do něčeho
+    // narazila; PlayerController přes BlocksWalkingAt, jestli pěšák nejde do zdi.
     private static List<WallRun> shotRuns;
-    private static List<Vector2> shotTowers;
-    private const float WALL_SHOT_HEIGHT  = 1.8f; // do jaké výšky zeď střelu zastaví (výš přeletí)
-    private const float TOWER_SHOT_HEIGHT = 3.2f;
-    private const float TOWER_SHOT_RADIUS = 0.8f;
+    private static int     gateRunIndex = -1;   // úsek hradby s bránou
+    private static float   gateAlong;           // kde na tom úseku je střed brány (vzdálenost od začátku)
+    private static Rect    fortressBounds;      // obdélník kolem hradeb (rychlé "jsem vůbec u pevnosti?")
+    private static readonly HashSet<Vector2Int> yardBlocked = new HashSet<Vector2Int>(); // políčka s chatrčí / bednami
+    private const float WALL_SHOT_HEIGHT = 1.8f;  // do jaké výšky zeď střelu zastaví (výš přeletí)
+    private const float WALK_BLOCK       = 0.95f; // půl tloušťky zdi + poloměr panáčka
+    private const float GATE_HALF_OPEN   = 0.8f;  // polovina průchodu v bráně (molo je 2 dlaždice široké)
 
-    /// <summary>Narazila by střela v bodě "p" do hradby nebo věže? (střela letící vysoko zeď přeletí)</summary>
-    public static bool BlocksShot(Vector3 p)
+    /// <summary>Narazila by střela v bodě "p" do hradby nebo věže? (střela letící vysoko zeď přeletí)
+    /// Hráčova dělová koule (`playerShot`, `heavy`) věž zároveň poškodí — viz FortressTower.</summary>
+    public static bool BlocksShot(Vector3 p, bool playerShot = false, float damage = 0f, bool heavy = false)
     {
-        if (shotRuns != null && p.y <= WALL_SHOT_HEIGHT)
+        // Věže (stojící do své výšky, sutiny jen nízko).
+        foreach (var tw in FortressTower.All)
+        {
+            if (tw == null || !tw.Contains(p)) continue;
+            if (playerShot) tw.TakeHit(p, damage, heavy);
+            return true;
+        }
+
+        if (shotRuns != null && p.y <= WALL_SHOT_HEIGHT && fortressBounds.Contains(new Vector2(p.x, p.z)))
         {
             Vector2 pt = new Vector2(p.x, p.z);
             foreach (var run in shotRuns)
             {
-                float len = run.EffLength;
-                if (len <= 0f) continue;
-                Vector2 a = run.EffStart;
-                float t = Mathf.Clamp(Vector2.Dot(pt - a, run.Dir), 0f, len);
-                if ((pt - (a + run.Dir * t)).sqrMagnitude <= WALL_HALF_DEPTH * WALL_HALF_DEPTH) return true;
+                if (DistToRun(run, pt, out _) > WALL_HALF_DEPTH) continue;
+                // Věže stojí v rozích, kde se sbíhají zdi — koule letící na věž často
+                // narazí nejdřív do zdi těsně u ní. To se počítá jako zásah věže.
+                if (playerShot)
+                {
+                    FortressTower near = NearestStandingTower(pt, FortressTower.RADIUS + 0.9f);
+                    if (near != null) near.TakeHit(p, damage, heavy);
+                }
+                return true;
             }
-        }
-
-        if (shotTowers != null && p.y <= TOWER_SHOT_HEIGHT)
-        {
-            Vector2 pt = new Vector2(p.x, p.z);
-            foreach (var tw in shotTowers)
-                if ((pt - tw).sqrMagnitude <= TOWER_SHOT_RADIUS * TOWER_SHOT_RADIUS) return true;
         }
         return false;
     }
 
+    // Nejbližší stojící věž do vzdálenosti `range` od bodu (nebo null).
+    private static FortressTower NearestStandingTower(Vector2 pt, float range)
+    {
+        FortressTower best = null;
+        float bestSq = range * range;
+        foreach (var tw in FortressTower.All)
+        {
+            if (tw == null || !tw.Standing) continue;
+            float sq = (new Vector2(tw.transform.position.x, tw.transform.position.z) - pt).sqrMagnitude;
+            if (sq < bestSq) { bestSq = sq; best = tw; }
+        }
+        return best;
+    }
+
+    /// <summary>
+    /// Smí pěšák udělat krok z `from` do `to`? Vrací true, když by vešel do zdi, věže
+    /// nebo do chatrče/beden na nádvoří. Brána u mola je průchozí. Blokuje se jen krok
+    /// SMĚREM do překážky — kdyby panáček (třeba po načtení hry) stál ve zdi, z ní vyjde.
+    /// </summary>
+    public static bool BlocksWalkingAt(Vector3 from, Vector3 to)
+    {
+        if (shotRuns == null) return false;
+        Vector2 a = new Vector2(from.x, from.z), b = new Vector2(to.x, to.z);
+        if (!fortressBounds.Contains(b)) return false; // daleko od pevnosti — nic neřeš
+
+        for (int i = 0; i < shotRuns.Count; i++)
+        {
+            float distTo = DistToRun(shotRuns[i], b, out float along);
+            if (distTo >= WALK_BLOCK) continue;
+            if (i == gateRunIndex && Mathf.Abs(along - gateAlong) < GATE_HALF_OPEN) continue; // průchod bránou
+            if (distTo < DistToRun(shotRuns[i], a, out _)) return true;
+        }
+
+        foreach (var tw in FortressTower.All)
+        {
+            if (tw == null) continue;
+            Vector2 c = new Vector2(tw.transform.position.x, tw.transform.position.z);
+            float r = FortressTower.RADIUS + 0.2f;
+            if ((b - c).sqrMagnitude < r * r && (b - c).sqrMagnitude < (a - c).sqrMagnitude) return true;
+        }
+
+        var tb = new Vector2Int(Mathf.RoundToInt(to.x), Mathf.RoundToInt(to.z));
+        var ta = new Vector2Int(Mathf.RoundToInt(from.x), Mathf.RoundToInt(from.z));
+        return yardBlocked.Contains(tb) && !yardBlocked.Contains(ta);
+    }
+
+    // Vzdálenost bodu od osy úseku hradby (konce úseku jsou "zaoblené"); `along` = kde na úseku.
+    private static float DistToRun(WallRun run, Vector2 pt, out float along)
+    {
+        float len = Mathf.Max(0f, run.EffLength);
+        along = Mathf.Clamp(Vector2.Dot(pt - run.EffStart, run.Dir), 0f, len);
+        return (pt - (run.EffStart + run.Dir * along)).magnitude;
+    }
+
     private const float WALL_SCALE = 0.5f; // Kenney hradba/brána jsou při scale 1 přes 2/4 j — 0.5 = přesně 1.0/2.0 j (1/2 dlaždice)
 
-    // Vrací pozice postavených věží (world XZ) — BuildFortress na některé
-    // z nich (náhodně, deterministicky) posadí dělo, viz PlaceCannonsOnTowers.
+    // Věže postavené pro tenhle ostrov (pořadí = index v GameData.fortressTowersDown).
+    private readonly List<FortressTower> towers = new List<FortressTower>();
+    private readonly HashSet<int> cannonTowerIdx = new HashSet<int>(); // na kterých věžích stojí dělo
+
+    // Postaví hradby po obvodu ostrova, bránu přesně proti molu a strážní věže v rozích.
+    // Vrací pozice věží (world XZ) — BuildFortress na některé z nich posadí dělo.
     private List<Vector2> BuildWalls()
     {
         // Pojistka proti duplicitám: hradby NEJSOU potomkem markeru (viz níže),
@@ -590,13 +830,10 @@ public class MegaIslandMarker : MonoBehaviour
         // hra"/"Pokračovat" bez restartu Unity) by je postavilo podruhé na
         // sebe. Kontrola podle jména v AKTUÁLNÍ scéně (ne statické pole — to
         // by přežívalo i Stop/Play, kde se scéna vždy staví od nuly).
-        //
-        // Pozice věží (towerCorners) se ale musí vrátit VŽDY, i když hradby už
-        // stojí — jinak PlaceCannonsOnTowers dostane null a při další "Nové
-        // hře" ostrov zůstane bez děl. PickTowerCorners je deterministický
-        // (hash pozice, žádný Random.value), takže vrátí stejné pozice jako
-        // při prvním postavení hradby.
-        string wallsName = $"Walls_{tilePos.x}_{tilePos.y}";
+        // Tvar hradby, brána i věže se ale počítají VŽDY (deterministicky z tvaru ostrova)
+        // — podle nich se blokuje chůze a rozmisťují děla.
+        string wallsName  = $"Walls_{tilePos.x}_{tilePos.y}";
+        string towersName = $"Towers_{tilePos.x}_{tilePos.y}";
         bool wallsAlreadyBuilt = GameObject.Find(wallsName) != null;
 
         var loop = TraceIslandBoundary();
@@ -604,34 +841,31 @@ public class MegaIslandMarker : MonoBehaviour
         var runs = MergeIntoStraightRuns(loop);
         if (runs.Count == 0) return null;
 
-        var towerCorners = PickTowerCorners(runs, 5);
+        // Věže na nejvýraznějších rozích (až 7, rozmístěné po obvodu).
+        var towerCorners = PickTowerCorners(runs, 7);
 
         // Rohy: zeď je tlustá, takže bez úpravy by u každého rohu chyběl vnější
         // výřez a uvnitř by se dva díly překrývaly (viz MiterRuns).
         MiterRuns(runs);
+        shotRuns = runs;
+        fortressBounds = BoundsOf(runs);
 
-        // Zapamatuj si tvar hradeb a věží — střely přes ně nesmí prolétnout (BlocksShot).
-        shotRuns   = runs;
-        shotTowers = towerCorners;
+        Vector2 center = new Vector2(tilePos.x, tilePos.y);
+        PickGate(runs, center);
+        AlignPierToGate(center);
+
+        // Na kterých věžích bude dělo (2–3, deterministicky podle pozice ostrova).
+        int seed = Mathf.Abs(unchecked(tilePos.x * 73856093 ^ tilePos.y * 19349663));
+        int cannonCount = Mathf.Min(towerCorners.Count, 2 + seed % 2);
+        var order = new List<int>();
+        for (int i = 0; i < towerCorners.Count; i++) order.Add(i);
+        order.Sort((x, y) => TowerPickKey(seed, x).CompareTo(TowerPickKey(seed, y)));
+        cannonTowerIdx.Clear();
+        for (int k = 0; k < cannonCount; k++) cannonTowerIdx.Add(order[k]);
+
+        BuildTowers(towerCorners, center, towersName);
 
         if (wallsAlreadyBuilt) return towerCorners;
-
-        // Směr k molu = stejný vzorec jako v GridManager.PlaceMegaIsland (mola
-        // se vždy dává na stranu přivrácenou ke světovému počátku) — brána jde
-        // na ten rovný úsek hradby, co je tomu směru nejblíž.
-        Vector2 center = new Vector2(tilePos.x, tilePos.y);
-        Vector2 toPier = -center;
-        if (toPier.sqrMagnitude < 1f) toPier = Vector2.down;
-        float pierAngleDeg = Mathf.Atan2(toPier.y, toPier.x) * Mathf.Rad2Deg;
-
-        int gateRun = -1; float bestDiff = 999f;
-        for (int i = 0; i < runs.Count; i++)
-        {
-            if (runs[i].EffLength < 2f) continue; // brána je 2 j široká, potřebuje aspoň tolik místa
-            Vector2 mid = runs[i].EffMidpoint - center;
-            float diff = Mathf.Abs(Mathf.DeltaAngle(Mathf.Atan2(mid.y, mid.x) * Mathf.Rad2Deg, pierAngleDeg));
-            if (diff < bestDiff) { bestDiff = diff; gateRun = i; }
-        }
 
         // ZÁMĚRNĚ NEparentěno pod marker (transform) — na rozdíl od obelisku.
         // Hradby jsou fyzická stavba na ostrově, ne "UI" příběhového markeru:
@@ -641,13 +875,6 @@ public class MegaIslandMarker : MonoBehaviour
         // markeru, zmizely by spolu s ním hned po přečtení vzkazu.
         var wallsGo = new GameObject(wallsName);
         wallsGo.transform.position = new Vector3(tilePos.x, 0f, tilePos.y);
-
-        foreach (var corner in towerCorners)
-        {
-            Vector2 inward = center - corner; // věž "vchodem" dovnitř pevnosti
-            float yRot = Mathf.Atan2(inward.y, inward.x) * Mathf.Rad2Deg;
-            BuildPirateKitPart("tower-complete-small", new Vector3(corner.x, 0f, corner.y), yRot, wallsGo.transform, 1f);
-        }
 
         for (int i = 0; i < runs.Count; i++)
         {
@@ -661,15 +888,13 @@ public class MegaIslandMarker : MonoBehaviour
             // pobřeží ještě trochu překrývají, se tak horní plochy neperou (z-fighting).
             float yLift = (i % 2) * WALL_LIFT;
 
-            if (i == gateRun)
+            if (i == gateRunIndex)
             {
-                // Brána je 2 j široká a stojí uprostřed úseku, po obou stranách
-                // na ni navazují díly hradby.
-                float mid = len * 0.5f;
-                Vector2 gCenter = start + run.Dir * mid;
+                // Brána je 2 j široká a stojí přesně proti molu; po stranách na ni navazují díly hradby.
+                Vector2 gCenter = start + run.Dir * gateAlong;
                 BuildPirateKitPart("castle-gate", new Vector3(gCenter.x, yLift, gCenter.y), yRot, wallsGo.transform, 1f);
-                BuildWallSpan(start, run.Dir, 0f, mid - 1f, yRot, yLift, wallsGo.transform);
-                BuildWallSpan(start, run.Dir, mid + 1f, len, yRot, yLift, wallsGo.transform);
+                BuildWallSpan(start, run.Dir, 0f, gateAlong - 1f, yRot, yLift, wallsGo.transform);
+                BuildWallSpan(start, run.Dir, gateAlong + 1f, len, yRot, yLift, wallsGo.transform);
             }
             else
             {
@@ -684,10 +909,313 @@ public class MegaIslandMarker : MonoBehaviour
         // rovnou tady (stejný snímek, hned po Instantiate všech dílů) v Play
         // ověřeně NEFUNGOVALO (isPartOfStaticBatch zůstalo false u všeho) —
         // stejné volání o snímek později už spolehlivě zabralo, proto korutina.
+        // Věže v tom NEJSOU (stojí zvlášť) — rozpadají se, takže se musí hýbat.
         StartCoroutine(CombineWallsNextFrame(wallsGo));
 
         return towerCorners;
     }
+
+    // Brána: na úsek hradby, který je nejblíž molu (střed obou dlaždic mola u břehu),
+    // a na tom úseku přesně proti molu. Když molo chybí (starý save), brána jde na úsek
+    // ve směru ke světovému počátku (tam se molo staví — GridManager.PlaceMegaIsland).
+    private void PickGate(List<WallRun> runs, Vector2 center)
+    {
+        Vector2 target;
+        Vector2? pier = FindPierBase();
+        if (pier != null) target = pier.Value;
+        else
+        {
+            Vector2 toWorld = -center;
+            if (toWorld.sqrMagnitude < 1f) toWorld = Vector2.down;
+            target = center + toWorld.normalized * 30f;
+        }
+
+        gateRunIndex = -1;
+        float best = float.MaxValue;
+        for (int i = 0; i < runs.Count; i++)
+        {
+            float len = runs[i].EffLength;
+            if (len < 2.4f) continue; // brána je 2 j široká, potřebuje aspoň tolik místa
+            float along = Mathf.Clamp(Vector2.Dot(target - runs[i].EffStart, runs[i].Dir), 1.1f, len - 1.1f);
+            float dist  = (target - (runs[i].EffStart + runs[i].Dir * along)).magnitude;
+            if (dist < best) { best = dist; gateRunIndex = i; gateAlong = along; }
+        }
+        if (gateRunIndex < 0) return;
+
+        // Střed brány "přicvakni" přesně mezi dvě dlaždice (souřadnice x,5) — molo je 2 dlaždice
+        // široké, takže pak sedí přesně proti průchodu (viz AlignPierToGate).
+        var run = runs[gateRunIndex];
+        Vector2 g = run.EffStart + run.Dir * gateAlong;
+        float axis    = Mathf.Abs(run.Dir.x) > 0.5f ? g.x : g.y;           // souřadnice podél zdi
+        float snapped = Mathf.Floor(axis) + 0.5f;
+        float sign    = Mathf.Abs(run.Dir.x) > 0.5f ? run.Dir.x : run.Dir.y; // ±1 podle směru úseku
+        gateAlong = Mathf.Clamp(gateAlong + (snapped - axis) * sign, 1.0f, run.EffLength - 1.0f);
+    }
+
+    // Molo vede přesně do brány. Když ho GridManager kdysi postavil jinam (schodovité
+    // pobřeží — úsek zdi přímo proti němu byl na bránu moc krátký), staré molo se
+    // změní zpátky na vodu a nové (2 × 4 dlaždice) se postaví od brány ven do moře.
+    // Deterministické — po načtení hry vyjde stejně a už se nic nemění.
+    private void AlignPierToGate(Vector2 center)
+    {
+        if (gateRunIndex < 0 || shotRuns == null) return;
+        var run = shotRuns[gateRunIndex];
+        Vector2 g = run.EffStart + run.Dir * gateAlong;
+
+        // Směr ven z pevnosti = kolmice na zeď, která míří od středu ostrova.
+        Vector2 outward = new Vector2(run.Dir.y, -run.Dir.x);
+        if (Vector2.Dot(outward, g - center) < 0f) outward = -outward;
+
+        var wanted = new HashSet<Vector2Int>();
+        for (int side = -1; side <= 1; side += 2)
+        {
+            Vector2 lane = g + run.Dir * (0.5f * side); // dvě řady mola vedle sebe
+            for (int k = 1; k <= 4; k++)
+            {
+                Vector2 p = lane + outward * k;
+                var t = new Vector2Int(Mathf.RoundToInt(p.x), Mathf.RoundToInt(p.y));
+                if (gridManager.GetTileType(t.x, t.y) == TileType.MegaIsland) continue; // pevninu nepřepisuj
+                wanted.Add(t);
+            }
+        }
+        if (wanted.Count == 0) return;
+
+        var existing = new List<Vector2Int>();
+        for (int x = tilePos.x - 22; x <= tilePos.x + 22; x++)
+            for (int y = tilePos.y - 22; y <= tilePos.y + 22; y++)
+                if (gridManager.GetTileType(x, y) == TileType.Pier) existing.Add(new Vector2Int(x, y));
+
+        bool same = existing.Count == wanted.Count;
+        foreach (var e in existing) if (!wanted.Contains(e)) { same = false; break; }
+        if (same) return; // molo už vede do brány
+
+        foreach (var e in existing)
+            if (!wanted.Contains(e)) gridManager.SetTileType(e.x, e.y, TileType.Water);
+        foreach (var w in wanted)
+            gridManager.SetOrCreateTile(w.x, w.y, TileType.Pier);
+        gridManager.Save();
+    }
+
+    // Střed mola u břehu: průměr dlaždic mola, které sousedí s pevninou ostrova.
+    private Vector2? FindPierBase()
+    {
+        Vector2 sum = Vector2.zero;
+        int n = 0;
+        for (int x = tilePos.x - 22; x <= tilePos.x + 22; x++)
+            for (int y = tilePos.y - 22; y <= tilePos.y + 22; y++)
+            {
+                if (gridManager.GetTileType(x, y) != TileType.Pier) continue;
+                bool touchesLand = gridManager.GetTileType(x + 1, y) == TileType.MegaIsland
+                                || gridManager.GetTileType(x - 1, y) == TileType.MegaIsland
+                                || gridManager.GetTileType(x, y + 1) == TileType.MegaIsland
+                                || gridManager.GetTileType(x, y - 1) == TileType.MegaIsland;
+                if (!touchesLand) continue;
+                sum += new Vector2(x, y);
+                n++;
+            }
+        return n > 0 ? sum / n : (Vector2?)null;
+    }
+
+    // Obdélník kolem všech úseků hradby (+ rezerva) — rychlý test "jsem u pevnosti?".
+    private static Rect BoundsOf(List<WallRun> runs)
+    {
+        float minX = float.MaxValue, minY = float.MaxValue, maxX = float.MinValue, maxY = float.MinValue;
+        foreach (var r in runs)
+        {
+            Vector2 a = r.EffStart, b = r.EffStart + r.Dir * r.EffLength;
+            minX = Mathf.Min(minX, Mathf.Min(a.x, b.x)); maxX = Mathf.Max(maxX, Mathf.Max(a.x, b.x));
+            minY = Mathf.Min(minY, Mathf.Min(a.y, b.y)); maxY = Mathf.Max(maxY, Mathf.Max(a.y, b.y));
+        }
+        const float M = 3f;
+        return Rect.MinMaxRect(minX - M, minY - M, maxX + M, maxY + M);
+    }
+
+    // Strážní věže v rozích. Stojí zvlášť (ne pod hradbami), protože se dají rozbít.
+    // Zbořené (GameData.fortressTowersDown) se postaví jen jako sutiny.
+    private void BuildTowers(List<Vector2> corners, Vector2 center, string towersName)
+    {
+        towers.Clear();
+        var existing = GameObject.Find(towersName);
+        if (existing != null)
+        {
+            // Věže v téhle scéně už stojí (další "Nová hra" bez restartu) — jen si je najdi.
+            foreach (var t in existing.GetComponentsInChildren<FortressTower>()) towers.Add(t);
+            towers.Sort((a, b) => a.Index.CompareTo(b.Index));
+            return;
+        }
+
+        var parent = new GameObject(towersName);
+        parent.transform.position = new Vector3(tilePos.x, 0f, tilePos.y);
+        int downMask = gridManager.gameData.fortressTowersDown;
+
+        for (int i = 0; i < corners.Count; i++)
+        {
+            Vector2 c = corners[i];
+            Vector2 inward = center - c; // vchod věže dovnitř pevnosti
+            float yRot = Mathf.Atan2(inward.x, inward.y) * Mathf.Rad2Deg;
+            bool ruined = (downMask & (1 << i)) != 0;
+            bool hasCannon = cannonTowerIdx.Contains(i);
+            // Věž s dělem má nahoře cimbuří (plošina pro dělo), ostatní strážní věžičku se stříškou.
+            towers.Add(FortressTower.Spawn(i, new Vector3(c.x, 0f, c.y), yRot, !hasCannon, ruined, parent.transform, GetWallMaterial()));
+        }
+    }
+
+    // Sdílený materiál Kenney dílů (atlas colormap.png) — hradby, věže i vybavení nádvoří.
+    private static Material GetWallMaterial()
+    {
+        if (!wallColormapTried) { wallColormapTried = true; wallColormap = Resources.Load<Texture2D>("PirateKit/colormap"); }
+        if (wallMaterial == null && wallColormap != null)
+        {
+            Shader sh = Shader.Find("Universal Render Pipeline/Lit") ?? Shader.Find("Standard");
+            wallMaterial = new Material(sh);
+            if (wallMaterial.HasProperty("_BaseMap")) wallMaterial.SetTexture("_BaseMap", wallColormap);
+            if (wallMaterial.HasProperty("_MainTex")) wallMaterial.SetTexture("_MainTex", wallColormap);
+        }
+        return wallMaterial;
+    }
+
+    // ── Nádvoří pevnosti (vnitřek hradeb) ───────────────────────────────────
+    // Ať uvnitř není jen trezor: chatrče s doškovou střechou, hromady beden a sudů,
+    // pirátské vlajky, palma a polní dělo. Od brány k náměstí vede volná cesta.
+    // Všechno deterministicky podle tvaru ostrova (stejný ostrov = stejné nádvoří).
+    // Chatrče a bedny blokují chůzi (yardBlocked) — volné zůstane náměstí uprostřed
+    // (cedule, trezor, stránka deníku) a chodník od brány.
+    private void BuildYard()
+    {
+        yardBlocked.Clear();
+        if (gateRunIndex < 0 || shotRuns == null) return;
+
+        Vector2 center = new Vector2(tilePos.x, tilePos.y);
+        var gateRun = shotRuns[gateRunIndex];
+        Vector2 gate = gateRun.EffStart + gateRun.Dir * gateAlong;
+
+        // Políčka, která musí zůstat volná: náměstí, trezor/stránka deníku, chodník.
+        var keepFree = new HashSet<Vector2Int>();
+        foreach (var t in FindGuardTiles(3))
+            for (int dx = -1; dx <= 1; dx++)
+                for (int dy = -1; dy <= 1; dy++) keepFree.Add(new Vector2Int(t.x + dx, t.y + dy));
+
+        var cand = new List<Vector2Int>();
+        for (int x = tilePos.x - 16; x <= tilePos.x + 16; x++)
+            for (int y = tilePos.y - 16; y <= tilePos.y + 16; y++)
+            {
+                var t = new Vector2Int(x, y);
+                if (Mathf.Max(Mathf.Abs(x - tilePos.x), Mathf.Abs(y - tilePos.y)) < 3) continue; // náměstí
+                if (keepFree.Contains(t)) continue;
+                if (!IsInnerTile(x, y, 2)) continue;                                              // ne u zdi
+                if (DistToSegment(new Vector2(x, y), gate, center) < 1.8f) continue;             // chodník
+                if (NearTower(new Vector2(x, y), 1.8f)) continue;
+                cand.Add(t);
+            }
+        cand.Sort((a, b) => YardKey(a).CompareTo(YardKey(b)));
+
+        string yardName = $"Yard_{tilePos.x}_{tilePos.y}";
+        bool alreadyBuilt = GameObject.Find(yardName) != null;
+        GameObject yard = alreadyBuilt ? null : new GameObject(yardName);
+
+        // Co kam: 3 chatrče, 2 vlajky, 1 palma, 1 polní dělo, pak bedny a sudy.
+        string[] plan = { "hut", "hut", "flag", "crates", "hut", "barrels", "cannon", "flag", "crates", "palm", "barrels", "crates" };
+        var picked = new List<Vector2Int>();
+        int next = 0;
+        foreach (var t in cand)
+        {
+            if (next >= plan.Length) break;
+            string what = plan[next];
+            int spacing = what == "hut" ? 3 : 2;
+            bool tooClose = false;
+            foreach (var p in picked)
+                if (Mathf.Max(Mathf.Abs(p.x - t.x), Mathf.Abs(p.y - t.y)) < spacing) { tooClose = true; break; }
+            if (tooClose) continue;
+
+            picked.Add(t);
+            next++;
+            if (what != "flag" && what != "palm") yardBlocked.Add(t); // přes chatrč a bedny se nechodí
+            if (yard != null) BuildYardProp(what, t, center, yard.transform);
+        }
+        // (Prkenný chodník od brány jsem zkoušel — terén ostrova uvnitř stoupá, prkna se
+        //  zanořovala do trávy. Cesta od brány k náměstí proto zůstává jen volná.)
+    }
+
+    // Jedna rekvizita nádvoří na políčku `t` (natočená ke středu, ať "kouká" na náměstí).
+    private void BuildYardProp(string what, Vector2Int t, Vector2 center, Transform parent)
+    {
+        Vector2 toCenter = center - new Vector2(t.x, t.y);
+        float yRot = Mathf.Atan2(toCenter.x, toCenter.y) * Mathf.Rad2Deg;
+        Vector3 pos = new Vector3(t.x, 0f, t.y);
+        int h = YardKey(t) & 0xffff; // drobná "náhoda" (natočení, posun) — pořád deterministická
+
+        switch (what)
+        {
+            case "hut":
+                PlaceKit("structure-roof", pos, yRot, 0.55f, parent);
+                PlaceKit("barrel", pos + new Vector3(0.75f, 0f, -0.55f), h % 360, 0.35f, parent);
+                break;
+            case "flag":
+                PlaceKit("flag-pirate-high", pos, yRot + 90f, 0.6f, parent);
+                break;
+            case "crates":
+                PlaceKit("crate", pos + new Vector3(-0.2f, 0f, 0.1f), h % 90, 0.45f, parent);
+                PlaceKit("crate-bottles", pos + new Vector3(0.35f, 0f, -0.25f), (h / 7) % 90, 0.45f, parent);
+                PlaceKit("crate", pos + new Vector3(-0.15f, 0.35f, 0.05f), (h / 13) % 90, 0.42f, parent); // druhá bedna navrch
+                break;
+            case "barrels":
+                PlaceKit("barrel", pos + new Vector3(-0.25f, 0f, 0f), 0f, 0.4f, parent);
+                PlaceKit("barrel", pos + new Vector3(0.3f, 0f, 0.2f), 40f, 0.4f, parent);
+                PlaceKit("barrel", pos + new Vector3(0.1f, 0f, -0.35f), 80f, 0.4f, parent);
+                break;
+            case "cannon":
+                PlaceKit("cannon-mobile", pos, yRot + 180f, 0.5f, parent); // míří ven, k hradbám
+                break;
+            case "palm":
+                PlaceKit("palm-detailed-straight", pos, h % 360, 0.45f, parent);
+                break;
+        }
+    }
+
+    // Postaví jeden Kenney díl (sdílený materiál, bez colliderů).
+    private static void PlaceKit(string model, Vector3 pos, float yRot, float scale, Transform parent)
+    {
+        var prefab = Resources.Load<GameObject>("PirateKit/" + model);
+        if (prefab == null) return;
+        var go = Instantiate(prefab, pos, Quaternion.Euler(0f, yRot, 0f), parent);
+        go.name = model;
+        go.transform.localScale = Vector3.one * scale;
+        Material mat = GetWallMaterial();
+        foreach (var mr in go.GetComponentsInChildren<MeshRenderer>())
+        {
+            if (mat != null) mr.sharedMaterial = mat;
+            mr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.On;
+        }
+        foreach (var col in go.GetComponentsInChildren<Collider>()) Destroy(col);
+    }
+
+    // Políčko uvnitř hradeb: kolem něj (do vzdálenosti `margin`) je samá pevnina ostrova.
+    private bool IsInnerTile(int x, int y, int margin)
+    {
+        for (int dx = -margin; dx <= margin; dx++)
+            for (int dy = -margin; dy <= margin; dy++)
+                if (gridManager.GetTileType(x + dx, y + dy) != TileType.MegaIsland) return false;
+        return true;
+    }
+
+    private bool NearTower(Vector2 p, float range)
+    {
+        foreach (var t in towers)
+            if (t != null && (new Vector2(t.transform.position.x, t.transform.position.z) - p).sqrMagnitude < range * range)
+                return true;
+        return false;
+    }
+
+    private static float DistToSegment(Vector2 p, Vector2 a, Vector2 b)
+    {
+        Vector2 ab = b - a;
+        float len2 = ab.sqrMagnitude;
+        if (len2 < 0.0001f) return (p - a).magnitude;
+        float t = Mathf.Clamp01(Vector2.Dot(p - a, ab) / len2);
+        return (p - (a + ab * t)).magnitude;
+    }
+
+    private static int YardKey(Vector2Int t) => unchecked(t.x * 83492791 ^ t.y * 297121507) & 0x7fffffff;
 
     private IEnumerator CombineWallsNextFrame(GameObject wallsGo)
     {
@@ -948,6 +1476,9 @@ public class MegaIslandMarker : MonoBehaviour
         if (holdBuilt && x == holdTile.x && y == holdTile.y)
             return TryReadMessage(playerIndex);
 
+        // Stránka bratrova deníku.
+        if (pageIndex >= 0 && x == pageTile.x && y == pageTile.y) { CollectDiaryPage(); return true; }
+
         if (x != tilePos.x || y != tilePos.y) return false;
         if (CombatDirector.Instance != null) CombatDirector.Instance.Toast(Loc.T(signTextCs, signTextEn));
         return true;
@@ -969,6 +1500,8 @@ public class MegaIslandMarker : MonoBehaviour
 
         if (holdBuilt && x == holdTile.x && y == holdTile.y)
             return gridManager != null && gridManager.gameData.megaTask < 3 ? Loc.T("prohledat podpalubí", "search the hold") : null;
+
+        if (pageIndex >= 0 && x == pageTile.x && y == pageTile.y) return Loc.T("vzít svitek", "take the scroll");
 
         if (x == tilePos.x && y == tilePos.y)
         {

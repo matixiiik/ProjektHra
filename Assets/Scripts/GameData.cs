@@ -260,6 +260,19 @@ public class GameData
     /// </summary>
     public bool IsOnCurrentMegaIsland => !storyDone && storyIslandActive && storyStep >= 3;
 
+    // ── Příběh — fáze B a C (11/2026). Nová pole na konci = staré savy je načtou jako 0/false.
+    public int  diaryPagesMask;    // bitová maska sebraných stránek bratrova deníku (DiaryPages, 6 kusů)
+    public bool storyEpilogueSeen; // po finále hráč dojel za dědou a viděl závěrečnou obrazovku (EndScreen)
+    public bool hardMode;          // "Těžké moře" — odemkne se po dohrání příběhu (silnější piráti, lepší kořist)
+
+    // Statistiky na závěrečnou obrazovku (počítají se od verze s EndScreen, starší savy začnou od 0).
+    public int   statFishCaught;    // kolik ryb hráči celkem chytili (oba dohromady)
+    public int   statTreasuresDug;  // kolik pokladů z vraků vytěžili
+    public float playSeconds;       // čistý čas hraní v sekundách (bez pauzy)
+
+    // Pirátský ostrov — které strážní věže už hráč zbořil (bit = pořadí věže, FortressTower.Index).
+    public int fortressTowersDown;
+
     // ── LEGACY (zbraň panáčka + hotbar) — zdroj pro migraci, viz výš. Bývala tu
     // samostatná sekce, protože se přidala později (staré savy ji dřív neměly).
     public bool hasHandWeapon;

@@ -24,6 +24,7 @@ public class CannonBall : MonoBehaviour
     private const float SPEED       = 15f;
     private const float LIFETIME    = 2.4f;
     private const float HIT_RADIUS  = 1.0f;
+    private const float SHIP_HIT_RADIUS = 1.4f; // loď je protáhlá (trup přes 2 j) — zásah se počítá o kus dál než u děla
     private const float HIT_HEIGHT  = 1.9f;   // jak moc smí být cíl výš/níž než střela (jen u hráčových střel)
     private const float FLIGHT_Y    = 0.1f;   // těsně nad hladinou (nepřátelské střely)
     private const float WATER_Y     = 0.05f;  // pod touhle výškou přímá střela spadla do vody
@@ -35,6 +36,7 @@ public class CannonBall : MonoBehaviour
     private Vector3 vel;       // vodorovná složka rychlosti
     private float   velY;      // svislá složka (u přímé střely = náměr)
     private bool    straight;  // true = přímá dráha bez gravitace (hráč)
+    private bool    heavy;     // dělová koule (ne pěší zbraň) — jen ta rozbíjí věže pevnosti
     private float   life;
 
     // Sdílené materiály (jedna instance na stranu, ne nový materiál na každou střelu).
@@ -54,7 +56,7 @@ public class CannonBall : MonoBehaviour
 
     /// <summary>Hráčova střela: přímá dráha z výšky ústí hlavně, `elevationDeg` = náměr
     /// (kladný nahoru, záporný dolů). Vodorovný směr je `dir`.</summary>
-    public static void FireAimed(Vector3 from, Vector3 dir, float elevationDeg, float damage, Side side)
+    public static void FireAimed(Vector3 from, Vector3 dir, float elevationDeg, float damage, Side side, bool heavy = true)
     {
         dir.y = 0f;
         if (dir.sqrMagnitude < 0.0001f) dir = Vector3.forward;
@@ -65,6 +67,7 @@ public class CannonBall : MonoBehaviour
         cb.vel      = dir * SPEED * Mathf.Cos(e);
         cb.velY     = SPEED * Mathf.Sin(e);
         cb.straight = true;
+        cb.heavy    = heavy;
     }
 
     // Vytvoří objekt střely (koule) na dané pozici. Rychlost nastaví volající.
@@ -150,7 +153,8 @@ public class CannonBall : MonoBehaviour
             return true;
 
         // Hradby a věže Pirátského ostrova (střela letící dost vysoko je přeletí).
-        return MegaIslandMarker.BlocksShot(p);
+        // Hráčova koule věž zároveň poškodí (nebo trefí dělo, které na ní stojí).
+        return MegaIslandMarker.BlocksShot(p, side == Side.Player, damage, heavy);
     }
 
     // Je cíl ve výšce, kam střela doletí? (Jen přímé hráčovy střely — nepřátelské letí nízko.)
@@ -166,7 +170,7 @@ public class CannonBall : MonoBehaviour
         var dir = CombatDirector.Instance;
         if (dir == null) return;
 
-        PirateShip pirate = dir.PirateNear(transform.position, HIT_RADIUS);
+        PirateShip pirate = dir.PirateNear(transform.position, SHIP_HIT_RADIUS);
         if (pirate != null && HeightOk(pirate)) { pirate.TakeHit(damage); SoundManager.PlayHit(); Destroy(gameObject); return; }
 
         HostileIslandCannon cannon = dir.CannonNear(transform.position, HIT_RADIUS);

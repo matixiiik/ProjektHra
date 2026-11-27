@@ -33,6 +33,7 @@ public class StoryNpc : MonoBehaviour
     private int         talkingWith = -1; // 0 = P1, 1 = P2, -1 = nikdo
     private int         line;
     private string[]    activeLines;  // repliky pro aktuální rozhovor (podle storyStep)
+    private string[]    activeNames;  // kdo kterou repliku říká (null = všechny děda) — epilog s bratrem
     private bool        showGiveButton; // v kroku 1 se splněnými podmínkami
     private float       ignoreKeyUntil;
     private float       reopenAllowedAt;
@@ -73,6 +74,7 @@ public class StoryNpc : MonoBehaviour
     private void BuildDialogForStep()
     {
         showGiveButton = false;
+        activeNames    = null;
 
         // Příběh dohraný (Krok 7, ostrov 3) — zvláštní repliky podle koncovky,
         // nezávisle na StoryStep (ten se po ostrovu 3 už nikam neposouvá).
@@ -242,7 +244,9 @@ public class StoryNpc : MonoBehaviour
                     "Ale to není možné. Můj bratr utonul, když jsem byl ještě kluk. Pohřbili jsme prázdnou rakev.",
                     "Kdo jiný by mi ale napsal „bratře“?",
                     "Kam tě posílá, ti neřeknu — nevím to. Je to schované v té hádance. Dopis máš v Deníku.",
-                    "Spočítej to a najdi to místo na mapě. A dávej pozor na moři, prý se tam něco velkého prohání.",
+                    Data.ambush1Done
+                        ? "Spočítej to a najdi to místo na mapě. A prý jsi na moři skolil nějakou bestii? Ukaž mi pak ten zub!"
+                        : "Spočítej to a najdi to místo na mapě. A dávej pozor na moři, prý se tam něco velkého prohání.",
                 },
                 new[]
                 {
@@ -251,7 +255,9 @@ public class StoryNpc : MonoBehaviour
                     "But it's impossible. My brother drowned when I was still a boy. We buried an empty coffin.",
                     "Yet who else would ever call me “brother”?",
                     "Where it sends you, I can't tell you — I don't know. It's hidden in that riddle. The letter is in your Journal.",
-                    "Work it out and find the place on the map. And mind the sea — they say something big is roaming out there.",
+                    Data.ambush1Done
+                        ? "Work it out and find the place on the map. And they say you slew some beast out at sea? Show me that tooth sometime!"
+                        : "Work it out and find the place on the map. And mind the sea — they say something big is roaming out there.",
                 });
         }
         else
@@ -263,40 +269,72 @@ public class StoryNpc : MonoBehaviour
                     "Hřbitov lodí… Tam jsme tehdy ztroskotali. Táta mě vytáhl z vody a veslovali jsme pryč.",
                     "Říkal, že bratra už nenajdeme. Že ho moře vzalo.",
                     "A on celou tu dobu čekal. Čekal na nás. A my se nevrátili.",
-                    "Pluj za ním, chlapče. Šipka na minimapě tě dovede.",
-                    "Ať je to s ním jakkoli — nenechávej ho tam podruhé.",
+                    DiaryPages.Count(Data) > 0
+                        ? "A ty stránky, cos našel… To je jeho ruka. Psal je pro mě, celé ty roky."
+                        : "Celé ty roky… a já si myslel, že jsem jediný, kdo přežil.",
+                    "Pluj za ním. Šipka na minimapě tě dovede. Ať je to s ním jakkoli — nenechávej ho tam podruhé.",
                 },
                 new[]
                 {
                     "The Ship Graveyard… That's where we were wrecked back then. Father pulled me out of the water and we rowed away.",
                     "He said we would never find my brother. That the sea had taken him.",
                     "And all that time he was waiting. Waiting for us. And we never came back.",
-                    "Go after him, lad. The arrow on the minimap will lead you.",
-                    "Whatever has become of him — don't leave him out there a second time.",
+                    DiaryPages.Count(Data) > 0
+                        ? "And those pages you found… That's his hand. He wrote them for me, all those years."
+                        : "All those years… and I thought I was the only one who survived.",
+                    "Go after him. The arrow on the minimap will lead you. Whatever has become of him — don't leave him out there a second time.",
                 });
         }
     }
 
     // Repliky u dědy po dohrání příběhu (Krok 7) — jiný text podle koncovky
     // (Data.storyEnding: 1 = bratr ušetřen, 2 = bratr zabit).
+    // Poprvé po finále (storyEpilogueSeen = false) dlouhý epilog — u konce 1 rozhovor dědy
+    // s bratrem (repliky se střídají, activeNames), pak závěrečná obrazovka. Potom už jen
+    // krátké repliky.
     private void BuildEndingDialog()
     {
+        string g = NpcName, b = Loc.T("Bratr", "Brother");
+
+        if (Data.storyEpilogueSeen)
+        {
+            if (Data.storyEnding == 1)
+            {
+                activeLines = Loc.Pick(new[] { "Konečně je dům zase plný.", "A moře je zase jen moře." },
+                                       new[] { "At last the house is full again.", "And the sea is just the sea again." });
+                activeNames = new[] { g, b };
+            }
+            else
+                activeLines = Loc.Pick(new[] { "Někdy se dívám na moře a přemýšlím, jestli to tak muselo být." },
+                                       new[] { "Sometimes I look at the sea and wonder whether it had to end that way." });
+            return;
+        }
+
         if (Data.storyEnding == 1)
+        {
             activeLines = Loc.Pick(
                 new[]
                 {
                     "Ty… to není možné.",
-                    "Bratře. Po tolika letech.",
+                    "Ahoj, bratříčku. Zestárl jsi.",
                     "Celý život jsem si myslel, že jsme tě tam nechali umřít.",
-                    "Odpusť mi to, chlapče. Konečně jsi doma.",
+                    "Nechali. Ale přežil jsem. A teď už nikam nepoplu.",
+                    "Odpusť nám to. Odpusť to tátovi… i mně.",
+                    "Proto jsem se vrátil. Sedni si, budeme si mít co vyprávět.",
+                    "Děkuju, chlapče. Přivezl jsi domů víc než poklad.",
                 },
                 new[]
                 {
                     "You… it can't be.",
-                    "Brother. After all these years.",
+                    "Hello, little brother. You've grown old.",
                     "All my life I believed we left you there to die.",
-                    "Forgive me, lad. You're finally home.",
+                    "You did. But I survived. And now I'm not sailing anywhere.",
+                    "Forgive us. Forgive Father… and me.",
+                    "That's why I came back. Sit down — we have a lot to talk about.",
+                    "Thank you, lad. You brought home more than a treasure.",
                 });
+            activeNames = new[] { g, b, g, b, g, b, g };
+        }
         else
             activeLines = Loc.Pick(
                 new[]
@@ -307,6 +345,7 @@ public class StoryNpc : MonoBehaviour
                     "Víš, měl jsem syna. Taky si ho vzalo moře — jednou vyplul a už se nevrátil.",
                     "Roky jsem čekal u okna, stejně jako čekal on tam na útesu.",
                     "Možná si moře od naší rodiny všechno jen půjčuje. A jednou si to vezme zpátky.",
+                    "Děkuju, žes to dotáhl až do konce. Ať to stálo cokoli.",
                 },
                 new[]
                 {
@@ -316,12 +355,26 @@ public class StoryNpc : MonoBehaviour
                     "You know, I had a son. The sea took him too — he sailed out one day and never came back.",
                     "I waited by the window for years, just as he waited out there on the cliff.",
                     "Perhaps the sea only ever borrows from our family. And one day it takes it all back.",
+                    "Thank you for seeing it through to the end. Whatever it cost.",
                 });
     }
 
     // Volá se, když hráč dočte poslední repliku (nebo dialog ukončí).
     private void OnDialogFinished()
     {
+        // Epilog dočtený poprvé (až do poslední repliky) → konec příběhu: zruš šipku domů
+        // a ukaž závěrečnou obrazovku. Zavřený dřív Escapem = epilog se ukáže příště znovu.
+        if (Data.storyDone && !Data.storyEpilogueSeen && activeLines != null && line >= activeLines.Length - 1)
+        {
+            Data.storyEpilogueSeen = true;
+            foreach (var ps in Data.players)
+                if (ps.hasWaypoint && ps.waypointX == Data.storyNpcX && ps.waypointY == Data.storyNpcY) ps.hasWaypoint = false;
+            gridManager.Save();
+            gridManager.NotifyWorldChanged();
+            EndScreen.Show();
+            return;
+        }
+
         if (StoryStep == 0)
         {
             int shipLevel = Data.players[talkingWith].shipLevel;
@@ -575,7 +628,8 @@ public class StoryNpc : MonoBehaviour
             // Póza "sit" je "schoulená" (hlava níž, boky v ~0,33) — model trochu
             // zvedni, ať nejde nohama do země a zadkem sedí na sudu (odladěno ručně).
             model.transform.localPosition += new Vector3(0f, 0.24f, 0f);
-            AddSeat();
+            AddSeat(transform);
+            RefreshCompanion();
             return;
         }
 
@@ -589,16 +643,61 @@ public class StoryNpc : MonoBehaviour
         AddPart(PrimitiveType.Cylinder, "Hair",  new Vector3(0f, 0.95f, 0.02f), new Vector3(0.46f, 0.07f, 0.46f), Vector3.zero,             hair);
         AddPart(PrimitiveType.Cube,     "Beard", new Vector3(0f, 0.66f, 0.17f), new Vector3(0.24f, 0.26f, 0.12f), Vector3.zero,             hair);
         AddPart(PrimitiveType.Cube,     "Nose",  new Vector3(0f, 0.77f, 0.23f), new Vector3(0.08f, 0.08f, 0.13f), Vector3.zero,             skin);
+        RefreshCompanion();
+    }
+
+    // ── Bratr doma (konec 1 — ušetřen) ───────────────────────────────────────
+    private GameObject companion;
+
+    /// <summary>Postaví (nebo zase uklidí) bratra vedle dědy podle konce příběhu. Volá se
+    /// při stavbě dědy a hned po volbě ve finále (RivalNpc). Mluví se s ním přes dědu.</summary>
+    public void RefreshCompanion()
+    {
+        bool want = placed && Data.storyDone && Data.storyEnding == 1;
+        if (!want) { if (companion != null) Destroy(companion); companion = null; return; }
+        if (companion != null) return;
+
+        // Sousední pevninové políčko (ne maják, ne voda) — první vhodné kolem dědy.
+        Vector2Int[] dirs = { Vector2Int.right, Vector2Int.left, Vector2Int.up, Vector2Int.down };
+        Vector2Int spot = tilePos + Vector2Int.right;
+        foreach (var d in dirs)
+            if (gridManager.GetTileType(tilePos.x + d.x, tilePos.y + d.y) == TileType.Harbor) { spot = tilePos + d; break; }
+        gridManager.ClearTileDecor(spot.x, spot.y); // ať mu z hlavy nekouká palma
+
+        companion = new GameObject("BrotherAtHome");
+        companion.transform.SetParent(transform, false);
+        companion.transform.position = new Vector3(spot.x, 0.02f, spot.y);
+        Vector3 toGrandpa = new Vector3(tilePos.x - spot.x, 0f, tilePos.y - spot.y);
+        if (toGrandpa.sqrMagnitude > 0.01f) companion.transform.rotation = Quaternion.LookRotation(toGrandpa);
+
+        // Stejný model jako bratr na Posledním ostrově (RivalNpc). Sedí na sudu čelem k dědovi,
+        // stejně jako děda ("na starém ostrově teď sedí dva" — EndScreen).
+        var model = CharacterModel.TryBuild(companion.transform, "character-male-c",
+            CharacterModel.DEFAULT_SCALE, new Color(0.62f, 0.60f, 0.58f), "SitAnim");
+        if (model != null)
+        {
+            model.transform.localPosition += new Vector3(0f, 0.24f, 0f); // stejné zvednutí jako u dědy
+            AddSeat(companion.transform);
+        }
+        else
+        {
+            var body = GameObject.CreatePrimitive(PrimitiveType.Capsule);
+            Destroy(body.GetComponent<Collider>());
+            body.transform.SetParent(companion.transform, false);
+            body.transform.localPosition = new Vector3(0f, 0.55f, 0f);
+            body.transform.localScale    = new Vector3(0.44f, 0.5f, 0.44f);
+            body.GetComponent<MeshRenderer>().sharedMaterial = MakeMat(new Color(0.24f, 0.26f, 0.30f));
+        }
     }
 
     // Dřevěný sud, na kterém děda sedí (animace "sit" ho posadí zhruba do této výšky).
-    private void AddSeat()
+    private void AddSeat(Transform parent)
     {
         var barrel = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
         var col = barrel.GetComponent<Collider>();
         if (col != null) Destroy(col);
         barrel.name = "DedaSeat";
-        barrel.transform.SetParent(transform, false);
+        barrel.transform.SetParent(parent, false);
         barrel.transform.localPosition = new Vector3(0f, 0.15f, -0.12f);  // pod zadkem, kousek dozadu
         barrel.transform.localScale    = new Vector3(0.52f, 0.16f, 0.52f); // nízká stolička, horní hrana ~0,31 = výška sedu
 
@@ -734,9 +833,10 @@ public class StoryNpc : MonoBehaviour
         GUI.color = Color.white;
 
         float pad = 20f * s;
-        GUI.Label(new Rect(box.x + pad, box.y + 10f * s, box.width - 2 * pad, 30f * s), NpcName, nameStyle);
-        string txt = activeLines != null && activeLines.Length > 0
-            ? activeLines[Mathf.Clamp(line, 0, activeLines.Length - 1)] : "";
+        int li = activeLines != null ? Mathf.Clamp(line, 0, activeLines.Length - 1) : 0;
+        string speaker = activeNames != null && li < activeNames.Length ? activeNames[li] : NpcName;
+        GUI.Label(new Rect(box.x + pad, box.y + 10f * s, box.width - 2 * pad, 30f * s), speaker, nameStyle);
+        string txt = activeLines != null && activeLines.Length > 0 ? activeLines[li] : "";
         GUI.Label(new Rect(box.x + pad, box.y + 46f * s, box.width - 2 * pad, 100f * s), txt, textStyle);
 
         string key = playerIndex == 0 ? "E" : "Numpad 1";

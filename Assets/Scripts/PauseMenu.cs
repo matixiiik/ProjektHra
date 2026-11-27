@@ -58,6 +58,7 @@ public class PauseMenu : MonoBehaviour
         if (GameConsole.IsOpen) return;
         if (DeathScreen.IsOpen) return;
         if (LetterScreen.IsOpen) return; // dopis zavírá Esc, ne pauza
+        if (EndScreen.IsOpen) return;    // závěrečná obrazovka má vlastní tlačítka
 
         // Esc vždy; Enter na numpadu jen v multiplayeru (P2 nemá Esc po ruce).
         bool pausePressed = Input.GetKeyDown(KeyCode.Escape)

@@ -147,6 +147,7 @@ public static class StoryPresets
         if (switcher != null) switcher.Apply();
         grid.Save();
         grid.NotifyWorldChanged();
+        if (StoryNpc.Instance != null) StoryNpc.Instance.RefreshCompanion(); // bratr doma zmizí (příběh je zase rozehraný)
         return $"<color=#44ff44>story {n}</color>: {desc}";
     }
 
@@ -159,7 +160,8 @@ public static class StoryPresets
         d.storyIslandActive = false;
         d.megaIndex = 0; d.megaTask = 0; d.megaCode = 0; d.megaCluesMask = 0;
         d.ambush1Done = false; d.ambush2Done = false;
-        d.storyDone = false; d.storyEnding = 0;
+        d.storyDone = false; d.storyEnding = 0; d.storyEpilogueSeen = false;
+        d.fortressTowersDown = 0; // věže Pirátského ostrova zase stojí
         d.hasLetter = false; d.letterX = 0; d.letterY = 0;
         d.routeStartSet = false; d.routeStartX = 0; d.routeStartY = 0;
         d.players[0].hasWaypoint = false;

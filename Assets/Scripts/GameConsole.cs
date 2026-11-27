@@ -132,6 +132,7 @@ public class GameConsole : MonoBehaviour
                 Log("<color=#ffff88>respawn</color>                       oživí hráče u nejbližšího ostrova");
                 Log("<color=#ffff88>story</color> <1-10>                  PRESET: přenese na část příběhu s výbavou");
                 Log("<color=#ffff88>story</color> [step n / island / histtreasure / megatask n / ending n / nextisland]   příběh (test)");
+                Log("<color=#ffff88>story</color> [diary n|all / epilogue / endscreen / hardmode]   fáze B+C (test)");
                 Log("<color=#ffff88>reset money</color>                   vynuluje mince");
                 Log("<color=#ffff88>clear</color>                         vymaže konzoli");
                 Log("<color=#ffff88>exit</color>                          zavře konzoli");
@@ -467,7 +468,36 @@ public class GameConsole : MonoBehaviour
             d.storyEnding = Mathf.Clamp(ending, 0, 2);
             d.storyDone   = d.storyEnding != 0;
             grid.Save(); grid.NotifyWorldChanged();
+            if (StoryNpc.Instance != null) StoryNpc.Instance.RefreshCompanion(); // bratr doma u dědy (konec 1)
             Log($"storyEnding = {d.storyEnding}, storyDone = {d.storyDone}");
+        }
+        // diary <0-5|all> — připíše stránku bratrova deníku (DiaryPages), ať jde vyzkoušet Deník.
+        else if (p[1] == "diary" && p.Length >= 3)
+        {
+            if (p[2] == "all") d.diaryPagesMask = (1 << DiaryPages.COUNT) - 1;
+            else if (int.TryParse(p[2], out int page)) DiaryPages.Collect(d, Mathf.Clamp(page, 0, DiaryPages.COUNT - 1));
+            grid.Save();
+            Log($"Stránky deníku: {DiaryPages.Count(d)}/{DiaryPages.COUNT}");
+        }
+        // epilogue — vrátí "ještě jsi nebyl u dědy po finále" (znovu epilog + závěrečná obrazovka).
+        else if (p[1] == "epilogue")
+        {
+            d.storyEpilogueSeen = false;
+            grid.Save(); grid.NotifyWorldChanged();
+            Log("storyEpilogueSeen = false — promluv si s dědou.");
+        }
+        // endscreen — rovnou otevře závěrečnou obrazovku (statistiky + titulky).
+        else if (p[1] == "endscreen")
+        {
+            IsOpen = false;
+            EndScreen.Show();
+        }
+        // hardmode — přepne Těžké moře (jinak se zapíná na závěrečné obrazovce).
+        else if (p[1] == "hardmode")
+        {
+            d.hardMode = !d.hardMode;
+            grid.Save();
+            Log($"hardMode = {d.hardMode}");
         }
         // nextisland — posune na další mega ostrov (0→1→2): umístí ho daleko
         // deterministicky, nastaví waypoint, zničí starý obelisk (viz

@@ -10,10 +10,10 @@ povoleno bez uvedení autora; autoři jsou přesto uvedeni z úcty.
 | Pirate Kit 2.1 | Kenney — https://kenney.nl | CC0 1.0 | `Assets/Kenney/PirateKit`, `Assets/KenneyBoat`, `Assets/Resources/PirateKit`, `Assets/Resources/IslandDecor`, `Assets/Resources/PirateShips`, `Assets/Resources/GhostShip` | lodě, děla, hradby, věže, dekorace ostrovů, pirátské lodě, Bludný Holanďan |
 | Mini Characters 1.0 | Kenney — https://kenney.nl | CC0 1.0 | `Assets/Resources/Characters` | model hráče a postav |
 | Animated Fish Pack (žralok) | Quaternius — https://quaternius.com | CC0 1.0 | `Assets/Resources/SeaMonster` | mořská obluda |
-| Zvuky | vlastní | vlastní dílo (MIT) | `Assets/Scripts/SoundManager.cs` | zvuky generované kódem (sinusovky a šum), žádné audio soubory |
+| Zvuky a hudba | vlastní | vlastní dílo (MIT) | `Assets/Scripts/SoundManager.cs` | zvuky i hudba generované kódem (sinusovky, akordy a šum), žádné audio soubory |
 
 Ve hře se nepoužívají žádné cizí fonty, textury (kromě `colormap.png` z kitů
-výše) ani hudba.
+výše) ani cizí hudba.
 
 ## Nástroje a balíčky (nejsou součástí hry)
 

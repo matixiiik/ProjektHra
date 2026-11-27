@@ -67,6 +67,8 @@ public class SeaMonster : MonoBehaviour
 
     private GridManager gridManager;
     private Transform   modelTf;       // model žraloka (vlní se, ať to vypadá jako plavání)
+    private Transform   shadowTf;      // tmavý stín těsně pod hladinou — obluda je vidět dřív než zaútočí
+    private const float SHADOW_Y = WATER_Y - 0.18f;
     private readonly List<Material> glowMats = new List<Material>(); // materiály, co se v Telegraphu zbarví do červena
 
     /// <summary>Vytvoří obludu na dané pozici (hladina).</summary>
@@ -94,6 +96,45 @@ public class SeaMonster : MonoBehaviour
     {
         modelTf = TryBuildSharkModel();
         if (modelTf == null) BuildPrimitiveFallback();
+        BuildShadow();
+    }
+
+    // Stín: vodorovná placka s měkkou tmavou elipsou (textura z kódu), jede s obludou
+    // těsně pod hladinou — přes poloprůhlednou vodu je vidět velký tmavý tvar.
+    private void BuildShadow()
+    {
+        const int S = 64;
+        var tex = new Texture2D(S, S, TextureFormat.RGBA32, false) { wrapMode = TextureWrapMode.Clamp };
+        for (int y = 0; y < S; y++)
+            for (int x = 0; x < S; x++)
+            {
+                float dx = (x - S / 2f) / (S / 2f), dy = (y - S / 2f) / (S / 2f);
+                float a = Mathf.Clamp01(1f - Mathf.Sqrt(dx * dx + dy * dy));
+                tex.SetPixel(x, y, new Color(0f, 0.02f, 0.04f, a * a * 0.75f));
+            }
+        tex.Apply();
+
+        Shader sh = Shader.Find("Universal Render Pipeline/Unlit") ?? Shader.Find("Unlit/Transparent");
+        var mat = new Material(sh);
+        if (mat.HasProperty("_BaseMap")) mat.SetTexture("_BaseMap", tex);
+        if (mat.HasProperty("_MainTex")) mat.SetTexture("_MainTex", tex);
+        if (mat.HasProperty("_Surface"))  mat.SetFloat("_Surface", 1f);
+        if (mat.HasProperty("_SrcBlend")) mat.SetFloat("_SrcBlend", (float)UnityEngine.Rendering.BlendMode.SrcAlpha);
+        if (mat.HasProperty("_DstBlend")) mat.SetFloat("_DstBlend", (float)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
+        if (mat.HasProperty("_ZWrite"))   mat.SetFloat("_ZWrite", 0f);
+        mat.EnableKeyword("_SURFACE_TYPE_TRANSPARENT");
+        mat.renderQueue = 2990; // před hladinou (ta je průhledná, 3000)
+
+        var q = GameObject.CreatePrimitive(PrimitiveType.Quad);
+        Destroy(q.GetComponent<Collider>());
+        q.name = "Shadow";
+        q.transform.SetParent(transform, false);
+        q.transform.localRotation = Quaternion.Euler(90f, 0f, 0f); // položit na hladinu
+        q.transform.localScale    = new Vector3(2.6f, 6.5f, 1f);   // protáhlá jako žraločí tělo
+        var mr = q.GetComponent<MeshRenderer>();
+        mr.sharedMaterial = mat;
+        mr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+        shadowTf = q.transform;
     }
 
     private Transform TryBuildSharkModel()
@@ -170,6 +211,10 @@ public class SeaMonster : MonoBehaviour
         }
 
         AnimateBody();
+
+        // Stín drží pevnou hloubku pod hladinou, ať se obluda potápí/vynořuje jakkoli.
+        if (shadowTf != null)
+            shadowTf.position = new Vector3(transform.position.x, SHADOW_Y, transform.position.z);
     }
 
     // Jednoduchá "animace plavání": tělo se vlní (kmitání kolem svislé osy) a jemně se houpe.

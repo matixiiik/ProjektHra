@@ -40,6 +40,9 @@ public static class StoryEvents
     // Bludný Holanďan (hlídač ostrova 2) — napadne hráče při odjezdu z Hřbitova lodí, na cestě
     // k poslednímu ostrovu. Stejná logika trasy jako u megalodona. Bezpečné volat opakovaně.
     private static PirateShip ghost; // živý Holanďan (nejvýš jeden)
+
+    /// <summary>Pronásleduje teď hráče Bludný Holanďan? (StoryAtmosphere podle toho nahrne zelenou mlhu)</summary>
+    public static bool GhostHunting => ghost != null;
     public static void CheckGhost(GridManager grid)
     {
         if (ghost != null) return; // už pronásleduje
@@ -58,10 +61,37 @@ public static class StoryEvents
 
         ghost = PirateShip.SpawnGhost(spawn.Value, 2); // velká loď
         ghost.SetHunter();
+        AddGhostLanterns(ghost.transform);
         if (CombatDirector.Instance != null)
         {
             CombatDirector.Instance.RegisterGuardShip(ghost); // boss bar
             CombatDirector.Instance.Toast(Loc.T("Z mlhy se vynořuje Bludný Holanďan…", "The Flying Dutchman looms out of the mist…"));
+        }
+    }
+
+    // Zelené lucerny na přídi a zádi Holanďana — přízračné světlo v mlze (fáze B).
+    // Jsou to děti lodi, takže s potopením zmizí samy.
+    private static void AddGhostLanterns(Transform ship)
+    {
+        Vector3[] spots = { new Vector3(0f, 1.3f, 1.1f), new Vector3(0f, 1.6f, -1.1f), new Vector3(0f, 2.6f, 0f) };
+        Shader sh = Shader.Find("Universal Render Pipeline/Unlit") ?? Shader.Find("Unlit/Color");
+        var glow = new Material(sh);
+        Color green = new Color(0.45f, 1f, 0.55f);
+        if (glow.HasProperty("_BaseColor")) glow.SetColor("_BaseColor", green);
+        if (glow.HasProperty("_Color"))     glow.SetColor("_Color", green);
+
+        foreach (var p in spots)
+        {
+            var bulb = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+            Object.Destroy(bulb.GetComponent<Collider>());
+            bulb.name = "GhostLantern";
+            bulb.transform.SetParent(ship, false);
+            bulb.transform.localPosition = p;
+            bulb.transform.localScale    = Vector3.one * 0.22f;
+            bulb.GetComponent<MeshRenderer>().sharedMaterial = glow;
+
+            var l = bulb.AddComponent<Light>();
+            l.type = LightType.Point; l.color = green; l.range = 9f; l.intensity = 2.4f;
         }
     }
 

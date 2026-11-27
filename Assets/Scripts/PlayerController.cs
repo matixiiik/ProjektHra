@@ -316,7 +316,7 @@ public class PlayerController : MonoBehaviour
                         || (RivalNpc.Instance != null && RivalNpc.Instance.IsTalkingWith(playerIndex));
         bool myVaultOpen = VaultMechanism.IsOpenFor(playerIndex); // puzzle na trezoru mega ostrova (Krok 3)
         if (isMoving || isWorking || myShopOpen || myTalkOpen || myVaultOpen || LetterScreen.IsOpenFor(playerIndex) || MapScreen.IsOpenFor(playerIndex)
-            || GameConsole.IsOpen || MainMenuManager.IsVisible || DeathScreen.IsOpenFor(playerIndex)) return;
+            || GameConsole.IsOpen || MainMenuManager.IsVisible || DeathScreen.IsOpenFor(playerIndex) || EndScreen.IsOpen) return;
 
         // E / Numpad1 → nastup/vystup z lodě, nebo vejdi do sousední budovy (maják).
         if (KeyDown(KeyCode.E, KeyCode.Keypad1))
@@ -1720,6 +1720,7 @@ public class PlayerController : MonoBehaviour
         PFishCount += catchAmount;
 
         PQuest.AddProgress(ActiveQuest.TYPE_FISH, catchAmount);
+        gridManager.gameData.statFishCaught += catchAmount; // statistika na závěrečnou obrazovku
 
         // Vyčerpané políčko se změní na obyčejnou vodu.
         if (tile.fishRemaining <= 0)
@@ -1750,6 +1751,7 @@ public class PlayerController : MonoBehaviour
         PTreasureCount += 1;
 
         PQuest.AddProgress(ActiveQuest.TYPE_TREASURE, 1);
+        gridManager.gameData.statTreasuresDug++; // statistika na závěrečnou obrazovku
 
         gridManager.SetTileType(x, y, TileType.Water);
         WorkProgress = 0f;
